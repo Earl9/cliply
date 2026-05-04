@@ -40,7 +40,7 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
   ];
 
   return (
-    <div className="grid shrink-0 grid-cols-5 gap-3 border-t border-[color:var(--cliply-border)] p-5">
+    <footer className="grid shrink-0 grid-cols-[1.2fr_repeat(4,minmax(0,1fr))] gap-3 border-t border-[color:var(--cliply-border)] bg-[color:var(--cliply-card-solid)] p-5">
       {actions.map((action) => {
         const Icon = action.icon;
         return (
@@ -63,6 +63,6 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
           </button>
         );
       })}
-    </div>
+    </footer>
   );
 }

@@ -19,6 +19,15 @@ export async function toggleAlwaysOnTop(nextValue: boolean) {
   await invoke("toggle_main_window_pin", { pinned: nextValue });
 }
 
+export async function toggleMainWindowMaximize() {
+  if (!isTauri()) {
+    console.info("[cliply:mock-window] toggle maximize");
+    return;
+  }
+
+  await getCurrentWindow().toggleMaximize();
+}
+
 export async function showMainWindow() {
   if (!isTauri()) {
     console.info("[cliply:mock-window] show main window");

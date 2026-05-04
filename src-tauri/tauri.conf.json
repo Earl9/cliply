@@ -14,15 +14,17 @@
       {
         "title": "Cliply",
         "label": "main",
-        "width": 1160,
-        "height": 760,
-        "minWidth": 780,
-        "minHeight": 560,
+        "width": 1080,
+        "height": 720,
+        "minWidth": 880,
+        "minHeight": 600,
+        "center": true,
         "resizable": true,
         "fullscreen": false,
         "decorations": false,
         "transparent": true,
         "shadow": true,
+        "alwaysOnTop": false,
         "visible": true
       }
     ],

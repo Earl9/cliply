@@ -10,7 +10,7 @@ import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { FooterShortcuts } from "@/components/shell/FooterShortcuts";
 import { PrivacyBanner } from "@/components/shell/PrivacyBanner";
 import { TitleBar } from "@/components/shell/TitleBar";
-import { toggleAlwaysOnTop } from "@/lib/windowAdapter";
+import { hideMainWindow, toggleAlwaysOnTop } from "@/lib/windowAdapter";
 import { useClipboardStore } from "@/stores/clipboardStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -53,6 +53,9 @@ export function AppWindow() {
         if (state.query) {
           event.preventDefault();
           setQuery("");
+        } else {
+          event.preventDefault();
+          void hideMainWindow();
         }
         return;
       }
@@ -89,10 +92,10 @@ export function AppWindow() {
     return () => removeListeners.forEach((unlisten) => unlisten());
   }, [openAbout, openSettings, requestClearHistory]);
 
-  const onToggleWindowPin = () => {
+  const onToggleWindowPin = async () => {
     const nextPinned = !windowPinned;
+    await toggleAlwaysOnTop(nextPinned);
     setWindowPinned(nextPinned);
-    void toggleAlwaysOnTop(nextPinned);
   };
 
   return (

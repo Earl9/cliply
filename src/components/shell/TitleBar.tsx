@@ -1,7 +1,7 @@
 import { ClipboardList, MoreHorizontal, Pin, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconButton } from "@/components/common/IconButton";
-import { hideMainWindow } from "@/lib/windowAdapter";
+import { hideMainWindow, toggleMainWindowMaximize } from "@/lib/windowAdapter";
 
 type TitleBarProps = {
   windowPinned: boolean;
@@ -46,31 +46,54 @@ export function TitleBar({
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between px-7">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="grid size-8 place-items-center rounded-[10px] bg-gradient-to-br from-[#9577ff] to-[#5b3fd7] text-white shadow-sm">
+    <header
+      className="flex h-16 shrink-0 select-none items-center justify-between px-7"
+      data-tauri-drag-region
+      onDoubleClick={() => void toggleMainWindowMaximize()}
+    >
+      <div className="flex min-w-0 items-center gap-3" data-tauri-drag-region>
+        <div
+          className="grid size-8 place-items-center rounded-[10px] bg-gradient-to-br from-[#9577ff] to-[#5b3fd7] text-white shadow-sm"
+          data-tauri-drag-region
+        >
           <ClipboardList className="size-4" />
         </div>
-        <div className="min-w-0">
-          <div className="truncate text-xl font-semibold tracking-normal text-[color:var(--cliply-text)]">
+        <div className="min-w-0" data-tauri-drag-region>
+          <div
+            className="truncate text-xl font-semibold tracking-normal text-[color:var(--cliply-text)]"
+            data-tauri-drag-region
+          >
             Cliply
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div
+        className="flex items-center gap-1"
+        onMouseDown={(event) => event.stopPropagation()}
+        onDoubleClick={(event) => event.stopPropagation()}
+      >
         <IconButton
           label={windowPinned ? "取消置顶" : "置顶窗口"}
           variant={windowPinned ? "soft" : "ghost"}
+          onMouseDown={(event) => event.stopPropagation()}
           onClick={onToggleWindowPin}
         >
           <Pin className="size-4" />
         </IconButton>
-        <IconButton label="设置" onClick={onOpenSettings}>
+        <IconButton
+          label="设置"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={onOpenSettings}
+        >
           <Settings className="size-4" />
         </IconButton>
         <div ref={menuRef} className="relative">
-          <IconButton label="更多" onClick={() => setMenuOpen((open) => !open)}>
+          <IconButton
+            label="更多"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
             <MoreHorizontal className="size-4" />
           </IconButton>
           {menuOpen ? (
@@ -83,7 +106,12 @@ export function TitleBar({
             </div>
           ) : null}
         </div>
-        <IconButton label="Hide Cliply" variant="danger" onClick={() => void hideMainWindow()}>
+        <IconButton
+          label="关闭"
+          variant="danger"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={() => void hideMainWindow()}
+        >
           <X className="size-4" />
         </IconButton>
       </div>

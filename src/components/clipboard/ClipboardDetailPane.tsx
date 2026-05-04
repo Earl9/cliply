@@ -14,8 +14,8 @@ type ClipboardDetailPaneProps = {
 
 export function ClipboardDetailPane({ item, onAction }: ClipboardDetailPaneProps) {
   return (
-    <section className="flex min-w-0 flex-col overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]">
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border)] px-5">
+    <section className="grid min-h-0 min-w-0 grid-rows-[auto_1fr_auto] overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border)] px-5">
         <div>
           <h2 className="text-[15px] font-semibold text-[color:var(--cliply-text)]">
             {item ? `${typeLabel[item.type]} · ${item.sourceApp}` : "内容详情"}
@@ -30,17 +30,17 @@ export function ClipboardDetailPane({ item, onAction }: ClipboardDetailPaneProps
             <MoreHorizontal className="size-4" />
           </IconButton>
         </div>
-      </div>
+      </header>
       {item ? (
         <>
-          <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto p-5">
+          <div className="cliply-scrollbar min-h-0 overflow-y-auto px-5 py-5">
             <ClipboardPreview item={item} />
             <ClipboardMetadata item={item} />
           </div>
           <ClipboardActions item={item} onAction={onAction} />
         </>
       ) : (
-        <div className="p-5">
+        <div className="min-h-0 p-5">
           <EmptyState title="没有选中内容" description="从左侧历史列表选择一条记录。" />
         </div>
       )}
