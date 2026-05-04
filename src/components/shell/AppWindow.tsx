@@ -99,8 +99,8 @@ export function AppWindow() {
   };
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_20%_10%,rgba(115,87,246,0.08),transparent_32%),radial-gradient(circle_at_80%_80%,rgba(37,99,235,0.08),transparent_30%),#eef2f8] p-4">
-      <div className="cliply-window-enter relative flex h-[min(720px,calc(100vh-32px))] min-h-[min(600px,calc(100vh-32px))] w-[min(1080px,calc(100vw-32px))] min-w-[min(880px,calc(100vw-32px))] flex-col overflow-hidden rounded-[18px] border border-white/65 bg-[color:var(--cliply-panel)] shadow-[var(--cliply-shadow)] backdrop-blur-2xl">
+    <main className="cliply-root">
+      <div className="cliply-window cliply-window-enter relative flex flex-col">
         <TitleBar
           windowPinned={windowPinned}
           monitoringPaused={settings.pauseMonitoring}
