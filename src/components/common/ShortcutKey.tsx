@@ -3,20 +3,24 @@ import { clsx } from "clsx";
 type ShortcutKeyProps = {
   keys: string[];
   compact?: boolean;
+  tone?: "default" | "onPrimary";
 };
 
-export function ShortcutKey({ keys, compact }: ShortcutKeyProps) {
+export function ShortcutKey({ keys, compact, tone = "default" }: ShortcutKeyProps) {
   return (
     <span className="inline-flex items-center gap-1 align-middle">
       {keys.map((key, index) => (
         <span key={`${key}-${index}`} className="inline-flex items-center gap-1">
           {index > 0 ? (
-            <span className="text-[10px] text-[color:var(--cliply-faint)]">+</span>
+            <span className={clsx("text-xs", tone === "onPrimary" ? "text-white/65" : "text-[#a0a8b5]")}>+</span>
           ) : null}
           <kbd
             className={clsx(
-              "inline-flex min-w-5 items-center justify-center rounded-md border border-[color:var(--cliply-border)] bg-[#f4f5f7] px-2 font-medium text-[color:var(--cliply-muted)]",
-              compact ? "h-6 text-xs" : "h-7 text-xs",
+              "inline-flex min-w-5 items-center justify-center rounded-lg px-[9px] font-medium",
+              compact ? "h-[26px] text-[13px]" : "h-7 text-[13px]",
+              tone === "onPrimary"
+                ? "border border-transparent bg-white/90 text-[color:var(--cliply-accent-strong)]"
+                : "border border-[#e4e8ef] bg-[#f3f5f8] text-[color:var(--cliply-muted)]",
             )}
           >
             {key}

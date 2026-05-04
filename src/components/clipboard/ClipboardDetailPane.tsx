@@ -14,10 +14,10 @@ type ClipboardDetailPaneProps = {
 
 export function ClipboardDetailPane({ item, onAction }: ClipboardDetailPaneProps) {
   return (
-    <section className="grid min-h-0 min-w-0 grid-rows-[auto_1fr_auto] overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border)] px-5">
+    <section className="grid min-h-0 min-w-0 grid-rows-[64px_1fr_auto] overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-white shadow-[var(--cliply-shadow-card)]">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] px-6">
         <div>
-          <h2 className="text-[15px] font-semibold text-[color:var(--cliply-text)]">
+          <h2 className="text-lg font-semibold text-[color:var(--cliply-text)]">
             {item ? `${typeLabel[item.type]} · ${item.sourceApp}` : "内容详情"}
           </h2>
         </div>
@@ -26,14 +26,14 @@ export function ClipboardDetailPane({ item, onAction }: ClipboardDetailPaneProps
             <Badge tone="amber">隐私保护</Badge>
           ) : null}
           {item?.isPinned ? <Badge tone="accent">已固定</Badge> : null}
-          <IconButton label="更多">
-            <MoreHorizontal className="size-4" />
+          <IconButton label="更多" className="size-8">
+            <MoreHorizontal className="size-[18px]" />
           </IconButton>
         </div>
       </header>
       {item ? (
         <>
-          <div className="cliply-scrollbar min-h-0 overflow-y-auto px-5 py-5">
+          <div className="cliply-scrollbar min-h-0 overflow-y-auto px-6 pb-[18px] pt-6">
             <ClipboardPreview item={item} />
             <ClipboardMetadata item={item} />
           </div>

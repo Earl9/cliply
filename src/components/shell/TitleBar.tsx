@@ -47,20 +47,20 @@ export function TitleBar({
 
   return (
     <header
-      className="flex h-16 shrink-0 select-none items-center justify-between px-7"
+      className="flex h-14 shrink-0 select-none items-center justify-between px-8"
       data-tauri-drag-region
       onDoubleClick={() => void toggleMainWindowMaximize()}
     >
-      <div className="flex min-w-0 items-center gap-3" data-tauri-drag-region>
+      <div className="flex min-w-0 items-center gap-[14px]" data-tauri-drag-region>
         <div
-          className="grid size-8 place-items-center rounded-[10px] bg-gradient-to-br from-[#9577ff] to-[#5b3fd7] text-white shadow-sm"
+          className="grid size-9 place-items-center rounded-xl bg-[color:var(--cliply-accent-strong)] text-white shadow-sm"
           data-tauri-drag-region
         >
-          <ClipboardList className="size-4" />
+          <ClipboardList className="size-[18px]" />
         </div>
         <div className="min-w-0" data-tauri-drag-region>
           <div
-            className="truncate text-xl font-semibold tracking-normal text-[color:var(--cliply-text)]"
+            className="truncate text-2xl font-semibold tracking-normal text-[color:var(--cliply-text)]"
             data-tauri-drag-region
           >
             Cliply
@@ -69,7 +69,7 @@ export function TitleBar({
       </div>
 
       <div
-        className="flex items-center gap-1"
+        className="flex items-center gap-2"
         onMouseDown={(event) => event.stopPropagation()}
         onDoubleClick={(event) => event.stopPropagation()}
       >

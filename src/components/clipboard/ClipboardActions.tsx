@@ -18,6 +18,7 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
     primary?: boolean;
     kind: ClipboardActionKind;
     disabled?: boolean;
+    danger?: boolean;
   }> = [
     {
       label: "粘贴",
@@ -36,11 +37,11 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
       disabled: !availability.pastePlain,
     },
     { label: item.isPinned ? "取消固定" : "固定", keys: ["Ctrl", "P"], icon: Pin, kind: "togglePin" },
-    { label: "删除", keys: ["Del"], icon: Trash2, kind: "delete" },
+    { label: "删除", keys: ["Del"], icon: Trash2, kind: "delete", danger: true },
   ];
 
   return (
-    <footer className="grid shrink-0 grid-cols-[1.2fr_repeat(4,minmax(0,1fr))] gap-3 border-t border-[color:var(--cliply-border)] bg-[color:var(--cliply-card-solid)] p-5">
+    <footer className="grid shrink-0 grid-cols-[1.25fr_repeat(4,minmax(0,1fr))] gap-[14px] border-t border-[color:var(--cliply-border-soft)] bg-white/95 px-6 pb-5 pt-[18px]">
       {actions.map((action) => {
         const Icon = action.icon;
         return (
@@ -50,16 +51,22 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
             disabled={action.disabled}
             onClick={() => onAction(action.kind)}
             className={clsx(
-              "flex h-[72px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
+              "flex h-[78px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] text-[17px] font-semibold transition disabled:cursor-not-allowed disabled:border-transparent disabled:bg-[#f8fafc] disabled:text-[#a0a8b5] disabled:opacity-100",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(124,92,255,0.45)]",
               action.primary
-                ? "bg-[color:var(--cliply-accent-strong)] text-white shadow-sm hover:bg-[#4932af]"
-                : "border border-[color:var(--cliply-border)] bg-white text-[color:var(--cliply-text)] hover:bg-[#fafafb] hover:shadow-sm",
+                ? "bg-[color:var(--cliply-accent-strong)] text-white shadow-sm hover:bg-[color:var(--cliply-accent-dark)]"
+                : action.danger
+                  ? "border border-transparent bg-white text-[color:var(--cliply-body-text)] hover:border-[#fecaca] hover:bg-[#fef2f2] hover:text-[color:var(--cliply-danger)]"
+                  : "border border-transparent bg-white text-[color:var(--cliply-body-text)] hover:border-[color:var(--cliply-border-strong)] hover:bg-[#f8fafc]",
             )}
           >
-            <Icon className="size-5" />
+            <Icon className={clsx(action.primary ? "size-[22px]" : "size-5")} />
             <span>{action.label}</span>
-            <ShortcutKey keys={action.keys} compact />
+            <ShortcutKey
+              keys={action.keys}
+              compact
+              tone={action.primary ? "onPrimary" : "default"}
+            />
           </button>
         );
       })}

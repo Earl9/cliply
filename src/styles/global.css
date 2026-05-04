@@ -11,32 +11,39 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --cliply-bg: #eef2f8;
-  --cliply-bg-soft: #fafafb;
+  --cliply-bg: #f3f6fa;
+  --cliply-bg-soft: #f8fafc;
   --cliply-panel: #f8fafc;
   --cliply-panel-strong: #ffffff;
-  --cliply-card: rgba(255, 255, 255, 0.96);
+  --cliply-card: #ffffff;
   --cliply-card-solid: #ffffff;
-  --cliply-border: rgba(231, 233, 238, 0.92);
-  --cliply-border-strong: #d2d6df;
+  --cliply-border: #e5eaf1;
+  --cliply-border-soft: #eef1f5;
+  --cliply-border-strong: #e2e8f0;
   --cliply-text: #111827;
-  --cliply-muted: #525a6a;
-  --cliply-faint: #747c8c;
-  --cliply-accent: #7357f6;
-  --cliply-accent-strong: #5b3fd7;
+  --cliply-body-text: #1f2937;
+  --cliply-muted: #667085;
+  --cliply-faint: #8a94a6;
+  --cliply-placeholder: #7b8496;
+  --cliply-disabled: #b6bec9;
+  --cliply-accent-50: #f4f0ff;
+  --cliply-accent-100: #e9ddff;
+  --cliply-accent: #7c5cff;
+  --cliply-accent-strong: #6441e8;
+  --cliply-accent-dark: #5234c8;
   --cliply-accent-soft: #f4f1ff;
-  --cliply-accent-border: #d4c6ff;
+  --cliply-accent-border: #e4d8ff;
   --cliply-success: #16a34a;
   --cliply-warning: #f59e0b;
-  --cliply-danger: #ef4444;
+  --cliply-danger: #dc2626;
   --cliply-info: #2563eb;
   --cliply-teal: #0f928b;
   --cliply-amber: #b7791f;
-  --cliply-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
-  --cliply-shadow-card: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --cliply-shadow: 0 24px 80px rgba(15, 23, 42, 0.16);
+  --cliply-shadow-card: 0 8px 24px rgba(15, 23, 42, 0.045);
   --cliply-shadow-selected:
-    0 0 0 1px rgba(115, 87, 246, 0.9),
-    0 12px 30px rgba(115, 87, 246, 0.16);
+    0 0 0 1px #7c5cff,
+    0 8px 22px rgba(124, 92, 255, 0.12);
 }
 
 :root[data-theme="dark"] {
@@ -44,11 +51,16 @@
   --cliply-bg-soft: #171f2e;
   --cliply-panel: #1c2433;
   --cliply-panel-strong: #202939;
+  --cliply-card: #202939;
+  --cliply-card-solid: #202939;
   --cliply-border: rgba(176, 190, 211, 0.16);
+  --cliply-border-soft: rgba(176, 190, 211, 0.12);
   --cliply-border-strong: rgba(176, 190, 211, 0.26);
   --cliply-text: #f3f7fb;
+  --cliply-body-text: #e5edf7;
   --cliply-muted: #b7c1d2;
   --cliply-faint: #8794a8;
+  --cliply-placeholder: #9aa8bb;
 }
 
 * {
@@ -85,7 +97,7 @@ body {
   width: 100%;
   height: 100%;
   background: var(--cliply-panel);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 18px;
   box-shadow: var(--cliply-shadow);
   overflow: hidden;
@@ -129,10 +141,20 @@ button {
   width: 10px;
 }
 
+.cliply-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .cliply-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.28);
+  background: rgba(148, 163, 184, 0.38);
   border: 3px solid transparent;
   border-radius: 999px;
+  background-clip: content-box;
+}
+
+.cliply-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.52);
+  border: 3px solid transparent;
   background-clip: content-box;
 }
 

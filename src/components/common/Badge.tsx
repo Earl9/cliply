@@ -10,7 +10,7 @@ type BadgeProps = {
 };
 
 const toneClass: Record<BadgeTone, string> = {
-  neutral: "bg-slate-100 text-slate-600",
+  neutral: "bg-[#f3f5f8] text-[color:var(--cliply-muted)]",
   accent: "bg-[color:var(--cliply-accent-soft)] text-[color:var(--cliply-accent-strong)]",
   teal: "bg-teal-50 text-teal-700",
   amber: "bg-amber-50 text-amber-700",
@@ -21,7 +21,7 @@ export function Badge({ children, tone = "neutral", className }: BadgeProps) {
   return (
     <span
       className={clsx(
-        "inline-flex h-6 items-center rounded-md px-2 text-xs font-medium",
+        "inline-flex h-7 items-center rounded-lg px-2.5 text-sm font-medium",
         toneClass[tone],
         className,
       )}

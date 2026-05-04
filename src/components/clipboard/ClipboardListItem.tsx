@@ -44,16 +44,16 @@ export function ClipboardListItem({
         }
       }}
       className={clsx(
-        "flex min-h-[92px] w-full cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition duration-150 active:scale-[0.995]",
+        "group grid h-[104px] w-full cursor-pointer grid-cols-[56px_minmax(0,1fr)_28px] items-center gap-4 rounded-[14px] border px-[18px] py-4 text-left transition duration-150 active:scale-[0.995]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
         selected
-          ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-soft)] shadow-[var(--cliply-shadow-selected)]"
-          : "border-[color:var(--cliply-border)] bg-white/75 shadow-sm hover:bg-white hover:shadow-[var(--cliply-shadow-card)]",
+          ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] shadow-[var(--cliply-shadow-selected)]"
+          : "border-[#e7ebf2] bg-white shadow-none hover:-translate-y-px hover:border-[#dde3ec] hover:shadow-[0_8px_20px_rgba(15,23,42,0.06)]",
       )}
     >
       <span
         className={clsx(
-          "grid size-[52px] shrink-0 place-items-center rounded-xl border border-[color:var(--cliply-border)] bg-white",
+          "grid size-[52px] shrink-0 place-items-center rounded-xl border border-[#e7ebf2] bg-white",
           item.type === "code" && "bg-indigo-50 text-indigo-700",
           item.type === "link" && "bg-teal-50 text-teal-700",
           item.type === "text" && "bg-slate-100 text-slate-600",
@@ -71,36 +71,14 @@ export function ClipboardListItem({
           <Icon className="size-5" />
         )}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center justify-between gap-2">
-          <span className="truncate text-[13px] text-[color:var(--cliply-faint)]">
-            {sensitive ? "隐私" : typeLabel[item.type]} · {item.sourceApp}
-          </span>
-          <button
-            type="button"
-            aria-label={item.isPinned ? "取消固定" : "固定"}
-            title={item.isPinned ? "取消固定" : "固定"}
-            onClick={(event) => {
-              event.stopPropagation();
-              onTogglePin();
-            }}
-            className={clsx(
-              "grid size-7 shrink-0 place-items-center rounded-lg text-[color:var(--cliply-faint)] transition hover:bg-white/80 hover:text-[color:var(--cliply-accent)]",
-              item.isPinned && "text-[color:var(--cliply-accent)]",
-            )}
-          >
-            <Pin
-              className={clsx(
-                "size-3.5",
-                item.isPinned && "fill-[color:var(--cliply-accent)]",
-              )}
-            />
-          </button>
+      <span className="min-w-0">
+        <span className="block truncate text-sm leading-5 text-[color:var(--cliply-placeholder)]">
+          {sensitive ? "隐私" : typeLabel[item.type]} · {item.sourceApp}
         </span>
-        <span className="mt-1 block truncate text-[15px] font-medium leading-6 text-[color:var(--cliply-text)]">
+        <span className="mt-1 block truncate text-[17px] font-semibold leading-6 text-[color:var(--cliply-text)]">
           {sensitive ? "已隐藏敏感内容" : item.previewText}
         </span>
-        <span className="mt-1 flex min-w-0 items-center gap-2 text-[13px] text-[color:var(--cliply-faint)]">
+        <span className="mt-1 flex min-w-0 items-center gap-2 text-sm leading-5 text-[color:var(--cliply-placeholder)]">
           <span>{formatCopiedTime(item.copiedAt)}</span>
           <span>·</span>
           <span>{formatRelativeTime(item.copiedAt)}</span>
@@ -111,6 +89,26 @@ export function ClipboardListItem({
           ))}
         </span>
       </span>
+      <button
+        type="button"
+        aria-label={item.isPinned ? "取消固定" : "固定"}
+        title={item.isPinned ? "取消固定" : "固定"}
+        onClick={(event) => {
+          event.stopPropagation();
+          onTogglePin();
+        }}
+        className={clsx(
+          "grid size-7 shrink-0 place-items-center rounded-lg text-[#9aa3b2] opacity-55 transition hover:bg-white hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-100",
+          item.isPinned && "text-[color:var(--cliply-accent-strong)] opacity-100",
+        )}
+      >
+        <Pin
+          className={clsx(
+            "size-[18px]",
+            item.isPinned && "fill-[color:var(--cliply-accent-strong)]",
+          )}
+        />
+      </button>
     </article>
   );
 }

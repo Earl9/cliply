@@ -28,18 +28,18 @@ export function ClipboardList({
   const footerText = getFooterText({ query, filter, shownCount: items.length, totalCount });
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border)] px-5 text-sm">
-        <span className="font-semibold text-[color:var(--cliply-text)]">剪贴板历史</span>
-        <span className="text-xs text-[color:var(--cliply-faint)]">{items.length} 条</span>
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-white shadow-[var(--cliply-shadow-card)]">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] px-6">
+        <span className="text-[17px] font-semibold text-[color:var(--cliply-text)]">剪贴板历史</span>
+        <span className="text-sm text-[color:var(--cliply-muted)]">{items.length} 条</span>
       </div>
-      <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto p-3 pr-2">
+      <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto px-[14px] pt-[14px]">
         {loading ? (
           <div className="space-y-2.5">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={index}
-                className="min-h-[92px] animate-pulse rounded-xl border border-[color:var(--cliply-border)] bg-white/60 p-4"
+                className="h-[104px] animate-pulse rounded-[14px] border border-[#e7ebf2] bg-white p-4"
               >
                 <div className="mb-3 h-3 w-28 rounded bg-slate-200" />
                 <div className="mb-3 h-4 w-4/5 rounded bg-slate-200" />
@@ -77,7 +77,7 @@ export function ClipboardList({
           />
         )}
       </div>
-      <div className="shrink-0 border-t border-[color:var(--cliply-border)] px-5 py-3 text-xs text-[color:var(--cliply-muted)]">
+      <div className="flex h-11 shrink-0 items-center border-t border-[color:var(--cliply-border-soft)] px-6 text-sm text-[color:var(--cliply-muted)]">
         {footerText}
       </div>
     </section>

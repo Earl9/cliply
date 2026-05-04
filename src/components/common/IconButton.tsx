@@ -22,9 +22,9 @@ export function IconButton({
       className={clsx(
         "grid size-9 place-items-center rounded-[10px] border border-transparent text-[color:var(--cliply-muted)] transition",
         "hover:bg-slate-900/[0.06] hover:text-[color:var(--cliply-text)] active:bg-slate-900/[0.10]",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
-        variant === "soft" && "bg-white/70 text-[color:var(--cliply-accent)]",
-        variant === "danger" && "hover:bg-red-50 hover:text-red-600",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(124,92,255,0.45)]",
+        variant === "soft" && "bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)]",
+        variant === "danger" && "hover:bg-[rgba(220,38,38,0.08)] hover:text-[color:var(--cliply-danger)]",
         className,
       )}
       {...props}
