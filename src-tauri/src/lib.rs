@@ -19,6 +19,7 @@ pub fn run() {
             db::initialize_storage(app.handle())?;
             tray::create_tray(app.handle())?;
             shortcuts::register_default_shortcuts(app.handle())?;
+            platform::start_clipboard_listener(app.handle().clone())?;
             Ok(())
         })
         .run(tauri::generate_context!())

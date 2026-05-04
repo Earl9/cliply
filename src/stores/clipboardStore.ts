@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type {
   ClipboardActionKind,
   ClipboardActionStatus,
@@ -30,6 +32,7 @@ export function useClipboardStore() {
   const [detail, setDetail] = useState<ClipboardItem | null>(mockClipboardItems[0] ?? null);
   const [loading, setLoading] = useState(false);
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedQuery(query), 150);
@@ -48,7 +51,7 @@ export function useClipboardStore() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +81,34 @@ export function useClipboardStore() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, filter]);
+  }, [debouncedQuery, filter, refreshToken]);
+
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    listen("clipboard-items-changed", () => {
+      setRefreshToken((token) => token + 1);
+    })
+      .then((cleanup) => {
+        if (cancelled) {
+          cleanup();
+          return;
+        }
+
+        unlisten = cleanup;
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedId) {

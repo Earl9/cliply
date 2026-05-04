@@ -22,9 +22,8 @@ pub fn connect(app: &AppHandle) -> Result<Connection, CliplyError> {
 }
 
 fn seed_mock_data(connection: &Connection) -> Result<(), CliplyError> {
-    let count: i64 = connection.query_row("SELECT COUNT(*) FROM clipboard_items", [], |row| {
-        row.get(0)
-    })?;
+    let count: i64 =
+        connection.query_row("SELECT COUNT(*) FROM clipboard_items", [], |row| row.get(0))?;
 
     if count > 0 {
         return Ok(());

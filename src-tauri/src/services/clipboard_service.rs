@@ -2,9 +2,12 @@ use crate::error::CliplyError;
 use crate::models::clipboard_item::{
     ClipboardFormatDto, ClipboardItemDetailDto, ClipboardItemDto, ClipboardItemType,
 };
-use crate::services::database_service;
+use crate::platform::{self, ClipboardSnapshot};
+use crate::services::{database_service, hash_service, sensitive_detector};
 use rusqlite::{params, Connection};
 use tauri::AppHandle;
+use time::OffsetDateTime;
+use uuid::Uuid;
 
 pub fn list_clipboard_items(
     app: &AppHandle,
@@ -80,6 +83,119 @@ pub fn toggle_pin_clipboard_item(
     )?;
 
     load_item(&connection, &id)
+}
+
+pub fn ingest_current_clipboard(app: &AppHandle) -> Result<Option<ClipboardItemDto>, CliplyError> {
+    let snapshot = match platform::read_current_clipboard()? {
+        Some(snapshot) => snapshot,
+        None => return Ok(None),
+    };
+
+    ingest_clipboard_snapshot(app, snapshot)
+}
+
+pub fn ingest_clipboard_snapshot(
+    app: &AppHandle,
+    snapshot: ClipboardSnapshot,
+) -> Result<Option<ClipboardItemDto>, CliplyError> {
+    let text = match snapshot.text.as_deref() {
+        Some(text) if !text.trim().is_empty() => text,
+        _ => return Ok(None),
+    };
+
+    if sensitive_detector::looks_sensitive(text) {
+        return Ok(None);
+    }
+
+    let connection = database_service::connect(app)?;
+    let normalized_text = hash_service::normalize_text_for_hash(text);
+    let hash = hash_service::stable_text_hash(text);
+    let now = OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
+
+    if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
+        connection.execute(
+            "UPDATE clipboard_items
+             SET copied_at = ?1,
+                 updated_at = ?1,
+                 used_count = COALESCE(used_count, 0) + 1
+             WHERE id = ?2 AND is_deleted = 0",
+            params![now, existing_id],
+        )?;
+
+        return Ok(Some(load_item(&connection, &existing_id)?));
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let item_type = item_type_as_str(&snapshot.primary_type);
+    let title = title_from_text(text);
+    let preview_text = preview_from_text(text);
+    let source_app = snapshot
+        .source_app
+        .unwrap_or_else(|| "Windows Clipboard".into());
+    let source_window = snapshot.source_window;
+    let size_bytes = text.len() as i64;
+
+    connection.execute(
+        "INSERT INTO clipboard_items (
+            id, type, title, preview_text, normalized_text, source_app, source_window,
+            hash, size_bytes, is_pinned, copied_at, created_at, updated_at, used_count
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?10, ?10, 0)",
+        params![
+            id,
+            item_type,
+            title,
+            preview_text,
+            normalized_text,
+            source_app,
+            source_window,
+            hash,
+            size_bytes,
+            now
+        ],
+    )?;
+
+    connection.execute(
+        "INSERT INTO clipboard_formats (
+            id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
+        ) VALUES (?1, ?2, 'text/plain', 'text/plain', 'text', ?3, ?4, 100, ?5)",
+        params![
+            format!("{id}-format-text"),
+            id,
+            text,
+            size_bytes,
+            now
+        ],
+    )?;
+
+    for (index, format) in snapshot.formats.iter().enumerate() {
+        connection.execute(
+            "INSERT OR IGNORE INTO clipboard_formats (
+                id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, 0, ?6, ?7)",
+            params![
+                format!("{id}-format-{index}"),
+                id,
+                format.format_name,
+                format.mime_type,
+                format.data_kind,
+                50 - index as i64,
+                now
+            ],
+        )?;
+    }
+
+    upsert_fts(
+        &connection,
+        &id,
+        &title,
+        &preview_text,
+        &normalized_text,
+        &source_app,
+    )?;
+
+    Ok(Some(load_item(&connection, &id)?))
 }
 
 fn load_items(connection: &Connection) -> Result<Vec<ClipboardItemDto>, CliplyError> {
@@ -197,9 +313,8 @@ fn load_full_text(connection: &Connection, item_id: &str) -> Result<Option<Strin
 }
 
 fn load_tags(connection: &Connection, item_id: &str) -> Result<Vec<String>, CliplyError> {
-    let mut statement = connection.prepare(
-        "SELECT tag FROM clipboard_tags WHERE item_id = ?1 ORDER BY tag ASC",
-    )?;
+    let mut statement =
+        connection.prepare("SELECT tag FROM clipboard_tags WHERE item_id = ?1 ORDER BY tag ASC")?;
     let rows = statement.query_map(params![item_id], |row| row.get(0))?;
 
     let mut tags = Vec::new();
@@ -227,4 +342,73 @@ fn matches_item_type(item: &ClipboardItemDto, expected: &str) -> bool {
             | (ClipboardItemType::Image, "image")
             | (ClipboardItemType::Code, "code")
     )
+}
+
+fn find_existing_item_id(
+    connection: &Connection,
+    hash: &str,
+) -> Result<Option<String>, CliplyError> {
+    let result = connection.query_row(
+        "SELECT id FROM clipboard_items WHERE hash = ?1 AND is_deleted = 0 LIMIT 1",
+        params![hash],
+        |row| row.get(0),
+    );
+
+    match result {
+        Ok(id) => Ok(Some(id)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn upsert_fts(
+    connection: &Connection,
+    item_id: &str,
+    title: &str,
+    preview_text: &str,
+    normalized_text: &str,
+    source_app: &str,
+) -> Result<(), CliplyError> {
+    connection.execute(
+        "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
+        params![item_id],
+    )?;
+    connection.execute(
+        "INSERT INTO clipboard_items_fts (
+            item_id, title, preview_text, normalized_text, source_app
+        ) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![item_id, title, preview_text, normalized_text, source_app],
+    )?;
+
+    Ok(())
+}
+
+fn title_from_text(value: &str) -> String {
+    preview_from_text(value)
+}
+
+fn preview_from_text(value: &str) -> String {
+    let preview = value
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("")
+        .chars()
+        .take(140)
+        .collect::<String>();
+
+    if preview.is_empty() {
+        "Untitled text".into()
+    } else {
+        preview
+    }
+}
+
+fn item_type_as_str(item_type: &ClipboardItemType) -> &'static str {
+    match item_type {
+        ClipboardItemType::Text => "text",
+        ClipboardItemType::Link => "link",
+        ClipboardItemType::Image => "image",
+        ClipboardItemType::Code => "code",
+    }
 }
