@@ -1,7 +1,7 @@
 import { Code2, FileText, Image, Link2, Pin } from "lucide-react";
 import { clsx } from "clsx";
 import type { ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
-import { formatRelativeTime } from "@/lib/formatTime";
+import { formatCopiedTime, formatRelativeTime } from "@/lib/formatTime";
 
 type ClipboardListItemProps = {
   item: ClipboardItem;
@@ -18,10 +18,10 @@ const iconByType: Record<ClipboardItemType, typeof FileText> = {
 };
 
 const typeLabel: Record<ClipboardItemType, string> = {
-  code: "Code",
-  link: "Link",
-  text: "Text",
-  image: "Image",
+  code: "代码",
+  link: "链接",
+  text: "文本",
+  image: "图片",
 };
 
 export function ClipboardListItem({
@@ -43,57 +43,47 @@ export function ClipboardListItem({
         }
       }}
       className={clsx(
-        "flex w-full cursor-pointer items-start gap-3 rounded-lg border p-3 text-left transition",
+        "flex min-h-[92px] w-full cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition duration-150 active:scale-[0.995]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
         selected
-          ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-soft)] shadow-sm"
-          : "border-transparent bg-white/52 hover:border-[color:var(--cliply-border)] hover:bg-white/78",
+          ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-soft)] shadow-[var(--cliply-shadow-selected)]"
+          : "border-[color:var(--cliply-border)] bg-white/75 shadow-sm hover:bg-white hover:shadow-[var(--cliply-shadow-card)]",
       )}
     >
       <span
         className={clsx(
-          "grid size-9 shrink-0 place-items-center rounded-md",
+          "grid size-[52px] shrink-0 place-items-center rounded-xl border border-[color:var(--cliply-border)] bg-white",
           item.type === "code" && "bg-indigo-50 text-indigo-700",
           item.type === "link" && "bg-teal-50 text-teal-700",
           item.type === "text" && "bg-slate-100 text-slate-600",
           item.type === "image" && "bg-amber-50 text-amber-700",
         )}
       >
-        <Icon className="size-4" />
+        {item.type === "image" && item.thumbnailUrl ? (
+          <img
+            src={item.thumbnailUrl}
+            alt={item.imageAlt ?? item.title}
+            className="size-full rounded-[11px] object-cover"
+          />
+        ) : (
+          <Icon className="size-5" />
+        )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-[color:var(--cliply-text)]">
-            {item.sourceApp}
-          </span>
-          <span className="shrink-0 text-xs text-[color:var(--cliply-faint)]">
-            {formatRelativeTime(item.copiedAt)}
-          </span>
-        </span>
-        <span className="mt-1 line-clamp-2 text-sm leading-5 text-[color:var(--cliply-muted)]">
-          {item.previewText}
-        </span>
-        <span className="mt-2 flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-2">
-          <span className="rounded bg-white/75 px-1.5 py-0.5 text-[11px] font-medium text-[color:var(--cliply-muted)]">
-              {typeLabel[item.type]}
-          </span>
-            {item.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="truncate text-[11px] text-[color:var(--cliply-faint)]">
-                #{tag}
-              </span>
-            ))}
+          <span className="truncate text-[13px] text-[color:var(--cliply-faint)]">
+            {typeLabel[item.type]} · {item.sourceApp}
           </span>
           <button
             type="button"
-            aria-label={item.isPinned ? "Unpin item" : "Pin item"}
-            title={item.isPinned ? "Unpin item" : "Pin item"}
+            aria-label={item.isPinned ? "取消固定" : "固定"}
+            title={item.isPinned ? "取消固定" : "固定"}
             onClick={(event) => {
               event.stopPropagation();
               onTogglePin();
             }}
             className={clsx(
-              "grid size-6 shrink-0 place-items-center rounded text-[color:var(--cliply-faint)] transition hover:bg-white/80 hover:text-[color:var(--cliply-accent)]",
+              "grid size-7 shrink-0 place-items-center rounded-lg text-[color:var(--cliply-faint)] transition hover:bg-white/80 hover:text-[color:var(--cliply-accent)]",
               item.isPinned && "text-[color:var(--cliply-accent)]",
             )}
           >
@@ -104,6 +94,19 @@ export function ClipboardListItem({
               )}
             />
           </button>
+        </span>
+        <span className="mt-1 block truncate text-[15px] font-medium leading-6 text-[color:var(--cliply-text)]">
+          {item.previewText}
+        </span>
+        <span className="mt-1 flex min-w-0 items-center gap-2 text-[13px] text-[color:var(--cliply-faint)]">
+          <span>{formatCopiedTime(item.copiedAt)}</span>
+          <span>·</span>
+          <span>{formatRelativeTime(item.copiedAt)}</span>
+          {item.tags.slice(0, 1).map((tag) => (
+            <span key={tag} className="truncate">
+              · #{tag}
+            </span>
+          ))}
         </span>
       </span>
     </article>

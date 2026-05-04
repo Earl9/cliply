@@ -1,12 +1,13 @@
 import { ClipboardListItem } from "@/components/clipboard/ClipboardListItem";
 import { EmptyState } from "@/components/clipboard/EmptyState";
-import type { ClipboardItem } from "@/lib/clipboardTypes";
+import type { ClipboardFilter, ClipboardItem } from "@/lib/clipboardTypes";
 
 type ClipboardListProps = {
   items: ClipboardItem[];
   totalCount: number;
   selectedId: string | null;
   query: string;
+  filter: ClipboardFilter;
   onSelectItem: (id: string) => void;
   onTogglePin: (id: string) => void;
 };
@@ -16,18 +17,21 @@ export function ClipboardList({
   totalCount,
   selectedId,
   query,
+  filter,
   onSelectItem,
   onTogglePin,
 }: ClipboardListProps) {
+  const footerText = getFooterText({ query, filter, shownCount: items.length, totalCount });
+
   return (
-    <section className="flex min-h-0 w-[42%] min-w-[290px] flex-col border-r border-[color:var(--cliply-border)]">
-      <div className="flex h-11 shrink-0 items-center justify-between px-4 text-xs font-semibold uppercase tracking-normal text-[color:var(--cliply-muted)]">
-        <span>History</span>
-        <span>{items.length} shown</span>
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border)] px-5 text-sm">
+        <span className="font-semibold text-[color:var(--cliply-text)]">剪贴板历史</span>
+        <span className="text-xs text-[color:var(--cliply-faint)]">{items.length} 条</span>
       </div>
-      <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto px-3 pb-3">
+      <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto p-3 pr-2">
         {items.length ? (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {items.map((item) => (
               <ClipboardListItem
                 key={item.id}
@@ -40,18 +44,42 @@ export function ClipboardList({
           </div>
         ) : (
           <EmptyState
-            title={query ? "No matching content" : "No clipboard items yet"}
+            title={query ? "没有找到匹配内容" : filter === "pinned" ? "还没有固定内容" : "还没有剪贴板记录"}
             description={
               query
-                ? "Try another keyword or switch back to All."
-                : "Copy text, links, code, or images and they will appear here."
+                ? "试试换个关键词，或者切换到“全部”。"
+                : filter === "pinned"
+                  ? "点击记录右侧的图钉，可以把常用内容固定在这里。"
+                  : "复制一段文字、链接或图片后，它会出现在这里。"
             }
           />
         )}
       </div>
-      <div className="shrink-0 border-t border-[color:var(--cliply-border)] px-4 py-2 text-xs text-[color:var(--cliply-muted)]">
-        Total {totalCount} mock records
+      <div className="shrink-0 border-t border-[color:var(--cliply-border)] px-5 py-3 text-xs text-[color:var(--cliply-muted)]">
+        {footerText}
       </div>
     </section>
   );
+}
+
+function getFooterText({
+  query,
+  filter,
+  shownCount,
+  totalCount,
+}: {
+  query: string;
+  filter: ClipboardFilter;
+  shownCount: number;
+  totalCount: number;
+}) {
+  if (query.trim()) {
+    return `找到 ${shownCount} 条匹配结果`;
+  }
+
+  if (filter === "pinned") {
+    return `共 ${shownCount} 条固定记录`;
+  }
+
+  return `共 ${totalCount} 条记录`;
 }

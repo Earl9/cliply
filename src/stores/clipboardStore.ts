@@ -9,10 +9,10 @@ import { clampIndex, isEditableElement } from "@/lib/keyboard";
 import { mockClipboardItems } from "@/lib/mockClipboardItems";
 
 const actionLabels: Record<ClipboardActionKind, string> = {
-  paste: "Paste mocked",
-  copy: "Copy mocked",
-  pastePlain: "Plain paste mocked",
-  togglePin: "Pin updated",
+  paste: "已模拟粘贴",
+  copy: "已模拟复制",
+  pastePlain: "已模拟无格式粘贴",
+  togglePin: "固定状态已更新",
 };
 
 export function useClipboardStore() {

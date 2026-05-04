@@ -2,33 +2,41 @@
 
 :root {
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  color: #172033;
-  background: #edf4fb;
+    "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  color: #111827;
+  background: #eef2f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --cliply-bg: #edf4fb;
-  --cliply-bg-soft: #f8fbff;
+  --cliply-bg: #eef2f8;
+  --cliply-bg-soft: #fafafb;
   --cliply-panel: rgba(255, 255, 255, 0.82);
   --cliply-panel-strong: rgba(255, 255, 255, 0.94);
-  --cliply-border: rgba(112, 126, 148, 0.22);
-  --cliply-border-strong: rgba(100, 116, 139, 0.32);
-  --cliply-text: #172033;
-  --cliply-muted: #657287;
-  --cliply-faint: #8a96a8;
-  --cliply-accent: #6554f6;
-  --cliply-accent-strong: #5144dd;
-  --cliply-accent-soft: #eeedff;
-  --cliply-teal: #0e9f9a;
-  --cliply-amber: #c9821d;
-  --cliply-rose: #d64c70;
-  --cliply-shadow:
-    0 28px 70px rgba(32, 45, 76, 0.22),
-    0 8px 24px rgba(35, 49, 82, 0.12);
+  --cliply-card: rgba(255, 255, 255, 0.78);
+  --cliply-card-solid: rgba(255, 255, 255, 0.9);
+  --cliply-border: rgba(231, 233, 238, 0.92);
+  --cliply-border-strong: #d2d6df;
+  --cliply-text: #111827;
+  --cliply-muted: #525a6a;
+  --cliply-faint: #747c8c;
+  --cliply-accent: #7357f6;
+  --cliply-accent-strong: #5b3fd7;
+  --cliply-accent-soft: #f4f1ff;
+  --cliply-accent-border: #d4c6ff;
+  --cliply-success: #16a34a;
+  --cliply-warning: #f59e0b;
+  --cliply-danger: #ef4444;
+  --cliply-info: #2563eb;
+  --cliply-teal: #0f928b;
+  --cliply-amber: #b7791f;
+  --cliply-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+  --cliply-shadow-card: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --cliply-shadow-selected:
+    0 0 0 1px rgba(115, 87, 246, 0.9),
+    0 12px 30px rgba(115, 87, 246, 0.16);
 }
 
 :root[data-theme="dark"] {
@@ -81,4 +89,18 @@ button {
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
+}
+
+.cliply-code-font {
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
 }

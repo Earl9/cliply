@@ -1,13 +1,18 @@
 const shortFormatter = new Intl.DateTimeFormat("en-US", {
+  hour12: false,
   hour: "2-digit",
   minute: "2-digit",
+  second: "2-digit",
 });
 
-const fullFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
+const fullFormatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
   day: "2-digit",
+  hour12: false,
   hour: "2-digit",
   minute: "2-digit",
+  second: "2-digit",
 });
 
 export function formatCopiedTime(value: string) {
@@ -24,16 +29,16 @@ export function formatRelativeTime(value: string, now = new Date("2026-05-04T10:
   const minutes = Math.max(0, Math.round(diffMs / 60_000));
 
   if (minutes < 1) {
-    return "Just now";
+    return "刚刚";
   }
 
   if (minutes < 60) {
-    return `${minutes} min ago`;
+    return `${minutes} 分钟前`;
   }
 
   const hours = Math.round(minutes / 60);
   if (hours < 24) {
-    return `${hours} hr ago`;
+    return `${hours} 小时前`;
   }
 
   return fullFormatter.format(copiedAt);

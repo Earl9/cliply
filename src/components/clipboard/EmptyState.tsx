@@ -6,11 +6,11 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({
-  title = "No clipboard items yet",
-  description = "Copy text, links, code, or images and they will appear here.",
+  title = "还没有剪贴板记录",
+  description = "复制一段文字、链接或图片后，它会出现在这里。",
 }: EmptyStateProps) {
   return (
-    <div className="grid min-h-48 place-items-center rounded-lg border border-dashed border-[color:var(--cliply-border)] bg-white/45 p-6 text-center">
+    <div className="grid min-h-48 place-items-center rounded-xl border border-dashed border-[color:var(--cliply-border)] bg-white/50 p-6 text-center">
       <div>
         <Clipboard className="mx-auto mb-3 size-8 text-[color:var(--cliply-faint)]" />
         <p className="text-sm font-semibold text-[color:var(--cliply-text)]">{title}</p>

@@ -10,19 +10,19 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
     const code = item.fullText ?? item.previewText;
 
     return (
-      <div className="rounded-lg border border-[color:var(--cliply-border)] bg-white/78 p-4 shadow-sm">
+      <div className="rounded-xl border border-[color:var(--cliply-border)] bg-white/80 p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[color:var(--cliply-text)]">
           <Code2 className="size-4 text-[color:var(--cliply-accent)]" />
           {item.title}
         </div>
-        <pre className="overflow-auto rounded-md bg-[#172033] p-4 text-sm leading-6 text-slate-100">
+        <pre className="cliply-code-font max-h-[260px] overflow-auto rounded-xl border border-[color:var(--cliply-border)] bg-[#fbfbfd] p-[18px] text-sm leading-[1.65] text-[#202634]">
           <code>
             {code.split("\n").map((line, index) => (
               <span key={`${line}-${index}`} className="block">
-                <span className="mr-4 inline-block w-5 select-none text-right text-slate-500">
+                <span className="mr-4 inline-block w-6 select-none text-right text-[#a8afbd]">
                   {index + 1}
                 </span>
-                {line || " "}
+                <span>{line || " "}</span>
               </span>
             ))}
           </code>
@@ -36,14 +36,17 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
     const domain = getDomain(url);
 
     return (
-      <div className="rounded-lg border border-[color:var(--cliply-border)] bg-white/78 p-4 shadow-sm">
+      <div className="rounded-xl border border-[color:var(--cliply-border)] bg-white/80 p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[color:var(--cliply-text)]">
-          <ExternalLink className="size-4 text-[color:var(--cliply-teal)]" />
-          {domain}
+          <ExternalLink className="size-4 text-[color:var(--cliply-info)]" />
+          链接预览
         </div>
-        <div className="rounded-md border border-teal-100 bg-teal-50/70 p-4">
-          <p className="break-all text-sm font-medium text-teal-800">{url}</p>
-          <p className="mt-2 text-xs text-teal-700">Source: {item.sourceApp}</p>
+        <div className="rounded-xl border border-[color:var(--cliply-border)] bg-[#fafafb] p-[18px]">
+          <div className="mb-2 flex items-center gap-2 text-[15px] font-semibold text-[color:var(--cliply-text)]">
+            <ExternalLink className="size-4 text-[color:var(--cliply-info)]" />
+            {domain}
+          </div>
+          <p className="break-all text-sm leading-6 text-[color:var(--cliply-muted)]">{url}</p>
         </div>
       </div>
     );
@@ -51,12 +54,12 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
 
   if (item.type === "image") {
     return (
-      <div className="rounded-lg border border-[color:var(--cliply-border)] bg-white/78 p-4 shadow-sm">
+      <div className="rounded-xl border border-[color:var(--cliply-border)] bg-white/80 p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[color:var(--cliply-text)]">
           <ImageIcon className="size-4 text-[color:var(--cliply-amber)]" />
           {item.title}
         </div>
-        <div className="grid aspect-[16/10] place-items-center overflow-hidden rounded-md border border-amber-100 bg-amber-50/60">
+        <div className="grid max-h-[260px] min-h-[220px] place-items-center overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[linear-gradient(45deg,#f4f5f7_25%,transparent_25%),linear-gradient(-45deg,#f4f5f7_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f4f5f7_75%),linear-gradient(-45deg,transparent_75%,#f4f5f7_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0]">
           {item.thumbnailUrl ? (
             <img
               src={item.thumbnailUrl}
@@ -72,12 +75,12 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
   }
 
   return (
-    <div className="rounded-lg border border-[color:var(--cliply-border)] bg-white/78 p-4 shadow-sm">
+    <div className="rounded-xl border border-[color:var(--cliply-border)] bg-white/80 p-5 shadow-sm">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[color:var(--cliply-text)]">
         <FileText className="size-4 text-slate-600" />
         {item.title}
       </div>
-      <p className="whitespace-pre-wrap rounded-md bg-slate-50 p-4 text-sm leading-6 text-[color:var(--cliply-text)]">
+      <p className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl border border-[color:var(--cliply-border)] bg-[#fafafb] p-[18px] text-sm leading-[1.6] text-[color:var(--cliply-text)]">
         {item.fullText ?? item.previewText}
       </p>
     </div>

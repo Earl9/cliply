@@ -17,20 +17,20 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
     kind: ClipboardActionKind;
     disabled?: boolean;
   }> = [
-    { label: "Paste", keys: ["Enter"], icon: Clipboard, primary: true, kind: "paste" },
-    { label: "Copy", keys: ["Ctrl", "C"], icon: Copy, kind: "copy" },
+    { label: "粘贴", keys: ["Enter"], icon: Clipboard, primary: true, kind: "paste" },
+    { label: "复制", keys: ["Ctrl", "C"], icon: Copy, kind: "copy" },
     {
-      label: "Plain",
+      label: "无格式",
       keys: ["Shift", "Enter"],
       icon: Type,
       kind: "pastePlain",
       disabled: item.type === "image" && !item.fullText,
     },
-    { label: item.isPinned ? "Unpin" : "Pin", keys: ["Ctrl", "P"], icon: Pin, kind: "togglePin" },
+    { label: item.isPinned ? "取消固定" : "固定", keys: ["Ctrl", "P"], icon: Pin, kind: "togglePin" },
   ];
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[color:var(--cliply-border)] px-4 py-3">
+    <div className="grid shrink-0 grid-cols-4 gap-3 border-t border-[color:var(--cliply-border)] p-5">
       {actions.map((action) => {
         const Icon = action.icon;
         return (
@@ -40,13 +40,14 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
             disabled={action.disabled}
             onClick={() => onAction(action.kind)}
             className={clsx(
-              "transition disabled:cursor-not-allowed disabled:opacity-45",
+              "flex h-[72px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
               action.primary
-                ? "inline-flex h-9 items-center gap-2 rounded-md bg-[color:var(--cliply-accent)] px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[color:var(--cliply-accent-strong)]"
-                : "inline-flex h-9 items-center gap-2 rounded-md border border-[color:var(--cliply-border)] bg-white/72 px-3 text-sm font-medium text-[color:var(--cliply-text)] hover:bg-white",
+                ? "bg-[color:var(--cliply-accent-strong)] text-white shadow-sm hover:bg-[#4932af]"
+                : "border border-[color:var(--cliply-border)] bg-white text-[color:var(--cliply-text)] hover:bg-[#fafafb] hover:shadow-sm",
             )}
           >
-            <Icon className="size-4" />
+            <Icon className="size-5" />
             <span>{action.label}</span>
             <ShortcutKey keys={action.keys} compact />
           </button>
