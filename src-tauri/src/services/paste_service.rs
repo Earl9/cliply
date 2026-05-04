@@ -1,6 +1,6 @@
 use crate::error::CliplyError;
 use crate::platform::{self, ClipboardWritePayload};
-use crate::services::database_service;
+use crate::services::{database_service, settings_service};
 use rusqlite::params;
 use std::thread;
 use std::time::Duration;
@@ -13,7 +13,12 @@ pub fn copy_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyErro
 pub fn paste_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyError> {
     write_item_to_clipboard(app, &id)?;
     increment_used_count(app, &id)?;
-    hide_main_window(app);
+    if settings_service::get_settings(app)
+        .map(|settings| settings.close_after_paste)
+        .unwrap_or(true)
+    {
+        hide_main_window(app);
+    }
     thread::sleep(Duration::from_millis(120));
     platform::paste_to_foreground()
 }

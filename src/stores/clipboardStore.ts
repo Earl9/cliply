@@ -18,8 +18,15 @@ import {
   pastePlainText,
   togglePinClipboardItem,
 } from "@/lib/clipboardRepository";
+import {
+  getCliplySettings,
+  setMonitoringPaused,
+  updateCliplySettings,
+} from "@/lib/settingsRepository";
 import { clampIndex } from "@/lib/keyboard";
 import { mockClipboardItems } from "@/lib/mockClipboardItems";
+import type { CliplySettings } from "@/stores/settingsStore";
+import { defaultSettingsState } from "@/stores/settingsStore";
 
 const actionLabels: Record<ClipboardActionKind, string> = {
   paste: "已粘贴",
@@ -46,6 +53,26 @@ export function useClipboardStore() {
   const [loading, setLoading] = useState(false);
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [settings, setSettingsState] = useState<CliplySettings>(defaultSettingsState);
+  const [dialogs, setDialogs] = useState({
+    settings: false,
+    about: false,
+    clearHistory: false,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCliplySettings().then((nextSettings) => {
+      if (!cancelled) {
+        setSettingsState(nextSettings);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedQuery(query), 150);
@@ -102,24 +129,31 @@ export function useClipboardStore() {
     }
 
     let unlisten: (() => void) | undefined;
+    let unlistenSettings: (() => void) | undefined;
     let cancelled = false;
 
-    listen("clipboard-items-changed", () => {
-      setRefreshToken((token) => token + 1);
-    })
+    Promise.all([
+      listen("clipboard-items-changed", () => {
+        setRefreshToken((token) => token + 1);
+      }),
+      listen<CliplySettings>("cliply-settings-changed", (event) => {
+        setSettingsState(event.payload);
+      }),
+    ])
       .then((cleanup) => {
         if (cancelled) {
-          cleanup();
+          cleanup.forEach((unlisten) => unlisten());
           return;
         }
 
-        unlisten = cleanup;
+        [unlisten, unlistenSettings] = cleanup;
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
       unlisten?.();
+      unlistenSettings?.();
     };
   }, []);
 
@@ -361,11 +395,6 @@ export function useClipboardStore() {
   );
 
   const clearHistory = useCallback(() => {
-    const shouldClear = window.confirm("清空未固定的剪贴板历史？固定记录会保留。");
-    if (!shouldClear) {
-      return;
-    }
-
     void clearClipboardHistory(false).then(() => {
       setActionStatus({
         label: "历史已清空",
@@ -375,6 +404,69 @@ export function useClipboardStore() {
       refreshItems();
     });
   }, [refreshItems]);
+
+  const closeDialogs = useCallback(() => {
+    setDialogs({
+      settings: false,
+      about: false,
+      clearHistory: false,
+    });
+  }, []);
+
+  const openSettings = useCallback(() => {
+    setDialogs({
+      settings: true,
+      about: false,
+      clearHistory: false,
+    });
+  }, []);
+
+  const openAbout = useCallback(() => {
+    setDialogs({
+      settings: false,
+      about: true,
+      clearHistory: false,
+    });
+  }, []);
+
+  const requestClearHistory = useCallback(() => {
+    setDialogs({
+      settings: false,
+      about: false,
+      clearHistory: true,
+    });
+  }, []);
+
+  const confirmClearHistory = useCallback(() => {
+    closeDialogs();
+    clearHistory();
+  }, [clearHistory, closeDialogs]);
+
+  const setSettings = useCallback((nextSettings: CliplySettings) => {
+    setSettingsState(nextSettings);
+    closeDialogs();
+    void updateCliplySettings(nextSettings).then((savedSettings) => {
+      setSettingsState(savedSettings);
+      setActionStatus({
+        label: "设置已保存",
+        itemTitle: "本地配置已更新",
+        at: Date.now(),
+      });
+    });
+  }, [closeDialogs]);
+
+  const toggleMonitoring = useCallback(() => {
+    const paused = !settings.pauseMonitoring;
+    setSettingsState((current) => ({ ...current, pauseMonitoring: paused }));
+    void setMonitoringPaused(paused).then((savedSettings) => {
+      setSettingsState(savedSettings);
+      setActionStatus({
+        label: savedSettings.pauseMonitoring ? "监听已暂停" : "监听已恢复",
+        itemTitle: "剪贴板监听状态已更新",
+        at: Date.now(),
+      });
+    });
+  }, [settings.pauseMonitoring]);
 
   return {
     state: {
@@ -389,13 +481,21 @@ export function useClipboardStore() {
     selectedItem,
     counts,
     actionStatus,
+    settings,
+    dialogs,
     setQuery,
     setFilter,
     selectItem,
     moveSelection,
     runMockAction: runClipboardAction,
     togglePinItem,
-    clearHistory,
+    requestClearHistory,
+    confirmClearHistory,
+    setSettings,
+    openSettings,
+    openAbout,
+    closeDialogs,
+    toggleMonitoring,
     handleGlobalKeyDown,
   };
 }

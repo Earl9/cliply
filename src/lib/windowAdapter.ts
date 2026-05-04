@@ -1,5 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 export async function hideMainWindow() {
   if (!isTauri()) {
@@ -7,7 +7,7 @@ export async function hideMainWindow() {
     return;
   }
 
-  await getCurrentWindow().hide();
+  await invoke("hide_main_window");
 }
 
 export async function toggleAlwaysOnTop(nextValue: boolean) {
@@ -16,5 +16,22 @@ export async function toggleAlwaysOnTop(nextValue: boolean) {
     return;
   }
 
-  await getCurrentWindow().setAlwaysOnTop(nextValue);
+  await invoke("toggle_main_window_pin", { pinned: nextValue });
+}
+
+export async function showMainWindow() {
+  if (!isTauri()) {
+    console.info("[cliply:mock-window] show main window");
+    return;
+  }
+
+  await invoke("show_main_window");
+}
+
+export async function hideCurrentWindowFallback() {
+  if (!isTauri()) {
+    return;
+  }
+
+  await getCurrentWindow().hide();
 }

@@ -3,7 +3,9 @@ use crate::models::clipboard_item::{
     ClipboardFormatDto, ClipboardItemDetailDto, ClipboardItemDto, ClipboardItemType,
 };
 use crate::platform::{self, ClipboardSnapshot};
-use crate::services::{blob_service, database_service, hash_service, sensitive_detector};
+use crate::services::{
+    blob_service, database_service, hash_service, sensitive_detector, settings_service,
+};
 use rusqlite::{params, Connection, Row};
 use tauri::AppHandle;
 use time::OffsetDateTime;
@@ -139,6 +141,10 @@ pub fn clear_clipboard_history(app: &AppHandle, include_pinned: bool) -> Result<
 }
 
 pub fn ingest_current_clipboard(app: &AppHandle) -> Result<Option<ClipboardItemDto>, CliplyError> {
+    if settings_service::is_monitoring_paused(app) {
+        return Ok(None);
+    }
+
     let snapshot = match platform::read_current_clipboard()? {
         Some(snapshot) => snapshot,
         None => return Ok(None),

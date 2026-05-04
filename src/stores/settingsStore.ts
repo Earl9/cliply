@@ -1,11 +1,31 @@
-export type SettingsState = {
-  theme: "light" | "dark";
+export type CliplySettings = {
+  maxHistoryItems: number;
+  autoDeleteDays: number;
+  pauseMonitoring: boolean;
+  focusSearchOnOpen: boolean;
+  closeAfterPaste: boolean;
+  ignoreDuplicate: boolean;
+  saveImages: boolean;
+  saveHtml: boolean;
+  saveSensitive: boolean;
+  ignoreApps: string[];
   globalShortcut: string;
-  localOnly: boolean;
+  theme: "light" | "dark";
 };
 
-export const defaultSettingsState: SettingsState = {
-  theme: "light",
+export type SettingsState = CliplySettings;
+
+export const defaultSettingsState: CliplySettings = {
+  maxHistoryItems: 1000,
+  autoDeleteDays: 30,
+  pauseMonitoring: false,
+  focusSearchOnOpen: true,
+  closeAfterPaste: true,
+  ignoreDuplicate: true,
+  saveImages: true,
+  saveHtml: true,
+  saveSensitive: false,
+  ignoreApps: ["1Password", "Bitwarden", "KeePass", "KeePassXC"],
   globalShortcut: "Ctrl+Shift+V",
-  localOnly: true,
+  theme: "light",
 };

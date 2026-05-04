@@ -1,12 +1,50 @@
 import { ClipboardList, MoreHorizontal, Pin, Settings, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconButton } from "@/components/common/IconButton";
 import { hideMainWindow } from "@/lib/windowAdapter";
 
 type TitleBarProps = {
-  onClearHistory?: () => void;
+  windowPinned: boolean;
+  monitoringPaused: boolean;
+  onToggleWindowPin: () => void;
+  onOpenSettings: () => void;
+  onOpenAbout: () => void;
+  onClearHistory: () => void;
+  onToggleMonitoring: () => void;
 };
 
-export function TitleBar({ onClearHistory }: TitleBarProps) {
+export function TitleBar({
+  windowPinned,
+  monitoringPaused,
+  onToggleWindowPin,
+  onOpenSettings,
+  onOpenAbout,
+  onClearHistory,
+  onToggleMonitoring,
+}: TitleBarProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [menuOpen]);
+
+  const runMenuAction = (action: () => void) => {
+    setMenuOpen(false);
+    action();
+  };
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between px-7">
       <div className="flex min-w-0 items-center gap-3">
@@ -21,19 +59,52 @@ export function TitleBar({ onClearHistory }: TitleBarProps) {
       </div>
 
       <div className="flex items-center gap-1">
-        <IconButton label="Pin window">
+        <IconButton
+          label={windowPinned ? "取消置顶" : "置顶窗口"}
+          variant={windowPinned ? "soft" : "ghost"}
+          onClick={onToggleWindowPin}
+        >
           <Pin className="size-4" />
         </IconButton>
-        <IconButton label="Settings">
+        <IconButton label="设置" onClick={onOpenSettings}>
           <Settings className="size-4" />
         </IconButton>
-        <IconButton label="More" onClick={onClearHistory}>
-          <MoreHorizontal className="size-4" />
-        </IconButton>
+        <div ref={menuRef} className="relative">
+          <IconButton label="更多" onClick={() => setMenuOpen((open) => !open)}>
+            <MoreHorizontal className="size-4" />
+          </IconButton>
+          {menuOpen ? (
+            <div className="absolute right-0 top-11 z-20 w-48 overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-1 shadow-xl">
+              <MenuButton onClick={() => runMenuAction(onToggleMonitoring)}>
+                {monitoringPaused ? "恢复监听" : "暂停监听"}
+              </MenuButton>
+              <MenuButton onClick={() => runMenuAction(onClearHistory)}>清空历史</MenuButton>
+              <MenuButton onClick={() => runMenuAction(onOpenAbout)}>关于 Cliply</MenuButton>
+            </div>
+          ) : null}
+        </div>
         <IconButton label="Hide Cliply" variant="danger" onClick={() => void hideMainWindow()}>
           <X className="size-4" />
         </IconButton>
       </div>
     </header>
+  );
+}
+
+function MenuButton({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-9 w-full rounded-lg px-3 text-left text-sm font-medium text-[color:var(--cliply-text)] transition hover:bg-slate-900/[0.06]"
+    >
+      {children}
+    </button>
   );
 }
