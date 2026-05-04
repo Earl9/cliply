@@ -21,6 +21,7 @@ export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
     ["大小", formatBytes(item.sizeBytes)],
     ["来源窗口", item.sourceWindow ?? "未知"],
     ["固定状态", item.isPinned ? "已固定" : "未固定"],
+    ["隐私评分", item.sensitiveScore > 0 ? `${item.sensitiveScore}` : "无"],
   ];
   const imageDimensions =
     item.type === "image" && item.imageWidth && item.imageHeight

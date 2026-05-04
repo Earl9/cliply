@@ -25,7 +25,7 @@ export const defaultSettingsState: CliplySettings = {
   saveImages: true,
   saveHtml: true,
   saveSensitive: false,
-  ignoreApps: ["1Password", "Bitwarden", "KeePass", "KeePassXC"],
+  ignoreApps: ["1Password", "Bitwarden", "KeePass", "KeePassXC", "Windows Credential Manager"],
   globalShortcut: "Ctrl+Shift+V",
   theme: "light",
 };

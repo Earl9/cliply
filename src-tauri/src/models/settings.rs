@@ -34,6 +34,7 @@ impl Default for CliplySettings {
                 "Bitwarden".to_string(),
                 "KeePass".to_string(),
                 "KeePassXC".to_string(),
+                "Windows Credential Manager".to_string(),
             ],
             global_shortcut: "Ctrl+Shift+V".to_string(),
             theme: "light".to_string(),

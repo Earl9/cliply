@@ -1,4 +1,4 @@
-import { Code2, FileText, Image, Link2, Pin } from "lucide-react";
+import { Code2, FileText, Image, Link2, Pin, Shield } from "lucide-react";
 import { clsx } from "clsx";
 import type { ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
 import { formatCopiedTime, formatRelativeTime } from "@/lib/formatTime";
@@ -30,7 +30,8 @@ export function ClipboardListItem({
   onSelect,
   onTogglePin,
 }: ClipboardListItemProps) {
-  const Icon = iconByType[item.type] ?? FileText;
+  const sensitive = item.sensitiveScore >= 50;
+  const Icon = sensitive ? Shield : iconByType[item.type] ?? FileText;
 
   return (
     <article
@@ -57,9 +58,10 @@ export function ClipboardListItem({
           item.type === "link" && "bg-teal-50 text-teal-700",
           item.type === "text" && "bg-slate-100 text-slate-600",
           item.type === "image" && "bg-amber-50 text-amber-700",
+          sensitive && "bg-amber-50 text-amber-700",
         )}
       >
-        {item.type === "image" && item.thumbnailUrl ? (
+        {item.type === "image" && item.thumbnailUrl && !sensitive ? (
           <img
             src={item.thumbnailUrl}
             alt={item.imageAlt ?? item.title}
@@ -72,7 +74,7 @@ export function ClipboardListItem({
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-2">
           <span className="truncate text-[13px] text-[color:var(--cliply-faint)]">
-            {typeLabel[item.type]} · {item.sourceApp}
+            {sensitive ? "隐私" : typeLabel[item.type]} · {item.sourceApp}
           </span>
           <button
             type="button"
@@ -96,7 +98,7 @@ export function ClipboardListItem({
           </button>
         </span>
         <span className="mt-1 block truncate text-[15px] font-medium leading-6 text-[color:var(--cliply-text)]">
-          {item.previewText}
+          {sensitive ? "已隐藏敏感内容" : item.previewText}
         </span>
         <span className="mt-1 flex min-w-0 items-center gap-2 text-[13px] text-[color:var(--cliply-faint)]">
           <span>{formatCopiedTime(item.copiedAt)}</span>

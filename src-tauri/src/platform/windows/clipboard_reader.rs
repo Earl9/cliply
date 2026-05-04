@@ -22,6 +22,7 @@ pub fn read_current_snapshot() -> Result<Option<ClipboardSnapshot>, CliplyError>
     let _clipboard = ClipboardGuard::open()?;
     let formats = read_available_formats();
     let text = read_unicode_text()?;
+    let foreground_app = crate::platform::get_foreground_app();
 
     if let Some(text) = text {
         if text.trim().is_empty() {
@@ -35,8 +36,11 @@ pub fn read_current_snapshot() -> Result<Option<ClipboardSnapshot>, CliplyError>
             html: None,
             image: None,
             formats,
-            source_app: Some("Windows Clipboard".into()),
-            source_window: None,
+            source_app: foreground_app
+                .as_ref()
+                .map(|app| app.app_name.clone())
+                .or_else(|| Some("Windows Clipboard".into())),
+            source_window: foreground_app.and_then(|app| app.window_title),
         }));
     }
 
@@ -45,14 +49,18 @@ pub fn read_current_snapshot() -> Result<Option<ClipboardSnapshot>, CliplyError>
         || is_format_available(CF_DIBV5)
     {
         let image = read_dib_image()?;
+        let foreground_app = crate::platform::get_foreground_app();
         return Ok(Some(ClipboardSnapshot {
             primary_type: ClipboardItemType::Image,
             text: None,
             html: None,
             image,
             formats,
-            source_app: Some("Windows Clipboard".into()),
-            source_window: None,
+            source_app: foreground_app
+                .as_ref()
+                .map(|app| app.app_name.clone())
+                .or_else(|| Some("Windows Clipboard".into())),
+            source_window: foreground_app.and_then(|app| app.window_title),
         }));
     }
 

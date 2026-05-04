@@ -92,6 +92,18 @@ pub fn read_current_clipboard() -> Result<Option<ClipboardSnapshot>, CliplyError
     }
 }
 
+pub fn get_foreground_app() -> Option<ForegroundAppInfo> {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::foreground_window::current_foreground_app();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        None
+    }
+}
+
 pub fn write_clipboard_payload(
     payload: ClipboardWritePayload,
     owner_window: Option<isize>,

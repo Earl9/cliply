@@ -42,6 +42,14 @@ const actionErrorLabels: Record<Extract<ClipboardActionKind, "paste" | "copy" | 
   pastePlain: "无格式粘贴失败",
 };
 
+type StoreErrorKind = "list" | "detail" | "settings";
+
+const storeErrorLabels: Record<StoreErrorKind, string> = {
+  list: "读取剪贴板历史失败，请稍后重试",
+  detail: "读取记录详情失败",
+  settings: "保存设置失败，请检查快捷键或本地配置",
+};
+
 export function useClipboardStore() {
   const [allItems, setAllItems] = useState<ClipboardItem[]>(mockClipboardItems);
   const [visibleItems, setVisibleItems] = useState<ClipboardItem[]>(mockClipboardItems);
@@ -54,6 +62,7 @@ export function useClipboardStore() {
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [settings, setSettingsState] = useState<CliplySettings>(defaultSettingsState);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dialogs, setDialogs] = useState({
     settings: false,
     about: false,
@@ -63,11 +72,17 @@ export function useClipboardStore() {
   useEffect(() => {
     let cancelled = false;
 
-    getCliplySettings().then((nextSettings) => {
-      if (!cancelled) {
-        setSettingsState(nextSettings);
-      }
-    });
+    getCliplySettings()
+      .then((nextSettings) => {
+        if (!cancelled) {
+          setSettingsState(nextSettings);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErrorMessage(storeErrorLabels.settings);
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -82,11 +97,18 @@ export function useClipboardStore() {
   useEffect(() => {
     let cancelled = false;
 
-    listClipboardItems({ query: "", filter: "all" }).then((items) => {
-      if (!cancelled) {
-        setAllItems(items);
-      }
-    });
+    listClipboardItems({ query: "", filter: "all" })
+      .then((items) => {
+        if (!cancelled) {
+          setAllItems(items);
+          setErrorMessage(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErrorMessage(storeErrorLabels.list);
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -103,6 +125,7 @@ export function useClipboardStore() {
           return;
         }
 
+        setErrorMessage(null);
         setVisibleItems(items);
         setSelectedId((currentSelectedId) => {
           if (items.some((item) => item.id === currentSelectedId)) {
@@ -111,6 +134,13 @@ export function useClipboardStore() {
 
           return items[0]?.id ?? null;
         });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErrorMessage(storeErrorLabels.list);
+          setVisibleItems([]);
+          setSelectedId(null);
+        }
       })
       .finally(() => {
         if (!cancelled) {
@@ -165,11 +195,18 @@ export function useClipboardStore() {
 
     let cancelled = false;
 
-    getClipboardItemDetail(selectedId).then((item) => {
-      if (!cancelled) {
-        setDetail(item);
-      }
-    });
+    getClipboardItemDetail(selectedId)
+      .then((item) => {
+        if (!cancelled) {
+          setDetail(item);
+          setErrorMessage(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErrorMessage(storeErrorLabels.detail);
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -181,7 +218,10 @@ export function useClipboardStore() {
       return;
     }
 
-    const timeout = window.setTimeout(() => setActionStatus(null), 1400);
+    const timeout = window.setTimeout(
+      () => setActionStatus(null),
+      actionStatus.tone === "error" ? 3000 : 1400,
+    );
     return () => window.clearTimeout(timeout);
   }, [actionStatus]);
 
@@ -445,14 +485,26 @@ export function useClipboardStore() {
   const setSettings = useCallback((nextSettings: CliplySettings) => {
     setSettingsState(nextSettings);
     closeDialogs();
-    void updateCliplySettings(nextSettings).then((savedSettings) => {
-      setSettingsState(savedSettings);
-      setActionStatus({
-        label: "设置已保存",
-        itemTitle: "本地配置已更新",
-        at: Date.now(),
+    void updateCliplySettings(nextSettings)
+      .then((savedSettings) => {
+        setSettingsState(savedSettings);
+        setErrorMessage(null);
+        setActionStatus({
+          label: "设置已保存",
+          itemTitle: "本地配置已更新",
+          at: Date.now(),
+        });
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : storeErrorLabels.settings;
+        setErrorMessage(message || storeErrorLabels.settings);
+        setActionStatus({
+          label: storeErrorLabels.settings,
+          itemTitle: nextSettings.globalShortcut,
+          at: Date.now(),
+          tone: "error",
+        });
       });
-    });
   }, [closeDialogs]);
 
   const toggleMonitoring = useCallback(() => {
@@ -476,6 +528,7 @@ export function useClipboardStore() {
       filter,
       loading,
       detail,
+      errorMessage,
     },
     filteredItems: visibleItems,
     selectedItem,

@@ -8,6 +8,8 @@ type ClipboardListProps = {
   selectedId: string | null;
   query: string;
   filter: ClipboardFilter;
+  loading?: boolean;
+  errorMessage?: string | null;
   onSelectItem: (id: string) => void;
   onTogglePin: (id: string) => void;
 };
@@ -18,6 +20,8 @@ export function ClipboardList({
   selectedId,
   query,
   filter,
+  loading = false,
+  errorMessage = null,
   onSelectItem,
   onTogglePin,
 }: ClipboardListProps) {
@@ -30,7 +34,25 @@ export function ClipboardList({
         <span className="text-xs text-[color:var(--cliply-faint)]">{items.length} 条</span>
       </div>
       <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto p-3 pr-2">
-        {items.length ? (
+        {loading ? (
+          <div className="space-y-2.5">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                className="min-h-[92px] animate-pulse rounded-xl border border-[color:var(--cliply-border)] bg-white/60 p-4"
+              >
+                <div className="mb-3 h-3 w-28 rounded bg-slate-200" />
+                <div className="mb-3 h-4 w-4/5 rounded bg-slate-200" />
+                <div className="h-3 w-40 rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+        ) : errorMessage ? (
+          <EmptyState
+            title="读取历史失败"
+            description={errorMessage}
+          />
+        ) : items.length ? (
           <div className="space-y-2.5">
             {items.map((item) => (
               <ClipboardListItem

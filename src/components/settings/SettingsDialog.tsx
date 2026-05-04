@@ -96,6 +96,9 @@ export function SettingsDialog({
             </SettingSection>
 
             <SettingSection icon={Shield} title="隐私">
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                默认不保存私钥、API token、银行卡号等高风险内容；疑似验证码只保存隐藏占位。
+              </p>
               <ToggleRow
                 label="启用敏感内容过滤"
                 checked={!draft.saveSensitive}

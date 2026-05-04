@@ -22,6 +22,9 @@ export function ClipboardDetailPane({ item, onAction }: ClipboardDetailPaneProps
           </h2>
         </div>
         <div className="flex items-center gap-2">
+          {item?.sensitiveScore && item.sensitiveScore >= 50 ? (
+            <Badge tone="amber">隐私保护</Badge>
+          ) : null}
           {item?.isPinned ? <Badge tone="accent">已固定</Badge> : null}
           <IconButton label="更多">
             <MoreHorizontal className="size-4" />

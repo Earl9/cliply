@@ -3,6 +3,10 @@ import type { ClipboardActionKind, ClipboardItem } from "@/lib/clipboardTypes";
 export type ClipboardActionAvailability = Record<ClipboardActionKind, boolean>;
 
 export function hasTextFallback(item: ClipboardItem) {
+  if (item.sensitiveScore >= 50) {
+    return false;
+  }
+
   const hasStoredText = item.formats.some(
     (format) => format.dataKind === "text" || format.dataKind === "html",
   );

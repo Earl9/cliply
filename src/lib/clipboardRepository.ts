@@ -14,6 +14,7 @@ type ClipboardItemDto = {
   relativeTime: string;
   sizeBytes: number;
   isPinned: boolean;
+  sensitiveScore?: number;
   tags: string[];
   thumbnailPath?: string | null;
 };
@@ -238,6 +239,7 @@ function dtoToClipboardItem(item: ClipboardItemDto): ClipboardItem {
     createdAt: item.createdAt,
     sizeBytes: item.sizeBytes,
     isPinned: item.isPinned,
+    sensitiveScore: item.sensitiveScore ?? 0,
     tags: item.tags ?? [],
     thumbnailUrl: toAssetUrl(item.thumbnailPath),
     formats: [],
@@ -257,6 +259,7 @@ function clipboardItemToDto(item: ClipboardItem): ClipboardItemDto {
     relativeTime: "",
     sizeBytes: item.sizeBytes,
     isPinned: item.isPinned,
+    sensitiveScore: item.sensitiveScore,
     tags: item.tags,
     thumbnailPath: item.thumbnailUrl,
   };

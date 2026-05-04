@@ -2,6 +2,7 @@ use crate::error::CliplyError;
 use crate::models::clipboard_item::{
     ClipboardFormatDto, ClipboardItemDetailDto, ClipboardItemDto, ClipboardItemType,
 };
+use crate::models::settings::CliplySettings;
 use crate::platform::{self, ClipboardSnapshot};
 use crate::services::{
     blob_service, database_service, hash_service, sensitive_detector, settings_service,
@@ -157,12 +158,20 @@ pub fn ingest_clipboard_snapshot(
     app: &AppHandle,
     snapshot: ClipboardSnapshot,
 ) -> Result<Option<ClipboardItemDto>, CliplyError> {
+    let settings = settings_service::get_settings(app)
+        .unwrap_or_else(|_| settings_service::default_settings());
+    let source_app = source_app_from_snapshot(&snapshot);
+
+    if is_ignored_source_app(&source_app, &settings.ignore_apps) {
+        return Ok(None);
+    }
+
     let has_text = snapshot
         .text
         .as_deref()
         .is_some_and(|text| !text.trim().is_empty());
     if !has_text && snapshot.image.is_some() {
-        return ingest_image_snapshot(app, snapshot);
+        return ingest_image_snapshot(app, snapshot, &settings);
     }
 
     let text = match snapshot.text.as_deref() {
@@ -170,45 +179,62 @@ pub fn ingest_clipboard_snapshot(
         _ => return Ok(None),
     };
 
-    if sensitive_detector::looks_sensitive(text) {
+    let sensitivity = sensitive_detector::analyze(text);
+    if !settings.save_sensitive && sensitivity.risk == sensitive_detector::SensitivityRisk::High {
         return Ok(None);
     }
+    let redact_sensitive_text =
+        !settings.save_sensitive && sensitivity.risk == sensitive_detector::SensitivityRisk::Medium;
 
     let connection = database_service::connect(app)?;
-    let normalized_text = hash_service::normalize_text_for_hash(text);
-    let hash = hash_service::stable_text_hash(text);
+    let normalized_text = if redact_sensitive_text {
+        String::new()
+    } else {
+        hash_service::normalize_text_for_hash(text)
+    };
+    let hash = if redact_sensitive_text {
+        format!("redacted-{}", Uuid::new_v4())
+    } else {
+        hash_service::stable_text_hash(text)
+    };
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
 
-    if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
-        connection.execute(
-            "UPDATE clipboard_items
-             SET copied_at = ?1,
-                 updated_at = ?1,
-                 used_count = COALESCE(used_count, 0) + 1
-             WHERE id = ?2 AND is_deleted = 0",
-            params![now, existing_id],
-        )?;
+    if !redact_sensitive_text && settings.ignore_duplicate {
+        if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
+            connection.execute(
+                "UPDATE clipboard_items
+                 SET copied_at = ?1,
+                     updated_at = ?1,
+                     used_count = COALESCE(used_count, 0) + 1
+                 WHERE id = ?2 AND is_deleted = 0",
+                params![now, existing_id],
+            )?;
 
-        return Ok(Some(load_item(&connection, &existing_id)?));
+            return Ok(Some(load_item(&connection, &existing_id)?));
+        }
     }
 
     let id = Uuid::new_v4().to_string();
     let item_type = item_type_as_str(&snapshot.primary_type);
-    let title = title_from_text(text);
-    let preview_text = preview_from_text(text);
-    let source_app = snapshot
-        .source_app
-        .unwrap_or_else(|| "Windows Clipboard".into());
+    let (title, preview_text) = if redact_sensitive_text {
+        (
+            "已隐藏敏感内容".to_string(),
+            "已隐藏疑似验证码等敏感内容".to_string(),
+        )
+    } else {
+        (title_from_text(text), preview_from_text(text))
+    };
     let source_window = snapshot.source_window;
     let size_bytes = text.len() as i64;
+    let sensitive_score = i64::from(sensitivity.score);
 
     connection.execute(
         "INSERT INTO clipboard_items (
             id, type, title, preview_text, normalized_text, source_app, source_window,
-            hash, size_bytes, is_pinned, copied_at, created_at, updated_at, used_count
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?10, ?10, 0)",
+            hash, size_bytes, is_pinned, sensitive_score, copied_at, created_at, updated_at, used_count
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?11, ?11, ?11, 0)",
         params![
             id,
             item_type,
@@ -219,24 +245,28 @@ pub fn ingest_clipboard_snapshot(
             source_window,
             hash,
             size_bytes,
+            sensitive_score,
             now
         ],
     )?;
 
-    connection.execute(
-        "INSERT INTO clipboard_formats (
-            id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
-        ) VALUES (?1, ?2, 'text/plain', 'text/plain', 'text', ?3, ?4, 100, ?5)",
-        params![
-            format!("{id}-format-text"),
-            id,
-            text,
-            size_bytes,
-            now
-        ],
-    )?;
+    if !redact_sensitive_text {
+        connection.execute(
+            "INSERT INTO clipboard_formats (
+                id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
+            ) VALUES (?1, ?2, 'text/plain', 'text/plain', 'text', ?3, ?4, 100, ?5)",
+            params![format!("{id}-format-text"), id, text, size_bytes, now],
+        )?;
+    }
 
     for (index, format) in snapshot.formats.iter().enumerate() {
+        let data_kind =
+            if redact_sensitive_text && matches!(format.data_kind.as_str(), "text" | "html") {
+                "external_ref"
+            } else {
+                format.data_kind.as_str()
+            };
+
         connection.execute(
             "INSERT OR IGNORE INTO clipboard_formats (
                 id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
@@ -246,7 +276,7 @@ pub fn ingest_clipboard_snapshot(
                 id,
                 format.format_name,
                 format.mime_type,
-                format.data_kind,
+                data_kind,
                 50 - index as i64,
                 now
             ],
@@ -268,7 +298,14 @@ pub fn ingest_clipboard_snapshot(
 fn ingest_image_snapshot(
     app: &AppHandle,
     snapshot: ClipboardSnapshot,
+    settings: &CliplySettings,
 ) -> Result<Option<ClipboardItemDto>, CliplyError> {
+    if !settings.save_images {
+        return Ok(None);
+    }
+
+    let source_app = source_app_from_snapshot(&snapshot);
+    let source_window = snapshot.source_window.clone();
     let Some(image) = snapshot.image else {
         return Ok(None);
     };
@@ -283,17 +320,19 @@ fn ingest_image_snapshot(
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
 
-    if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
-        connection.execute(
-            "UPDATE clipboard_items
-             SET copied_at = ?1,
-                 updated_at = ?1,
-                 used_count = COALESCE(used_count, 0) + 1
-             WHERE id = ?2 AND is_deleted = 0",
-            params![now, existing_id],
-        )?;
+    if settings.ignore_duplicate {
+        if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
+            connection.execute(
+                "UPDATE clipboard_items
+                 SET copied_at = ?1,
+                     updated_at = ?1,
+                     used_count = COALESCE(used_count, 0) + 1
+                 WHERE id = ?2 AND is_deleted = 0",
+                params![now, existing_id],
+            )?;
 
-        return Ok(Some(load_item(&connection, &existing_id)?));
+            return Ok(Some(load_item(&connection, &existing_id)?));
+        }
     }
 
     let id = Uuid::new_v4().to_string();
@@ -305,16 +344,12 @@ fn ingest_image_snapshot(
         image.height,
         image.extension.to_uppercase()
     );
-    let source_app = snapshot
-        .source_app
-        .unwrap_or_else(|| "Windows Clipboard".into());
-    let source_window = snapshot.source_window;
 
     connection.execute(
         "INSERT INTO clipboard_items (
             id, type, title, preview_text, normalized_text, source_app, source_window,
-            hash, size_bytes, is_pinned, copied_at, created_at, updated_at, used_count
-        ) VALUES (?1, 'image', ?2, ?3, '', ?4, ?5, ?6, ?7, 0, ?8, ?8, ?8, 0)",
+            hash, size_bytes, is_pinned, sensitive_score, copied_at, created_at, updated_at, used_count
+        ) VALUES (?1, 'image', ?2, ?3, '', ?4, ?5, ?6, ?7, 0, 0, ?8, ?8, ?8, 0)",
         params![
             id,
             title,
@@ -390,7 +425,7 @@ fn load_items(
     let mut statement = connection.prepare(
         "SELECT id, type, COALESCE(title, ''), COALESCE(preview_text, ''),
                 COALESCE(source_app, ''), source_window, copied_at, created_at,
-                COALESCE(size_bytes, 0), is_pinned
+                COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0)
          FROM clipboard_items
          WHERE is_deleted = 0
            AND (?1 = '' OR type = ?1)
@@ -409,7 +444,7 @@ fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, Clip
     let mut item = connection.query_row(
         "SELECT id, type, COALESCE(title, ''), COALESCE(preview_text, ''),
                 COALESCE(source_app, ''), source_window, copied_at, created_at,
-                COALESCE(size_bytes, 0), is_pinned
+                COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0)
          FROM clipboard_items
          WHERE id = ?1 AND is_deleted = 0",
         params![id],
@@ -427,6 +462,7 @@ fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, Clip
                 relative_time: String::new(),
                 size_bytes: row.get(8)?,
                 is_pinned: row.get::<_, i64>(9)? == 1,
+                sensitive_score: row.get(10)?,
                 tags: Vec::new(),
                 thumbnail_path: None,
             })
@@ -589,7 +625,7 @@ fn search_items(
             "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
                     COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
                     ci.source_window, ci.copied_at, ci.created_at,
-                    COALESCE(ci.size_bytes, 0), ci.is_pinned
+                    COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0)
              FROM clipboard_items ci
              WHERE ci.is_deleted = 0
                AND (?3 = '' OR ci.type = ?3)
@@ -628,7 +664,7 @@ fn search_items(
         "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
                 COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
                 ci.source_window, ci.copied_at, ci.created_at,
-                COALESCE(ci.size_bytes, 0), ci.is_pinned
+                COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0)
          FROM clipboard_items ci
          WHERE ci.is_deleted = 0
            AND (?2 = '' OR ci.type = ?2)
@@ -673,6 +709,40 @@ where
     Ok(items)
 }
 
+fn source_app_from_snapshot(snapshot: &ClipboardSnapshot) -> String {
+    snapshot
+        .source_app
+        .as_deref()
+        .map(str::trim)
+        .filter(|source_app| !source_app.is_empty())
+        .unwrap_or("Windows Clipboard")
+        .to_string()
+}
+
+fn is_ignored_source_app(source_app: &str, ignore_apps: &[String]) -> bool {
+    let normalized_source = normalize_app_name(source_app);
+
+    ignore_apps
+        .iter()
+        .map(|app| normalize_app_name(app))
+        .any(|ignored_app| {
+            !ignored_app.is_empty()
+                && (normalized_source == ignored_app
+                    || normalized_source.contains(&ignored_app)
+                    || ignored_app.contains(&normalized_source))
+        })
+}
+
+fn normalize_app_name(value: &str) -> String {
+    value
+        .trim()
+        .trim_end_matches(".exe")
+        .to_lowercase()
+        .chars()
+        .filter(|character| !character.is_whitespace() && *character != '-' && *character != '_')
+        .collect()
+}
+
 fn map_item_row(row: &Row<'_>) -> rusqlite::Result<ClipboardItemDto> {
     let id: String = row.get(0)?;
     let item_type: String = row.get(1)?;
@@ -689,6 +759,7 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<ClipboardItemDto> {
         relative_time: String::new(),
         size_bytes: row.get(8)?,
         is_pinned: row.get::<_, i64>(9)? == 1,
+        sensitive_score: row.get(10)?,
         thumbnail_path: None,
     })
 }
@@ -772,5 +843,30 @@ fn item_type_as_str(item_type: &ClipboardItemType) -> &'static str {
         ClipboardItemType::Link => "link",
         ClipboardItemType::Image => "image",
         ClipboardItemType::Code => "code",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_ignored_source_app, normalize_app_name};
+
+    #[test]
+    fn matches_ignored_apps_case_and_exe_insensitively() {
+        let ignored = vec!["KeePassXC".to_string(), "1Password".to_string()];
+
+        assert!(is_ignored_source_app("keepassxc.exe", &ignored));
+        assert!(is_ignored_source_app("1password", &ignored));
+    }
+
+    #[test]
+    fn does_not_match_unrelated_apps() {
+        let ignored = vec!["Bitwarden".to_string()];
+
+        assert!(!is_ignored_source_app("Visual Studio Code", &ignored));
+    }
+
+    #[test]
+    fn normalizes_app_names_for_matching() {
+        assert_eq!(normalize_app_name("KeePass-XC.exe"), "keepassxc");
     }
 }

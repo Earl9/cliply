@@ -1,4 +1,4 @@
-import type { ClipboardItem } from "@/lib/clipboardTypes";
+﻿import type { ClipboardItem } from "@/lib/clipboardTypes";
 
 export const mockClipboardItems: ClipboardItem[] = [
   {
@@ -19,6 +19,7 @@ return createSession(user);`,
     createdAt: "2026-05-04T10:42:18+08:00",
     sizeBytes: 148,
     isPinned: true,
+    sensitiveScore: 0,
     tags: ["typescript", "auth"],
     formats: [
       {
@@ -42,6 +43,7 @@ return createSession(user);`,
     createdAt: "2026-05-04T10:41:03+08:00",
     sizeBytes: 37,
     isPinned: false,
+    sensitiveScore: 0,
     tags: ["tauri", "rust"],
     formats: [
       {
@@ -65,6 +67,7 @@ return createSession(user);`,
     createdAt: "2026-05-04T10:34:00+08:00",
     sizeBytes: 105,
     isPinned: false,
+    sensitiveScore: 0,
     tags: ["mvp"],
     formats: [
       {
@@ -87,6 +90,7 @@ return createSession(user);`,
     createdAt: "2026-05-04T10:24:12+08:00",
     sizeBytes: 421_888,
     isPinned: true,
+    sensitiveScore: 0,
     tags: ["ui", "mockup"],
     thumbnailUrl:
       "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='400' viewBox='0 0 640 400'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%23eef7ff'/%3E%3Cstop offset='1' stop-color='%23efeaff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='640' height='400' rx='28' fill='url(%23g)'/%3E%3Crect x='42' y='52' width='556' height='296' rx='22' fill='white' fill-opacity='.82' stroke='%23c9d5e5'/%3E%3Crect x='70' y='92' width='210' height='220' rx='14' fill='%23f5f7fb'/%3E%3Crect x='306' y='92' width='264' height='220' rx='14' fill='%23eef0ff'/%3E%3Crect x='90' y='118' width='154' height='24' rx='8' fill='%236554f6' fill-opacity='.86'/%3E%3Crect x='90' y='158' width='132' height='18' rx='7' fill='%23aab5c6'/%3E%3Crect x='90' y='190' width='166' height='18' rx='7' fill='%23c2cad8'/%3E%3Crect x='336' y='124' width='176' height='28' rx='8' fill='%23172033'/%3E%3Crect x='336' y='172' width='198' height='16' rx='6' fill='%236554f6' fill-opacity='.34'/%3E%3Crect x='336' y='204' width='144' height='16' rx='6' fill='%230e9f9a' fill-opacity='.32'/%3E%3C/svg%3E",
@@ -116,6 +120,7 @@ ORDER BY rank;`,
     createdAt: "2026-05-04T10:18:55+08:00",
     sizeBytes: 92,
     isPinned: false,
+    sensitiveScore: 0,
     tags: ["sqlite", "search"],
     formats: [
       {
@@ -139,6 +144,7 @@ ORDER BY rank;`,
     createdAt: "2026-05-04T09:58:30+08:00",
     sizeBytes: 36,
     isPinned: false,
+    sensitiveScore: 0,
     tags: ["ui"],
     formats: [
       {
@@ -162,6 +168,7 @@ ORDER BY rank;`,
     createdAt: "2026-05-04T09:47:42+08:00",
     sizeBytes: 91,
     isPinned: false,
+    sensitiveScore: 0,
     tags: ["keyboard"],
     formats: [
       {
@@ -184,6 +191,7 @@ ORDER BY rank;`,
     createdAt: "2026-05-04T09:29:08+08:00",
     sizeBytes: 188_420,
     isPinned: false,
+    sensitiveScore: 0,
     tags: ["asset"],
     thumbnailUrl:
       "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23e8f7f4'/%3E%3Ccircle cx='256' cy='210' r='86' fill='%230e9f9a' fill-opacity='.78'/%3E%3Cpath d='M104 438c22-86 84-132 152-132s130 46 152 132' fill='%236554f6' fill-opacity='.72'/%3E%3C/svg%3E",

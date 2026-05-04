@@ -24,6 +24,7 @@ export type ClipboardItem = {
   createdAt: string;
   sizeBytes: number;
   isPinned: boolean;
+  sensitiveScore: number;
   tags: string[];
   thumbnailUrl?: string;
   imageUrl?: string;
@@ -41,7 +42,7 @@ export type ClipboardActionStatus = {
   label: string;
   itemTitle: string;
   at: number;
-  tone?: "success" | "error";
+  tone?: "success" | "warning" | "error";
 } | null;
 
 export type ClipboardState = {
@@ -51,4 +52,5 @@ export type ClipboardState = {
   filter: ClipboardFilter;
   loading: boolean;
   detail: ClipboardItemDetail | null;
+  errorMessage: string | null;
 };

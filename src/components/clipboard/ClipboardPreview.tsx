@@ -1,4 +1,4 @@
-import { Code2, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
+import { Code2, ExternalLink, FileText, Image as ImageIcon, Shield } from "lucide-react";
 import type { ClipboardItem } from "@/lib/clipboardTypes";
 
 type ClipboardPreviewProps = {
@@ -6,6 +6,20 @@ type ClipboardPreviewProps = {
 };
 
 export function ClipboardPreview({ item }: ClipboardPreviewProps) {
+  if (item.sensitiveScore >= 50) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-800">
+          <Shield className="size-4" />
+          已隐藏敏感内容
+        </div>
+        <p className="rounded-xl border border-amber-200 bg-white/70 p-[18px] text-sm leading-6 text-amber-800">
+          这条记录被隐私规则标记，详情内容不会在本地保存。可以在设置中调整敏感内容过滤策略。
+        </p>
+      </div>
+    );
+  }
+
   if (item.type === "code") {
     const code = item.fullText ?? item.previewText;
 
