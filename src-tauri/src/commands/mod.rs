@@ -6,7 +6,13 @@ use tauri::{AppHandle, Emitter};
 
 #[tauri::command]
 pub async fn initialize_storage(app: AppHandle) -> Result<(), String> {
-    database_service::initialize(&app).map_err(Into::into)
+    database_service::initialize(&app).map_err::<String, _>(Into::into)?;
+    let cleanup =
+        clipboard_service::enforce_history_retention(&app).map_err::<String, _>(Into::into)?;
+    if cleanup.deleted_items > 0 {
+        let _ = app.emit("clipboard-items-changed", ());
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -86,6 +92,13 @@ pub async fn update_cliply_settings(
 
     if previous_settings.global_shortcut != updated_settings.global_shortcut {
         shortcuts::register_default_shortcuts(&app).map_err(|error| error.to_string())?;
+    }
+
+    let cleanup =
+        clipboard_service::enforce_history_retention_with_settings(&app, &updated_settings)
+            .map_err::<String, _>(Into::into)?;
+    if cleanup.deleted_items > 0 {
+        let _ = app.emit("clipboard-items-changed", ());
     }
 
     tray::refresh_tray(&app).map_err(|error| error.to_string())?;

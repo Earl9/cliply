@@ -7,7 +7,7 @@ mod services;
 mod shortcuts;
 mod tray;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 struct ClipboardListenerShutdown;
 
@@ -39,6 +39,10 @@ pub fn run() {
         ])
         .setup(|app| {
             db::initialize_storage(app.handle())?;
+            let cleanup = services::clipboard_service::enforce_history_retention(app.handle())?;
+            if cleanup.deleted_items > 0 {
+                let _ = app.handle().emit("clipboard-items-changed", ());
+            }
             tray::create_tray(app.handle())?;
             shortcuts::register_default_shortcuts(app.handle())?;
             platform::start_clipboard_listener(app.handle().clone())?;

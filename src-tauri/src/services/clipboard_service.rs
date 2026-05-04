@@ -9,8 +9,13 @@ use crate::services::{
 };
 use rusqlite::{params, Connection, Row};
 use tauri::AppHandle;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RetentionCleanupResult {
+    pub deleted_items: usize,
+}
 
 pub fn list_clipboard_items(
     app: &AppHandle,
@@ -142,6 +147,20 @@ pub fn clear_clipboard_history(app: &AppHandle, include_pinned: bool) -> Result<
     Ok(())
 }
 
+pub fn enforce_history_retention(app: &AppHandle) -> Result<RetentionCleanupResult, CliplyError> {
+    let settings = settings_service::get_settings(app)
+        .unwrap_or_else(|_| settings_service::default_settings());
+    enforce_history_retention_with_settings(app, &settings)
+}
+
+pub fn enforce_history_retention_with_settings(
+    app: &AppHandle,
+    settings: &CliplySettings,
+) -> Result<RetentionCleanupResult, CliplyError> {
+    let mut connection = database_service::connect(app)?;
+    enforce_history_retention_for_connection(&mut connection, settings)
+}
+
 pub fn ingest_current_clipboard(app: &AppHandle) -> Result<Option<ClipboardItemDto>, CliplyError> {
     if settings_service::is_monitoring_paused(app) {
         return Ok(None);
@@ -187,7 +206,7 @@ pub fn ingest_clipboard_snapshot(
     let redact_sensitive_text =
         !settings.save_sensitive && sensitivity.risk == sensitive_detector::SensitivityRisk::Medium;
 
-    let connection = database_service::connect(app)?;
+    let mut connection = database_service::connect(app)?;
     let normalized_text = if redact_sensitive_text {
         String::new()
     } else {
@@ -213,7 +232,9 @@ pub fn ingest_clipboard_snapshot(
                 params![now, existing_id],
             )?;
 
-            return Ok(Some(load_item(&connection, &existing_id)?));
+            let item = load_item(&connection, &existing_id)?;
+            enforce_history_retention_for_connection(&mut connection, &settings)?;
+            return Ok(Some(item));
         }
     }
 
@@ -293,7 +314,9 @@ pub fn ingest_clipboard_snapshot(
         &source_app,
     )?;
 
-    Ok(Some(load_item(&connection, &id)?))
+    let item = load_item(&connection, &id)?;
+    enforce_history_retention_for_connection(&mut connection, &settings)?;
+    Ok(Some(item))
 }
 
 fn ingest_image_snapshot(
@@ -315,7 +338,7 @@ fn ingest_image_snapshot(
         return Ok(None);
     }
 
-    let connection = database_service::connect(app)?;
+    let mut connection = database_service::connect(app)?;
     let hash = hash_service::stable_bytes_hash(&image.bytes);
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
@@ -332,7 +355,9 @@ fn ingest_image_snapshot(
                 params![now, existing_id],
             )?;
 
-            return Ok(Some(load_item(&connection, &existing_id)?));
+            let item = load_item(&connection, &existing_id)?;
+            enforce_history_retention_for_connection(&mut connection, settings)?;
+            return Ok(Some(item));
         }
     }
 
@@ -413,7 +438,102 @@ fn ingest_image_snapshot(
 
     upsert_fts(&connection, &id, &title, &preview_text, "", &source_app)?;
 
-    Ok(Some(load_item(&connection, &id)?))
+    let item = load_item(&connection, &id)?;
+    enforce_history_retention_for_connection(&mut connection, settings)?;
+    Ok(Some(item))
+}
+
+fn enforce_history_retention_for_connection(
+    connection: &mut Connection,
+    settings: &CliplySettings,
+) -> Result<RetentionCleanupResult, CliplyError> {
+    let now = current_timestamp()?;
+    let auto_delete_before = if settings.auto_delete_days == 0 {
+        None
+    } else {
+        let cutoff = OffsetDateTime::now_utc() - Duration::days(settings.auto_delete_days as i64);
+        Some(format_timestamp(cutoff)?)
+    };
+    let policy = HistoryRetentionPolicy {
+        max_history_items: settings.max_history_items,
+        auto_delete_before,
+        updated_at: now,
+    };
+
+    apply_history_retention_policy(connection, &policy)
+}
+
+fn apply_history_retention_policy(
+    connection: &mut Connection,
+    policy: &HistoryRetentionPolicy,
+) -> Result<RetentionCleanupResult, CliplyError> {
+    let transaction = connection.transaction()?;
+    let mut item_ids: Vec<String> = Vec::new();
+
+    if let Some(auto_delete_before) = policy.auto_delete_before.as_deref() {
+        let mut statement = transaction.prepare(
+            "SELECT id
+             FROM clipboard_items
+             WHERE is_deleted = 0
+               AND is_pinned = 0
+               AND datetime(copied_at) < datetime(?1)",
+        )?;
+        let rows =
+            statement.query_map(params![auto_delete_before], |row| row.get::<_, String>(0))?;
+        for row in rows {
+            item_ids.push(row?);
+        }
+    }
+
+    if policy.max_history_items > 0 {
+        let mut statement = transaction.prepare(
+            "SELECT id
+             FROM clipboard_items
+             WHERE is_deleted = 0
+               AND is_pinned = 0
+             ORDER BY datetime(copied_at) DESC, copied_at DESC, id DESC
+             LIMIT -1 OFFSET ?1",
+        )?;
+        let rows = statement.query_map(params![i64::from(policy.max_history_items)], |row| {
+            row.get::<_, String>(0)
+        })?;
+        for row in rows {
+            item_ids.push(row?);
+        }
+    }
+
+    item_ids.sort();
+    item_ids.dedup();
+
+    let mut deleted_items = 0;
+    for item_id in item_ids {
+        let affected = transaction.execute(
+            "UPDATE clipboard_items
+             SET is_deleted = 1,
+                 updated_at = ?2
+             WHERE id = ?1
+               AND is_deleted = 0
+               AND is_pinned = 0",
+            params![item_id, policy.updated_at],
+        )?;
+
+        if affected > 0 {
+            deleted_items += affected;
+            transaction.execute(
+                "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
+                params![item_id],
+            )?;
+        }
+    }
+
+    transaction.commit()?;
+    Ok(RetentionCleanupResult { deleted_items })
+}
+
+struct HistoryRetentionPolicy {
+    max_history_items: u32,
+    auto_delete_before: Option<String>,
+    updated_at: String,
 }
 
 fn load_items(
@@ -847,9 +967,23 @@ fn item_type_as_str(item_type: &ClipboardItemType) -> &'static str {
     }
 }
 
+fn current_timestamp() -> Result<String, CliplyError> {
+    format_timestamp(OffsetDateTime::now_utc())
+}
+
+fn format_timestamp(value: OffsetDateTime) -> Result<String, CliplyError> {
+    value
+        .format(&time::format_description::well_known::Rfc3339)
+        .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{is_ignored_source_app, normalize_app_name};
+    use super::{
+        apply_history_retention_policy, is_ignored_source_app, normalize_app_name,
+        HistoryRetentionPolicy,
+    };
+    use rusqlite::{params, Connection};
 
     #[test]
     fn matches_ignored_apps_case_and_exe_insensitively() {
@@ -869,5 +1003,160 @@ mod tests {
     #[test]
     fn normalizes_app_names_for_matching() {
         assert_eq!(normalize_app_name("KeePass-XC.exe"), "keepassxc");
+    }
+
+    #[test]
+    fn retention_preserves_pinned_items() {
+        let mut connection = setup_retention_connection();
+        insert_retention_item(&connection, "old-pinned", true, "2026-01-01T00:00:00Z");
+        insert_retention_item(&connection, "old-normal", false, "2026-01-01T00:00:00Z");
+
+        let result = apply_history_retention_policy(
+            &mut connection,
+            &HistoryRetentionPolicy {
+                max_history_items: 100,
+                auto_delete_before: Some("2026-02-01T00:00:00Z".to_string()),
+                updated_at: "2026-05-04T00:00:00Z".to_string(),
+            },
+        )
+        .expect("retention should run");
+
+        assert_eq!(result.deleted_items, 1);
+        assert_eq!(is_deleted(&connection, "old-pinned"), 0);
+        assert_eq!(is_deleted(&connection, "old-normal"), 1);
+        assert_eq!(fts_count(&connection, "old-pinned"), 1);
+        assert_eq!(fts_count(&connection, "old-normal"), 0);
+    }
+
+    #[test]
+    fn retention_trims_overflow_by_copied_at() {
+        let mut connection = setup_retention_connection();
+        insert_retention_item(&connection, "newest", false, "2026-05-04T10:00:00Z");
+        insert_retention_item(&connection, "middle", false, "2026-05-04T09:00:00Z");
+        insert_retention_item(&connection, "oldest", false, "2026-05-04T08:00:00Z");
+        insert_retention_item(&connection, "pinned-old", true, "2026-01-01T00:00:00Z");
+
+        let result = apply_history_retention_policy(
+            &mut connection,
+            &HistoryRetentionPolicy {
+                max_history_items: 2,
+                auto_delete_before: None,
+                updated_at: "2026-05-04T11:00:00Z".to_string(),
+            },
+        )
+        .expect("retention should run");
+
+        assert_eq!(result.deleted_items, 1);
+        assert_eq!(is_deleted(&connection, "newest"), 0);
+        assert_eq!(is_deleted(&connection, "middle"), 0);
+        assert_eq!(is_deleted(&connection, "oldest"), 1);
+        assert_eq!(is_deleted(&connection, "pinned-old"), 0);
+        assert_eq!(fts_count(&connection, "oldest"), 0);
+    }
+
+    #[test]
+    fn retention_deduplicates_age_and_overflow_matches() {
+        let mut connection = setup_retention_connection();
+        insert_retention_item(&connection, "newest", false, "2026-05-04T10:00:00Z");
+        insert_retention_item(
+            &connection,
+            "expired-overflow",
+            false,
+            "2026-01-01T00:00:00Z",
+        );
+
+        let result = apply_history_retention_policy(
+            &mut connection,
+            &HistoryRetentionPolicy {
+                max_history_items: 1,
+                auto_delete_before: Some("2026-02-01T00:00:00Z".to_string()),
+                updated_at: "2026-05-04T11:00:00Z".to_string(),
+            },
+        )
+        .expect("retention should run");
+
+        assert_eq!(result.deleted_items, 1);
+        assert_eq!(is_deleted(&connection, "newest"), 0);
+        assert_eq!(is_deleted(&connection, "expired-overflow"), 1);
+        assert_eq!(fts_count(&connection, "expired-overflow"), 0);
+    }
+
+    fn setup_retention_connection() -> Connection {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(
+                "
+                CREATE TABLE clipboard_items (
+                  id TEXT PRIMARY KEY,
+                  type TEXT NOT NULL,
+                  title TEXT,
+                  preview_text TEXT,
+                  normalized_text TEXT,
+                  source_app TEXT,
+                  source_window TEXT,
+                  hash TEXT NOT NULL,
+                  size_bytes INTEGER DEFAULT 0,
+                  is_pinned INTEGER DEFAULT 0,
+                  is_favorite INTEGER DEFAULT 0,
+                  is_deleted INTEGER DEFAULT 0,
+                  sensitive_score INTEGER DEFAULT 0,
+                  copied_at TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL,
+                  used_count INTEGER DEFAULT 0
+                );
+
+                CREATE VIRTUAL TABLE clipboard_items_fts USING fts5(
+                  item_id UNINDEXED,
+                  title,
+                  preview_text,
+                  normalized_text,
+                  source_app
+                );
+                ",
+            )
+            .expect("retention schema should initialize");
+        connection
+    }
+
+    fn insert_retention_item(connection: &Connection, id: &str, is_pinned: bool, copied_at: &str) {
+        connection
+            .execute(
+                "INSERT INTO clipboard_items (
+                    id, type, title, preview_text, normalized_text, source_app,
+                    hash, is_pinned, copied_at, created_at, updated_at
+                 ) VALUES (?1, 'text', ?1, ?1, ?1, 'Test', ?1, ?2, ?3, ?3, ?3)",
+                params![id, if is_pinned { 1 } else { 0 }, copied_at],
+            )
+            .expect("retention item should insert");
+
+        connection
+            .execute(
+                "INSERT INTO clipboard_items_fts (
+                    item_id, title, preview_text, normalized_text, source_app
+                 ) VALUES (?1, ?1, ?1, ?1, 'Test')",
+                params![id],
+            )
+            .expect("retention fts row should insert");
+    }
+
+    fn is_deleted(connection: &Connection, id: &str) -> i64 {
+        connection
+            .query_row(
+                "SELECT is_deleted FROM clipboard_items WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .expect("retention item should exist")
+    }
+
+    fn fts_count(connection: &Connection, id: &str) -> i64 {
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM clipboard_items_fts WHERE item_id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .expect("fts count should load")
     }
 }
