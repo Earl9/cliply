@@ -13,10 +13,10 @@
 
   --cliply-bg: #eef2f8;
   --cliply-bg-soft: #fafafb;
-  --cliply-panel: rgba(255, 255, 255, 0.82);
-  --cliply-panel-strong: rgba(255, 255, 255, 0.94);
-  --cliply-card: rgba(255, 255, 255, 0.78);
-  --cliply-card-solid: rgba(255, 255, 255, 0.9);
+  --cliply-panel: #f8fafc;
+  --cliply-panel-strong: #ffffff;
+  --cliply-card: rgba(255, 255, 255, 0.96);
+  --cliply-card-solid: #ffffff;
   --cliply-border: rgba(231, 233, 238, 0.92);
   --cliply-border-strong: #d2d6df;
   --cliply-text: #111827;
@@ -42,8 +42,8 @@
 :root[data-theme="dark"] {
   --cliply-bg: #111723;
   --cliply-bg-soft: #171f2e;
-  --cliply-panel: rgba(28, 36, 51, 0.84);
-  --cliply-panel-strong: rgba(32, 41, 57, 0.96);
+  --cliply-panel: #1c2433;
+  --cliply-panel-strong: #202939;
   --cliply-border: rgba(176, 190, 211, 0.16);
   --cliply-border-strong: rgba(176, 190, 211, 0.26);
   --cliply-text: #f3f7fb;
@@ -89,7 +89,6 @@ body {
   border-radius: 18px;
   box-shadow: var(--cliply-shadow);
   overflow: hidden;
-  backdrop-filter: blur(24px);
 }
 
 @keyframes cliply-window-enter {
