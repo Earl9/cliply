@@ -1,3 +1,4 @@
+pub mod blob_service;
 pub mod clipboard_service;
 pub mod content_detector;
 pub mod database_service;

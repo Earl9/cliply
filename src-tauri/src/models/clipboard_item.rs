@@ -24,6 +24,7 @@ pub struct ClipboardItemDto {
     pub size_bytes: i64,
     pub is_pinned: bool,
     pub tags: Vec<String>,
+    pub thumbnail_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,5 +42,8 @@ pub struct ClipboardItemDetailDto {
     pub item: ClipboardItemDto,
     pub full_text: Option<String>,
     pub thumbnail_path: Option<String>,
+    pub image_path: Option<String>,
+    pub image_width: Option<u32>,
+    pub image_height: Option<u32>,
     pub formats: Vec<ClipboardFormatDto>,
 }

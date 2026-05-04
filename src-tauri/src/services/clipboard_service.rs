@@ -3,7 +3,7 @@ use crate::models::clipboard_item::{
     ClipboardFormatDto, ClipboardItemDetailDto, ClipboardItemDto, ClipboardItemType,
 };
 use crate::platform::{self, ClipboardSnapshot};
-use crate::services::{database_service, hash_service, sensitive_detector};
+use crate::services::{blob_service, database_service, hash_service, sensitive_detector};
 use rusqlite::{params, Connection, Row};
 use tauri::AppHandle;
 use time::OffsetDateTime;
@@ -46,11 +46,17 @@ pub fn get_clipboard_item_detail(
     let item = load_item(&connection, &id)?;
     let formats = load_formats(&connection, &id)?;
     let full_text = load_full_text(&connection, &id)?;
+    let thumbnail_path = load_image_path(&connection, &id, true)?;
+    let image_path = load_image_path(&connection, &id, false)?;
+    let (image_width, image_height) = image_dimensions_from_preview(&item.preview_text);
 
     Ok(ClipboardItemDetailDto {
         item,
         full_text,
-        thumbnail_path: None,
+        thumbnail_path,
+        image_path,
+        image_width,
+        image_height,
         formats,
     })
 }
@@ -145,6 +151,14 @@ pub fn ingest_clipboard_snapshot(
     app: &AppHandle,
     snapshot: ClipboardSnapshot,
 ) -> Result<Option<ClipboardItemDto>, CliplyError> {
+    let has_text = snapshot
+        .text
+        .as_deref()
+        .is_some_and(|text| !text.trim().is_empty());
+    if !has_text && snapshot.image.is_some() {
+        return ingest_image_snapshot(app, snapshot);
+    }
+
     let text = match snapshot.text.as_deref() {
         Some(text) if !text.trim().is_empty() => text,
         _ => return Ok(None),
@@ -245,6 +259,121 @@ pub fn ingest_clipboard_snapshot(
     Ok(Some(load_item(&connection, &id)?))
 }
 
+fn ingest_image_snapshot(
+    app: &AppHandle,
+    snapshot: ClipboardSnapshot,
+) -> Result<Option<ClipboardItemDto>, CliplyError> {
+    let Some(image) = snapshot.image else {
+        return Ok(None);
+    };
+
+    if image.bytes.is_empty() {
+        return Ok(None);
+    }
+
+    let connection = database_service::connect(app)?;
+    let hash = hash_service::stable_bytes_hash(&image.bytes);
+    let now = OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
+
+    if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
+        connection.execute(
+            "UPDATE clipboard_items
+             SET copied_at = ?1,
+                 updated_at = ?1,
+                 used_count = COALESCE(used_count, 0) + 1
+             WHERE id = ?2 AND is_deleted = 0",
+            params![now, existing_id],
+        )?;
+
+        return Ok(Some(load_item(&connection, &existing_id)?));
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let stored_blob = blob_service::store_image(app, &id, &image)?;
+    let title = format!("图片 {} x {}", image.width, image.height);
+    let preview_text = format!(
+        "图片 {} x {} {}",
+        image.width,
+        image.height,
+        image.extension.to_uppercase()
+    );
+    let source_app = snapshot
+        .source_app
+        .unwrap_or_else(|| "Windows Clipboard".into());
+    let source_window = snapshot.source_window;
+
+    connection.execute(
+        "INSERT INTO clipboard_items (
+            id, type, title, preview_text, normalized_text, source_app, source_window,
+            hash, size_bytes, is_pinned, copied_at, created_at, updated_at, used_count
+        ) VALUES (?1, 'image', ?2, ?3, '', ?4, ?5, ?6, ?7, 0, ?8, ?8, ?8, 0)",
+        params![
+            id,
+            title,
+            preview_text,
+            source_app,
+            source_window,
+            hash,
+            stored_blob.size_bytes,
+            now
+        ],
+    )?;
+
+    connection.execute(
+        "INSERT INTO clipboard_formats (
+            id, item_id, format_name, mime_type, data_kind, data_path, size_bytes, priority, created_at
+        ) VALUES (?1, ?2, ?3, ?4, 'image_file', ?5, ?6, 100, ?7)",
+        params![
+            format!("{id}-format-image"),
+            id,
+            format!("image/{}", image.extension),
+            image.mime_type,
+            stored_blob.image_path.to_string_lossy().to_string(),
+            stored_blob.size_bytes,
+            now
+        ],
+    )?;
+
+    let thumbnail_size = std::fs::metadata(&stored_blob.thumbnail_path)
+        .map(|metadata| metadata.len() as i64)
+        .unwrap_or(0);
+    connection.execute(
+        "INSERT INTO clipboard_formats (
+            id, item_id, format_name, mime_type, data_kind, data_path, size_bytes, priority, created_at
+        ) VALUES (?1, ?2, 'thumbnail/png', 'image/png', 'image_file', ?3, ?4, 90, ?5)",
+        params![
+            format!("{id}-format-thumbnail"),
+            id,
+            stored_blob.thumbnail_path.to_string_lossy().to_string(),
+            thumbnail_size,
+            now
+        ],
+    )?;
+
+    for (index, format) in snapshot.formats.iter().enumerate() {
+        connection.execute(
+            "INSERT OR IGNORE INTO clipboard_formats (
+                id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, 0, ?6, ?7)",
+            params![
+                format!("{id}-format-raw-{index}"),
+                id,
+                format.format_name,
+                format.mime_type,
+                format.data_kind,
+                40 - index as i64,
+                now
+            ],
+        )?;
+    }
+
+    upsert_fts(&connection, &id, &title, &preview_text, "", &source_app)?;
+
+    Ok(Some(load_item(&connection, &id)?))
+}
+
 fn load_items(
     connection: &Connection,
     item_type: &str,
@@ -293,10 +422,12 @@ fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, Clip
                 size_bytes: row.get(8)?,
                 is_pinned: row.get::<_, i64>(9)? == 1,
                 tags: Vec::new(),
+                thumbnail_path: None,
             })
         },
     )?;
     item.tags = load_tags(connection, &item.id)?;
+    item.thumbnail_path = load_image_path(connection, &item.id, true)?;
     Ok(item)
 }
 
@@ -343,6 +474,58 @@ fn load_full_text(connection: &Connection, item_id: &str) -> Result<Option<Strin
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(error) => Err(error.into()),
     }
+}
+
+fn load_image_path(
+    connection: &Connection,
+    item_id: &str,
+    thumbnail: bool,
+) -> Result<Option<String>, CliplyError> {
+    let result = if thumbnail {
+        connection.query_row(
+            "SELECT data_path
+             FROM clipboard_formats
+             WHERE item_id = ?1
+               AND data_kind = 'image_file'
+               AND format_name = 'thumbnail/png'
+               AND data_path IS NOT NULL
+             ORDER BY priority DESC, created_at ASC
+             LIMIT 1",
+            params![item_id],
+            |row| row.get::<_, String>(0),
+        )
+    } else {
+        connection.query_row(
+            "SELECT data_path
+             FROM clipboard_formats
+             WHERE item_id = ?1
+               AND data_kind = 'image_file'
+               AND format_name <> 'thumbnail/png'
+               AND data_path IS NOT NULL
+             ORDER BY priority DESC, created_at ASC
+             LIMIT 1",
+            params![item_id],
+            |row| row.get::<_, String>(0),
+        )
+    };
+
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn image_dimensions_from_preview(preview_text: &str) -> (Option<u32>, Option<u32>) {
+    let parts = preview_text.split_whitespace().collect::<Vec<_>>();
+    if parts.len() < 4 || !matches!(parts[0], "Image" | "图片") || !matches!(parts[2], "x" | "×")
+    {
+        return (None, None);
+    }
+
+    let width = parts[1].parse::<u32>().ok();
+    let height = parts[3].parse::<u32>().ok();
+    (width, height)
 }
 
 fn load_tags(connection: &Connection, item_id: &str) -> Result<Vec<String>, CliplyError> {
@@ -477,6 +660,7 @@ where
     for row in rows {
         let mut item = row?;
         item.tags = load_tags(connection, &item.id)?;
+        item.thumbnail_path = load_image_path(connection, &item.id, true)?;
         items.push(item);
     }
 
@@ -499,6 +683,7 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<ClipboardItemDto> {
         relative_time: String::new(),
         size_bytes: row.get(8)?,
         is_pinned: row.get::<_, i64>(9)? == 1,
+        thumbnail_path: None,
     })
 }
 

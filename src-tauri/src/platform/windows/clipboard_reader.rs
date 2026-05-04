@@ -1,6 +1,6 @@
 use crate::error::CliplyError;
 use crate::models::clipboard_item::ClipboardItemType;
-use crate::platform::{ClipboardFormatSnapshot, ClipboardSnapshot};
+use crate::platform::{ClipboardFormatSnapshot, ClipboardSnapshot, ImageSnapshot};
 use crate::services::content_detector;
 use std::ffi::c_void;
 use std::slice;
@@ -16,6 +16,7 @@ const CF_BITMAP: u32 = 2;
 const CF_DIB: u32 = 8;
 const CF_DIBV5: u32 = 17;
 const CF_UNICODETEXT: u32 = 13;
+const BI_BITFIELDS: u32 = 3;
 
 pub fn read_current_snapshot() -> Result<Option<ClipboardSnapshot>, CliplyError> {
     let _clipboard = ClipboardGuard::open()?;
@@ -43,11 +44,12 @@ pub fn read_current_snapshot() -> Result<Option<ClipboardSnapshot>, CliplyError>
         || is_format_available(CF_DIB)
         || is_format_available(CF_DIBV5)
     {
+        let image = read_dib_image()?;
         return Ok(Some(ClipboardSnapshot {
             primary_type: ClipboardItemType::Image,
             text: None,
             html: None,
-            image: None,
+            image,
             formats,
             source_app: Some("Windows Clipboard".into()),
             source_window: None,
@@ -87,6 +89,120 @@ fn read_unicode_text() -> Result<Option<String>, CliplyError> {
     }
 
     Ok(Some(value))
+}
+
+fn read_dib_image() -> Result<Option<ImageSnapshot>, CliplyError> {
+    let format = if is_format_available(CF_DIBV5) {
+        CF_DIBV5
+    } else if is_format_available(CF_DIB) {
+        CF_DIB
+    } else {
+        return Ok(None);
+    };
+
+    let handle = unsafe { GetClipboardData(format) };
+    if handle.is_null() {
+        return Ok(None);
+    }
+
+    let global = handle as HGLOBAL;
+    let locked = unsafe { GlobalLock(global) } as *const u8;
+    if locked.is_null() {
+        return Ok(None);
+    }
+
+    let byte_len = unsafe { GlobalSize(global) };
+    let bytes = unsafe { slice::from_raw_parts(locked, byte_len) };
+    let image = dib_to_bmp_snapshot(bytes);
+
+    unsafe {
+        GlobalUnlock(global);
+    }
+
+    image
+}
+
+fn dib_to_bmp_snapshot(dib: &[u8]) -> Result<Option<ImageSnapshot>, CliplyError> {
+    if dib.len() < 40 {
+        return Ok(None);
+    }
+
+    let width = read_i32_le(dib, 4).unsigned_abs();
+    let height = read_i32_le(dib, 8).unsigned_abs();
+    let pixel_offset = dib_pixel_offset(dib)?;
+    let file_size = 14usize
+        .checked_add(dib.len())
+        .ok_or_else(|| CliplyError::PlatformUnavailable("clipboard image is too large".into()))?;
+    let pixel_data_offset = 14usize.checked_add(pixel_offset).ok_or_else(|| {
+        CliplyError::PlatformUnavailable("clipboard image header is invalid".into())
+    })?;
+
+    let mut bmp = Vec::with_capacity(file_size);
+    bmp.extend_from_slice(b"BM");
+    bmp.extend_from_slice(&(file_size as u32).to_le_bytes());
+    bmp.extend_from_slice(&[0, 0, 0, 0]);
+    bmp.extend_from_slice(&(pixel_data_offset as u32).to_le_bytes());
+    bmp.extend_from_slice(dib);
+
+    Ok(Some(ImageSnapshot {
+        width,
+        height,
+        bytes: bmp,
+        mime_type: "image/bmp".into(),
+        extension: "bmp".into(),
+    }))
+}
+
+fn dib_pixel_offset(dib: &[u8]) -> Result<usize, CliplyError> {
+    let header_size = read_u32_le(dib, 0) as usize;
+    if header_size == 0 || header_size > dib.len() {
+        return Err(CliplyError::PlatformUnavailable(
+            "clipboard image header is invalid".into(),
+        ));
+    }
+
+    let bit_count = read_u16_le(dib, 14);
+    let compression = read_u32_le(dib, 16);
+    let color_used = read_u32_le(dib, 32) as usize;
+    let mask_bytes = if compression == BI_BITFIELDS && header_size == 40 {
+        12
+    } else {
+        0
+    };
+    let colors = if color_used > 0 {
+        color_used
+    } else if bit_count <= 8 {
+        1usize << bit_count
+    } else {
+        0
+    };
+
+    header_size
+        .checked_add(mask_bytes)
+        .and_then(|offset| offset.checked_add(colors.saturating_mul(4)))
+        .ok_or_else(|| CliplyError::PlatformUnavailable("clipboard image header is invalid".into()))
+}
+
+fn read_u16_le(bytes: &[u8], offset: usize) -> u16 {
+    u16::from_le_bytes([bytes[offset], bytes[offset + 1]])
+}
+
+fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes([
+        bytes[offset],
+        bytes[offset + 1],
+        bytes[offset + 2],
+        bytes[offset + 3],
+    ])
+}
+
+fn read_i32_le(bytes: &[u8], offset: usize) -> i32 {
+    i32::from_le_bytes([
+        bytes[offset],
+        bytes[offset + 1],
+        bytes[offset + 2],
+        bytes[offset + 3],
+    ])
 }
 
 fn read_available_formats() -> Vec<ClipboardFormatSnapshot> {

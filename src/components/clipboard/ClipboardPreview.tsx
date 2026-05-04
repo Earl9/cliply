@@ -53,6 +53,8 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
   }
 
   if (item.type === "image") {
+    const imageUrl = item.imageUrl ?? item.thumbnailUrl;
+
     return (
       <div className="rounded-xl border border-[color:var(--cliply-border)] bg-white/80 p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[color:var(--cliply-text)]">
@@ -60,16 +62,24 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
           {item.title}
         </div>
         <div className="grid max-h-[260px] min-h-[220px] place-items-center overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[linear-gradient(45deg,#f4f5f7_25%,transparent_25%),linear-gradient(-45deg,#f4f5f7_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f4f5f7_75%),linear-gradient(-45deg,transparent_75%,#f4f5f7_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0]">
-          {item.thumbnailUrl ? (
+          {imageUrl ? (
             <img
-              src={item.thumbnailUrl}
+              src={imageUrl}
               alt={item.imageAlt ?? item.title}
               className="max-h-full max-w-full object-contain"
             />
           ) : (
-            <ImageIcon className="size-10 text-amber-500" />
+            <div className="grid place-items-center gap-2 text-sm font-medium text-amber-600">
+              <ImageIcon className="size-10 text-amber-500" />
+              <span>图片文件不可用</span>
+            </div>
           )}
         </div>
+        {item.imageWidth && item.imageHeight ? (
+          <p className="mt-3 text-xs font-medium text-[color:var(--cliply-muted)]">
+            {item.imageWidth} x {item.imageHeight}
+          </p>
+        ) : null}
       </div>
     );
   }

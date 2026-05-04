@@ -22,6 +22,10 @@ export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
     ["来源窗口", item.sourceWindow ?? "未知"],
     ["固定状态", item.isPinned ? "已固定" : "未固定"],
   ];
+  const imageDimensions =
+    item.type === "image" && item.imageWidth && item.imageHeight
+      ? `${item.imageWidth} x ${item.imageHeight}`
+      : null;
 
   return (
     <div className="mt-4 rounded-xl border border-[color:var(--cliply-border)] bg-white/70 p-5">
@@ -36,6 +40,11 @@ export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
           </div>
         ))}
       </dl>
+      {imageDimensions ? (
+        <div className="mt-3 rounded-lg bg-[#fafafb] px-3 py-2 text-sm text-[color:var(--cliply-muted)]">
+          图片尺寸：<span className="font-medium text-[color:var(--cliply-text)]">{imageDimensions}</span>
+        </div>
+      ) : null}
       {item.tags.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {item.tags.map((tag) => (

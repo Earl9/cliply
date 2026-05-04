@@ -22,6 +22,8 @@ pub struct ImageSnapshot {
     pub width: u32,
     pub height: u32,
     pub bytes: Vec<u8>,
+    pub mime_type: String,
+    pub extension: String,
 }
 
 #[derive(Debug, Clone)]

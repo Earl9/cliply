@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import type { ClipboardFilter, ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
 import { mockClipboardItems } from "@/lib/mockClipboardItems";
 
@@ -15,6 +15,7 @@ type ClipboardItemDto = {
   sizeBytes: number;
   isPinned: boolean;
   tags: string[];
+  thumbnailPath?: string | null;
 };
 
 type ClipboardFormatDto = {
@@ -28,6 +29,9 @@ type ClipboardItemDetailDto = {
   item: ClipboardItemDto;
   fullText?: string | null;
   thumbnailPath?: string | null;
+  imagePath?: string | null;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
   formats: ClipboardFormatDto[];
 };
 
@@ -79,6 +83,9 @@ export async function getClipboardItemDetail(id: string): Promise<ClipboardItem 
         item: clipboardItemToDto(item),
         fullText: item.fullText ?? item.previewText,
         thumbnailPath: item.thumbnailUrl,
+        imagePath: item.imageUrl,
+        imageWidth: item.imageWidth,
+        imageHeight: item.imageHeight,
         formats: item.formats.map((format) => ({
           formatName: format.formatName,
           mimeType: format.mimeType,
@@ -205,7 +212,10 @@ function detailDtoToClipboardItem(detail: ClipboardItemDetailDto): ClipboardItem
   return {
     ...dtoToClipboardItem(detail.item),
     fullText: detail.fullText ?? detail.item.previewText,
-    thumbnailUrl: detail.thumbnailPath ?? undefined,
+    thumbnailUrl: toAssetUrl(detail.thumbnailPath),
+    imageUrl: toAssetUrl(detail.imagePath ?? detail.thumbnailPath),
+    imageWidth: detail.imageWidth ?? undefined,
+    imageHeight: detail.imageHeight ?? undefined,
     formats: detail.formats.map((format, index) => ({
       id: `${detail.item.id}-format-${index}`,
       formatName: format.formatName,
@@ -229,6 +239,7 @@ function dtoToClipboardItem(item: ClipboardItemDto): ClipboardItem {
     sizeBytes: item.sizeBytes,
     isPinned: item.isPinned,
     tags: item.tags ?? [],
+    thumbnailUrl: toAssetUrl(item.thumbnailPath),
     formats: [],
   };
 }
@@ -247,6 +258,7 @@ function clipboardItemToDto(item: ClipboardItem): ClipboardItemDto {
     sizeBytes: item.sizeBytes,
     isPinned: item.isPinned,
     tags: item.tags,
+    thumbnailPath: item.thumbnailUrl,
   };
 }
 
@@ -262,4 +274,16 @@ function toFormatKind(value: string) {
   }
 
   return "external_ref";
+}
+
+function toAssetUrl(path?: string | null) {
+  if (!path) {
+    return undefined;
+  }
+
+  if (path.startsWith("data:") || path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  return isTauri() ? convertFileSrc(path) : path;
 }

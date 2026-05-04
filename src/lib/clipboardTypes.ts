@@ -26,6 +26,9 @@ export type ClipboardItem = {
   isPinned: boolean;
   tags: string[];
   thumbnailUrl?: string;
+  imageUrl?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   imageAlt?: string;
   formats: ClipboardFormat[];
 };
