@@ -1,14 +1,28 @@
 import { Badge } from "@/components/common/Badge";
+import type { ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
+import { formatBytes, formatFullCopiedTime } from "@/lib/formatTime";
 
-const metadata = [
-  ["Source app", "Visual Studio Code"],
-  ["Copied", "Today, 10:42:18"],
-  ["Type", "Code"],
-  ["Size", "148 bytes"],
-  ["Pinned", "Yes"],
-];
+type ClipboardMetadataProps = {
+  item: ClipboardItem;
+};
 
-export function ClipboardMetadata() {
+const typeLabels: Record<ClipboardItemType, string> = {
+  code: "Code",
+  image: "Image",
+  link: "Link",
+  text: "Text",
+};
+
+export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
+  const metadata = [
+    ["Source app", item.sourceApp],
+    ["Window", item.sourceWindow ?? "Unknown"],
+    ["Copied", formatFullCopiedTime(item.copiedAt)],
+    ["Type", typeLabels[item.type]],
+    ["Size", formatBytes(item.sizeBytes)],
+    ["Pinned", item.isPinned ? "Yes" : "No"],
+  ];
+
   return (
     <div className="mt-4 rounded-lg border border-[color:var(--cliply-border)] bg-white/64 p-4">
       <h3 className="mb-3 text-sm font-semibold text-[color:var(--cliply-text)]">Metadata</h3>
@@ -22,6 +36,13 @@ export function ClipboardMetadata() {
           </div>
         ))}
       </dl>
+      {item.tags.length ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {item.tags.map((tag) => (
+            <Badge key={tag}>#{tag}</Badge>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

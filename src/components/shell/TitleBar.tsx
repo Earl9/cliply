@@ -1,5 +1,6 @@
 import { Circle, MoreHorizontal, Pin, Settings, X } from "lucide-react";
 import { IconButton } from "@/components/common/IconButton";
+import { hideMainWindow } from "@/lib/windowAdapter";
 
 export function TitleBar() {
   return (
@@ -29,7 +30,7 @@ export function TitleBar() {
         <IconButton label="More">
           <MoreHorizontal className="size-4" />
         </IconButton>
-        <IconButton label="Hide Cliply" variant="danger">
+        <IconButton label="Hide Cliply" variant="danger" onClick={() => void hideMainWindow()}>
           <X className="size-4" />
         </IconButton>
       </div>

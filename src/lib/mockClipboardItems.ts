@@ -1,0 +1,201 @@
+import type { ClipboardItem } from "@/lib/clipboardTypes";
+
+export const mockClipboardItems: ClipboardItem[] = [
+  {
+    id: "clip-code-auth",
+    type: "code",
+    title: "Session guard",
+    previewText: "const user = await getProfile(session.userId);",
+    fullText: `const user = await getProfile(session.userId);
+
+if (!user?.enabled) {
+  return createEmptySession();
+}
+
+return createSession(user);`,
+    sourceApp: "Visual Studio Code",
+    sourceWindow: "auth/session.ts",
+    copiedAt: "2026-05-04T10:42:18+08:00",
+    createdAt: "2026-05-04T10:42:18+08:00",
+    sizeBytes: 148,
+    isPinned: true,
+    tags: ["typescript", "auth"],
+    formats: [
+      {
+        id: "fmt-code-auth-text",
+        formatName: "text/plain",
+        mimeType: "text/plain",
+        dataKind: "text",
+        sizeBytes: 148,
+      },
+    ],
+  },
+  {
+    id: "clip-link-tauri",
+    type: "link",
+    title: "Tauri v2 repository",
+    previewText: "https://github.com/tauri-apps/tauri",
+    fullText: "https://github.com/tauri-apps/tauri",
+    sourceApp: "Chrome",
+    sourceWindow: "GitHub",
+    copiedAt: "2026-05-04T10:41:03+08:00",
+    createdAt: "2026-05-04T10:41:03+08:00",
+    sizeBytes: 37,
+    isPinned: false,
+    tags: ["tauri", "rust"],
+    formats: [
+      {
+        id: "fmt-link-tauri-text",
+        formatName: "text/plain",
+        mimeType: "text/plain",
+        dataKind: "text",
+        sizeBytes: 37,
+      },
+    ],
+  },
+  {
+    id: "clip-text-principles",
+    type: "text",
+    title: "MVP note",
+    previewText: "Windows MVP first, keep platform adapters clean.",
+    fullText: "Windows MVP first, keep platform adapters clean. Avoid cloud services and account systems for the first version.",
+    sourceApp: "Notepad",
+    sourceWindow: "Cliply notes.txt",
+    copiedAt: "2026-05-04T10:34:00+08:00",
+    createdAt: "2026-05-04T10:34:00+08:00",
+    sizeBytes: 105,
+    isPinned: false,
+    tags: ["mvp"],
+    formats: [
+      {
+        id: "fmt-text-principles",
+        formatName: "text/plain",
+        mimeType: "text/plain",
+        dataKind: "text",
+        sizeBytes: 105,
+      },
+    ],
+  },
+  {
+    id: "clip-image-window",
+    type: "image",
+    title: "Main window mockup",
+    previewText: "Screenshot 1160 x 760",
+    sourceApp: "Snipping Tool",
+    sourceWindow: "Screen snip",
+    copiedAt: "2026-05-04T10:24:12+08:00",
+    createdAt: "2026-05-04T10:24:12+08:00",
+    sizeBytes: 421_888,
+    isPinned: true,
+    tags: ["ui", "mockup"],
+    thumbnailUrl:
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='400' viewBox='0 0 640 400'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%23eef7ff'/%3E%3Cstop offset='1' stop-color='%23efeaff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='640' height='400' rx='28' fill='url(%23g)'/%3E%3Crect x='42' y='52' width='556' height='296' rx='22' fill='white' fill-opacity='.82' stroke='%23c9d5e5'/%3E%3Crect x='70' y='92' width='210' height='220' rx='14' fill='%23f5f7fb'/%3E%3Crect x='306' y='92' width='264' height='220' rx='14' fill='%23eef0ff'/%3E%3Crect x='90' y='118' width='154' height='24' rx='8' fill='%236554f6' fill-opacity='.86'/%3E%3Crect x='90' y='158' width='132' height='18' rx='7' fill='%23aab5c6'/%3E%3Crect x='90' y='190' width='166' height='18' rx='7' fill='%23c2cad8'/%3E%3Crect x='336' y='124' width='176' height='28' rx='8' fill='%23172033'/%3E%3Crect x='336' y='172' width='198' height='16' rx='6' fill='%236554f6' fill-opacity='.34'/%3E%3Crect x='336' y='204' width='144' height='16' rx='6' fill='%230e9f9a' fill-opacity='.32'/%3E%3C/svg%3E",
+    imageAlt: "Cliply Fluent-like window mockup",
+    formats: [
+      {
+        id: "fmt-image-window",
+        formatName: "image/png",
+        mimeType: "image/png",
+        dataKind: "image_file",
+        sizeBytes: 421_888,
+      },
+    ],
+  },
+  {
+    id: "clip-code-sql",
+    type: "code",
+    title: "FTS query",
+    previewText: "SELECT item_id FROM clipboard_items_fts WHERE clipboard_items_fts MATCH ?",
+    fullText: `SELECT item_id
+FROM clipboard_items_fts
+WHERE clipboard_items_fts MATCH ?
+ORDER BY rank;`,
+    sourceApp: "DataGrip",
+    sourceWindow: "cliply.db",
+    copiedAt: "2026-05-04T10:18:55+08:00",
+    createdAt: "2026-05-04T10:18:55+08:00",
+    sizeBytes: 92,
+    isPinned: false,
+    tags: ["sqlite", "search"],
+    formats: [
+      {
+        id: "fmt-code-sql",
+        formatName: "text/plain",
+        mimeType: "text/plain",
+        dataKind: "text",
+        sizeBytes: 92,
+      },
+    ],
+  },
+  {
+    id: "clip-link-radix",
+    type: "link",
+    title: "Radix UI primitives",
+    previewText: "https://www.radix-ui.com/primitives",
+    fullText: "https://www.radix-ui.com/primitives",
+    sourceApp: "Edge",
+    sourceWindow: "Radix UI",
+    copiedAt: "2026-05-04T09:58:30+08:00",
+    createdAt: "2026-05-04T09:58:30+08:00",
+    sizeBytes: 36,
+    isPinned: false,
+    tags: ["ui"],
+    formats: [
+      {
+        id: "fmt-link-radix",
+        formatName: "text/plain",
+        mimeType: "text/plain",
+        dataKind: "text",
+        sizeBytes: 36,
+      },
+    ],
+  },
+  {
+    id: "clip-text-shortcuts",
+    type: "text",
+    title: "Shortcut checklist",
+    previewText: "Enter paste, Shift+Enter plain paste, Ctrl+P pin, Arrow keys select.",
+    fullText: "Enter paste, Shift+Enter plain paste, Ctrl+P pin, Arrow keys select. Ctrl+K focuses search.",
+    sourceApp: "Obsidian",
+    sourceWindow: "Cliply MVP.md",
+    copiedAt: "2026-05-04T09:47:42+08:00",
+    createdAt: "2026-05-04T09:47:42+08:00",
+    sizeBytes: 91,
+    isPinned: false,
+    tags: ["keyboard"],
+    formats: [
+      {
+        id: "fmt-text-shortcuts",
+        formatName: "text/plain",
+        mimeType: "text/plain",
+        dataKind: "text",
+        sizeBytes: 91,
+      },
+    ],
+  },
+  {
+    id: "clip-image-avatar",
+    type: "image",
+    title: "Avatar crop",
+    previewText: "Image 512 x 512",
+    sourceApp: "Photos",
+    sourceWindow: "avatar.png",
+    copiedAt: "2026-05-04T09:29:08+08:00",
+    createdAt: "2026-05-04T09:29:08+08:00",
+    sizeBytes: 188_420,
+    isPinned: false,
+    tags: ["asset"],
+    thumbnailUrl:
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23e8f7f4'/%3E%3Ccircle cx='256' cy='210' r='86' fill='%230e9f9a' fill-opacity='.78'/%3E%3Cpath d='M104 438c22-86 84-132 152-132s130 46 152 132' fill='%236554f6' fill-opacity='.72'/%3E%3C/svg%3E",
+    imageAlt: "Simple avatar placeholder",
+    formats: [
+      {
+        id: "fmt-image-avatar",
+        formatName: "image/png",
+        mimeType: "image/png",
+        dataKind: "image_file",
+        sizeBytes: 188_420,
+      },
+    ],
+  },
+];
