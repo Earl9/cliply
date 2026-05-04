@@ -17,10 +17,13 @@ pub struct ClipboardItemDto {
     pub title: String,
     pub preview_text: String,
     pub source_app: String,
+    pub source_window: Option<String>,
     pub copied_at: String,
+    pub created_at: String,
     pub relative_time: String,
     pub size_bytes: i64,
     pub is_pinned: bool,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

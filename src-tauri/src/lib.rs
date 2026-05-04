@@ -16,7 +16,7 @@ pub fn run() {
             commands::initialize_storage
         ])
         .setup(|app| {
-            db::initialize_mock_storage(app.handle())?;
+            db::initialize_storage(app.handle())?;
             tray::create_tray(app.handle())?;
             shortcuts::register_default_shortcuts(app.handle())?;
             Ok(())

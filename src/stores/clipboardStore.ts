@@ -5,7 +5,12 @@ import type {
   ClipboardFilter,
   ClipboardItem,
 } from "@/lib/clipboardTypes";
-import { clampIndex, isEditableElement } from "@/lib/keyboard";
+import {
+  getClipboardItemDetail,
+  listClipboardItems,
+  togglePinClipboardItem,
+} from "@/lib/clipboardRepository";
+import { clampIndex } from "@/lib/keyboard";
 import { mockClipboardItems } from "@/lib/mockClipboardItems";
 
 const actionLabels: Record<ClipboardActionKind, string> = {
@@ -16,71 +21,83 @@ const actionLabels: Record<ClipboardActionKind, string> = {
 };
 
 export function useClipboardStore() {
-  const [items, setItems] = useState<ClipboardItem[]>(mockClipboardItems);
+  const [allItems, setAllItems] = useState<ClipboardItem[]>(mockClipboardItems);
+  const [visibleItems, setVisibleItems] = useState<ClipboardItem[]>(mockClipboardItems);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filter, setFilter] = useState<ClipboardFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(mockClipboardItems[0]?.id ?? null);
+  const [detail, setDetail] = useState<ClipboardItem | null>(mockClipboardItems[0] ?? null);
+  const [loading, setLoading] = useState(false);
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
 
-  const filteredItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return items.filter((item) => {
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "pinned" ? item.isPinned : item.type === filter);
-
-      if (!matchesFilter) {
-        return false;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const haystack = [
-        item.title,
-        item.previewText,
-        item.fullText,
-        item.sourceApp,
-        item.sourceWindow,
-        item.tags.join(" "),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(normalizedQuery);
-    });
-  }, [filter, items, query]);
-
-  const counts = useMemo(
-    () => ({
-      all: items.length,
-      text: items.filter((item) => item.type === "text").length,
-      link: items.filter((item) => item.type === "link").length,
-      image: items.filter((item) => item.type === "image").length,
-      code: items.filter((item) => item.type === "code").length,
-      pinned: items.filter((item) => item.isPinned).length,
-    }),
-    [items],
-  );
-
-  const selectedItem = useMemo(
-    () => filteredItems.find((item) => item.id === selectedId) ?? filteredItems[0] ?? null,
-    [filteredItems, selectedId],
-  );
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query), 150);
+    return () => window.clearTimeout(timeout);
+  }, [query]);
 
   useEffect(() => {
-    if (!filteredItems.length) {
-      setSelectedId(null);
+    let cancelled = false;
+
+    listClipboardItems({ query: "", filter: "all" }).then((items) => {
+      if (!cancelled) {
+        setAllItems(items);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    listClipboardItems({ query: debouncedQuery, filter })
+      .then((items) => {
+        if (cancelled) {
+          return;
+        }
+
+        setVisibleItems(items);
+        setSelectedId((currentSelectedId) => {
+          if (items.some((item) => item.id === currentSelectedId)) {
+            return currentSelectedId;
+          }
+
+          return items[0]?.id ?? null;
+        });
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery, filter]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
       return;
     }
 
-    if (!selectedId || !filteredItems.some((item) => item.id === selectedId)) {
-      setSelectedId(filteredItems[0].id);
-    }
-  }, [filteredItems, selectedId]);
+    let cancelled = false;
+
+    getClipboardItemDetail(selectedId).then((item) => {
+      if (!cancelled) {
+        setDetail(item);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   useEffect(() => {
     if (!actionStatus) {
@@ -91,24 +108,56 @@ export function useClipboardStore() {
     return () => window.clearTimeout(timeout);
   }, [actionStatus]);
 
+  const counts = useMemo(
+    () => ({
+      all: allItems.length,
+      text: allItems.filter((item) => item.type === "text").length,
+      link: allItems.filter((item) => item.type === "link").length,
+      image: allItems.filter((item) => item.type === "image").length,
+      code: allItems.filter((item) => item.type === "code").length,
+      pinned: allItems.filter((item) => item.isPinned).length,
+    }),
+    [allItems],
+  );
+
+  const selectedItem =
+    detail ?? visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0] ?? null;
+
   const selectItem = useCallback((id: string) => {
     setSelectedId(id);
   }, []);
 
+  const patchPinnedState = useCallback((id: string, updatedItem: ClipboardItem | null) => {
+    const patchItem = (item: ClipboardItem) =>
+      item.id === id ? updatedItem ?? { ...item, isPinned: !item.isPinned } : item;
+
+    setAllItems((items) => items.map(patchItem));
+    setVisibleItems((items) => items.map(patchItem));
+    setDetail((item) => (item?.id === id ? patchItem(item) : item));
+  }, []);
+
+  const updatePinnedState = useCallback(
+    async (id: string) => {
+      const updatedItem = await togglePinClipboardItem(id);
+      patchPinnedState(id, updatedItem);
+    },
+    [patchPinnedState],
+  );
+
   const moveSelection = useCallback(
     (direction: 1 | -1) => {
-      if (!filteredItems.length) {
+      if (!visibleItems.length) {
         return;
       }
 
-      const currentIndex = filteredItems.findIndex((item) => item.id === selectedId);
+      const currentIndex = visibleItems.findIndex((item) => item.id === selectedId);
       const nextIndex = clampIndex(
         (currentIndex === -1 ? 0 : currentIndex) + direction,
-        filteredItems.length,
+        visibleItems.length,
       );
-      setSelectedId(filteredItems[nextIndex].id);
+      setSelectedId(visibleItems[nextIndex].id);
     },
-    [filteredItems, selectedId],
+    [selectedId, visibleItems],
   );
 
   const runMockAction = useCallback(
@@ -119,11 +168,7 @@ export function useClipboardStore() {
       }
 
       if (kind === "togglePin") {
-        setItems((currentItems) =>
-          currentItems.map((item) =>
-            item.id === selected.id ? { ...item, isPinned: !item.isPinned } : item,
-          ),
-        );
+        void updatePinnedState(selected.id);
       }
 
       setActionStatus({
@@ -132,30 +177,24 @@ export function useClipboardStore() {
         at: Date.now(),
       });
     },
-    [selectedItem],
+    [selectedItem, updatePinnedState],
   );
 
   const togglePinItem = useCallback(
     (id: string) => {
-      const item = items.find((currentItem) => currentItem.id === id);
+      const item = visibleItems.find((currentItem) => currentItem.id === id);
       if (!item) {
         return;
       }
 
-      setItems((currentItems) =>
-        currentItems.map((currentItem) =>
-          currentItem.id === id
-            ? { ...currentItem, isPinned: !currentItem.isPinned }
-            : currentItem,
-        ),
-      );
+      void updatePinnedState(id);
       setActionStatus({
         label: actionLabels.togglePin,
         itemTitle: item.title,
         at: Date.now(),
       });
     },
-    [items],
+    [updatePinnedState, visibleItems],
   );
 
   const handleGlobalKeyDown = useCallback(
@@ -188,14 +227,14 @@ export function useClipboardStore() {
 
   return {
     state: {
-      items,
+      items: allItems,
       selectedId,
       query,
       filter,
-      loading: false,
-      detail: selectedItem,
+      loading,
+      detail,
     },
-    filteredItems,
+    filteredItems: visibleItems,
     selectedItem,
     counts,
     actionStatus,
