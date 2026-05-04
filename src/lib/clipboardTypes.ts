@@ -38,6 +38,7 @@ export type ClipboardActionStatus = {
   label: string;
   itemTitle: string;
   at: number;
+  tone?: "success" | "error";
 } | null;
 
 export type ClipboardState = {

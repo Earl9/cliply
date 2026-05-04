@@ -134,6 +134,30 @@ export async function clearClipboardHistory(includePinned = false): Promise<void
   );
 }
 
+export async function copyClipboardItem(id: string): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  await invoke<void>("copy_clipboard_item", { id });
+}
+
+export async function pasteClipboardItem(id: string): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  await invoke<void>("paste_clipboard_item", { id });
+}
+
+export async function pastePlainText(id: string): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  await invoke<void>("paste_plain_text", { id });
+}
+
 async function invokeWithMockFallback<T>(
   invokeCommand: () => Promise<T>,
   fallback: () => T,

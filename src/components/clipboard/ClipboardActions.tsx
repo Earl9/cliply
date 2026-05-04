@@ -1,6 +1,7 @@
 import { Clipboard, Copy, Pin, Trash2, Type } from "lucide-react";
 import { clsx } from "clsx";
 import { ShortcutKey } from "@/components/common/ShortcutKey";
+import { getClipboardActionAvailability } from "@/lib/clipboardCapabilities";
 import type { ClipboardActionKind, ClipboardItem } from "@/lib/clipboardTypes";
 
 type ClipboardActionsProps = {
@@ -9,6 +10,7 @@ type ClipboardActionsProps = {
 };
 
 export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
+  const availability = getClipboardActionAvailability(item);
   const actions: Array<{
     label: string;
     keys: string[];
@@ -17,14 +19,21 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
     kind: ClipboardActionKind;
     disabled?: boolean;
   }> = [
-    { label: "粘贴", keys: ["Enter"], icon: Clipboard, primary: true, kind: "paste" },
-    { label: "复制", keys: ["Ctrl", "C"], icon: Copy, kind: "copy" },
+    {
+      label: "粘贴",
+      keys: ["Enter"],
+      icon: Clipboard,
+      primary: true,
+      kind: "paste",
+      disabled: !availability.paste,
+    },
+    { label: "复制", keys: ["Ctrl", "C"], icon: Copy, kind: "copy", disabled: !availability.copy },
     {
       label: "无格式",
       keys: ["Shift", "Enter"],
       icon: Type,
       kind: "pastePlain",
-      disabled: item.type === "image" && !item.fullText,
+      disabled: !availability.pastePlain,
     },
     { label: item.isPinned ? "取消固定" : "固定", keys: ["Ctrl", "P"], icon: Pin, kind: "togglePin" },
     { label: "删除", keys: ["Del"], icon: Trash2, kind: "delete" },

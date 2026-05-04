@@ -49,6 +49,7 @@ const WM_CLIPLY_STOP: u32 = WM_APP + 1;
 
 static LISTENER: OnceLock<Mutex<Option<ListenerHandle>>> = OnceLock::new();
 static CHANGE_SENDER: OnceLock<Mutex<Option<Sender<()>>>> = OnceLock::new();
+static SUPPRESS_UNTIL: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
 
 pub fn start_listener(app: AppHandle) -> Result<(), CliplyError> {
     let listener_slot = LISTENER.get_or_init(|| Mutex::new(None));
@@ -132,6 +133,13 @@ pub fn stop_listener() -> Result<(), CliplyError> {
     }
 
     Ok(())
+}
+
+pub fn suppress_clipboard_events_for(duration: Duration) {
+    let suppress_slot = SUPPRESS_UNTIL.get_or_init(|| Mutex::new(None));
+    if let Ok(mut suppress_until) = suppress_slot.lock() {
+        *suppress_until = Some(Instant::now() + duration);
+    }
 }
 
 fn run_message_window(message_tx: Sender<ListenerMessage>) {
@@ -221,12 +229,32 @@ unsafe extern "system" fn window_proc(
 }
 
 fn notify_clipboard_changed() {
+    if should_suppress_clipboard_event() {
+        return;
+    }
+
     if let Some(sender_slot) = CHANGE_SENDER.get() {
         if let Ok(sender) = sender_slot.lock() {
             if let Some(sender) = sender.as_ref() {
                 let _ = sender.send(());
             }
         }
+    }
+}
+
+fn should_suppress_clipboard_event() -> bool {
+    let suppress_slot = SUPPRESS_UNTIL.get_or_init(|| Mutex::new(None));
+    let Ok(mut suppress_until) = suppress_slot.lock() else {
+        return false;
+    };
+
+    match *suppress_until {
+        Some(until) if Instant::now() <= until => true,
+        Some(_) => {
+            *suppress_until = None;
+            false
+        }
+        None => false,
     }
 }
 

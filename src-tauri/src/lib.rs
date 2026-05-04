@@ -15,6 +15,9 @@ pub fn run() {
             commands::toggle_pin_clipboard_item,
             commands::delete_clipboard_item,
             commands::clear_clipboard_history,
+            commands::copy_clipboard_item,
+            commands::paste_clipboard_item,
+            commands::paste_plain_text,
             commands::initialize_storage
         ])
         .setup(|app| {

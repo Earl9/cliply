@@ -1,5 +1,5 @@
 use crate::models::clipboard_item::{ClipboardItemDetailDto, ClipboardItemDto};
-use crate::services::{clipboard_service, database_service};
+use crate::services::{clipboard_service, database_service, paste_service};
 use tauri::{AppHandle, Emitter};
 
 #[tauri::command]
@@ -49,4 +49,19 @@ pub async fn clear_clipboard_history(app: AppHandle, include_pinned: bool) -> Re
         .map_err::<String, _>(Into::into)?;
     let _ = app.emit("clipboard-items-changed", ());
     Ok(())
+}
+
+#[tauri::command]
+pub async fn copy_clipboard_item(app: AppHandle, id: String) -> Result<(), String> {
+    paste_service::copy_clipboard_item(&app, id).map_err(Into::into)
+}
+
+#[tauri::command]
+pub async fn paste_clipboard_item(app: AppHandle, id: String) -> Result<(), String> {
+    paste_service::paste_clipboard_item(&app, id).map_err(Into::into)
+}
+
+#[tauri::command]
+pub async fn paste_plain_text(app: AppHandle, id: String) -> Result<(), String> {
+    paste_service::paste_plain_text(&app, id).map_err(Into::into)
 }

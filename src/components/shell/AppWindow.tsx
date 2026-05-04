@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { clsx } from "clsx";
 import { ClipboardDetailPane } from "@/components/clipboard/ClipboardDetailPane";
 import { ClipboardFilterTabs } from "@/components/clipboard/ClipboardFilterTabs";
 import { ClipboardList } from "@/components/clipboard/ClipboardList";
@@ -72,7 +73,14 @@ export function AppWindow() {
         </div>
         <FooterShortcuts />
         {actionStatus ? (
-          <div className="pointer-events-none absolute bottom-[70px] left-1/2 -translate-x-1/2 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] px-4 py-2 text-sm font-medium text-[color:var(--cliply-text)] shadow-lg">
+          <div
+            className={clsx(
+              "pointer-events-none absolute bottom-[70px] left-1/2 max-w-[min(520px,calc(100%-48px))] -translate-x-1/2 rounded-xl border px-4 py-2 text-sm font-medium shadow-lg",
+              actionStatus.tone === "error"
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : "border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] text-[color:var(--cliply-text)]",
+            )}
+          >
             {actionStatus.label}: {actionStatus.itemTitle}
           </div>
         ) : null}

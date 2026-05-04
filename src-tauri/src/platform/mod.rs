@@ -89,3 +89,32 @@ pub fn read_current_clipboard() -> Result<Option<ClipboardSnapshot>, CliplyError
         Ok(None)
     }
 }
+
+pub fn write_clipboard_payload(
+    payload: ClipboardWritePayload,
+    owner_window: Option<isize>,
+) -> Result<(), CliplyError> {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::clipboard_writer::write_payload(payload, owner_window);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = payload;
+        let _ = owner_window;
+        Ok(())
+    }
+}
+
+pub fn paste_to_foreground() -> Result<(), CliplyError> {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::paste_simulator::simulate_ctrl_v();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}

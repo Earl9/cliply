@@ -7,22 +7,32 @@ import type {
   ClipboardFilter,
   ClipboardItem,
 } from "@/lib/clipboardTypes";
+import { canRunClipboardAction } from "@/lib/clipboardCapabilities";
 import {
   clearClipboardHistory,
+  copyClipboardItem,
   deleteClipboardItem,
   getClipboardItemDetail,
   listClipboardItems,
+  pasteClipboardItem,
+  pastePlainText,
   togglePinClipboardItem,
 } from "@/lib/clipboardRepository";
 import { clampIndex } from "@/lib/keyboard";
 import { mockClipboardItems } from "@/lib/mockClipboardItems";
 
 const actionLabels: Record<ClipboardActionKind, string> = {
-  paste: "已模拟粘贴",
-  copy: "已模拟复制",
-  pastePlain: "已模拟无格式粘贴",
+  paste: "已粘贴",
+  copy: "已复制到剪贴板",
+  pastePlain: "已无格式粘贴",
   togglePin: "固定状态已更新",
   delete: "记录已删除",
+};
+
+const actionErrorLabels: Record<Extract<ClipboardActionKind, "paste" | "copy" | "pastePlain">, string> = {
+  paste: "粘贴失败，内容已尽量复制到剪贴板",
+  copy: "复制失败",
+  pastePlain: "无格式粘贴失败",
 };
 
 export function useClipboardStore() {
@@ -225,15 +235,31 @@ export function useClipboardStore() {
     [refreshItems, selectedItem, visibleItems],
   );
 
-  const runMockAction = useCallback(
+  const runClipboardAction = useCallback(
     (kind: ClipboardActionKind) => {
       const selected = selectedItem;
       if (!selected) {
         return;
       }
 
+      if (!canRunClipboardAction(kind, selected)) {
+        setActionStatus({
+          label: "当前记录没有可粘贴的文本",
+          itemTitle: selected.title,
+          at: Date.now(),
+          tone: "error",
+        });
+        return;
+      }
+
       if (kind === "togglePin") {
         void updatePinnedState(selected.id);
+        setActionStatus({
+          label: actionLabels.togglePin,
+          itemTitle: selected.title,
+          at: Date.now(),
+        });
+        return;
       }
 
       if (kind === "delete") {
@@ -241,13 +267,34 @@ export function useClipboardStore() {
         return;
       }
 
-      setActionStatus({
-        label: actionLabels[kind],
-        itemTitle: selected.title,
-        at: Date.now(),
-      });
+      const command =
+        kind === "copy"
+          ? copyClipboardItem(selected.id)
+          : kind === "pastePlain"
+            ? pastePlainText(selected.id)
+            : kind === "paste"
+              ? pasteClipboardItem(selected.id)
+              : Promise.resolve();
+
+      void command
+        .then(() => {
+          setActionStatus({
+            label: actionLabels[kind],
+            itemTitle: selected.title,
+            at: Date.now(),
+          });
+          refreshItems();
+        })
+        .catch(() => {
+          setActionStatus({
+            label: actionErrorLabels[kind as "paste" | "copy" | "pastePlain"],
+            itemTitle: selected.title,
+            at: Date.now(),
+            tone: "error",
+          });
+        });
     },
-    [removeItem, selectedItem, updatePinnedState],
+    [refreshItems, removeItem, selectedItem, updatePinnedState],
   );
 
   const togglePinItem = useCallback(
@@ -269,6 +316,12 @@ export function useClipboardStore() {
 
   const handleGlobalKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTextInput =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable;
+
       if (event.key === "ArrowDown") {
         event.preventDefault();
         moveSelection(1);
@@ -283,22 +336,28 @@ export function useClipboardStore() {
 
       if (event.key.toLowerCase() === "p" && event.ctrlKey) {
         event.preventDefault();
-        runMockAction("togglePin");
+        runClipboardAction("togglePin");
         return;
       }
 
       if (event.key === "Delete") {
         event.preventDefault();
-        runMockAction("delete");
+        runClipboardAction("delete");
+        return;
+      }
+
+      if (event.key.toLowerCase() === "c" && event.ctrlKey && !isTextInput) {
+        event.preventDefault();
+        runClipboardAction("copy");
         return;
       }
 
       if (event.key === "Enter") {
         event.preventDefault();
-        runMockAction(event.shiftKey ? "pastePlain" : "paste");
+        runClipboardAction(event.shiftKey ? "pastePlain" : "paste");
       }
     },
-    [moveSelection, runMockAction],
+    [moveSelection, runClipboardAction],
   );
 
   const clearHistory = useCallback(() => {
@@ -334,7 +393,7 @@ export function useClipboardStore() {
     setFilter,
     selectItem,
     moveSelection,
-    runMockAction,
+    runMockAction: runClipboardAction,
     togglePinItem,
     clearHistory,
     handleGlobalKeyDown,
