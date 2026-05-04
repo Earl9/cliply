@@ -1,4 +1,4 @@
-import { Clipboard, Copy, Pin, Type } from "lucide-react";
+import { Clipboard, Copy, Pin, Trash2, Type } from "lucide-react";
 import { clsx } from "clsx";
 import { ShortcutKey } from "@/components/common/ShortcutKey";
 import type { ClipboardActionKind, ClipboardItem } from "@/lib/clipboardTypes";
@@ -27,10 +27,11 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
       disabled: item.type === "image" && !item.fullText,
     },
     { label: item.isPinned ? "取消固定" : "固定", keys: ["Ctrl", "P"], icon: Pin, kind: "togglePin" },
+    { label: "删除", keys: ["Del"], icon: Trash2, kind: "delete" },
   ];
 
   return (
-    <div className="grid shrink-0 grid-cols-4 gap-3 border-t border-[color:var(--cliply-border)] p-5">
+    <div className="grid shrink-0 grid-cols-5 gap-3 border-t border-[color:var(--cliply-border)] p-5">
       {actions.map((action) => {
         const Icon = action.icon;
         return (

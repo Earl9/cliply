@@ -4,7 +4,7 @@ use crate::models::clipboard_item::{
 };
 use crate::platform::{self, ClipboardSnapshot};
 use crate::services::{database_service, hash_service, sensitive_detector};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Row};
 use tauri::AppHandle;
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -21,35 +21,21 @@ pub fn list_clipboard_items(
     let normalized_query = query.unwrap_or_default().trim().to_lowercase();
     let item_type = item_type.unwrap_or_default().to_lowercase();
     let pinned_only = pinned_only.unwrap_or(false);
-    let limit = limit.unwrap_or(50).max(1) as usize;
-    let offset = offset.unwrap_or(0).max(0) as usize;
+    let limit = limit.unwrap_or(50).max(1);
+    let offset = offset.unwrap_or(0).max(0);
 
-    let mut items = load_items(&connection)?;
-
-    if !normalized_query.is_empty() {
-        items.retain(|item| {
-            let haystack = format!(
-                "{} {} {} {} {}",
-                item.title,
-                item.preview_text,
-                item.source_app,
-                item.source_window.clone().unwrap_or_default(),
-                item.tags.join(" ")
-            )
-            .to_lowercase();
-            haystack.contains(&normalized_query)
-        });
+    if normalized_query.is_empty() {
+        load_items(&connection, &item_type, pinned_only, limit, offset)
+    } else {
+        search_items(
+            &connection,
+            &normalized_query,
+            &item_type,
+            pinned_only,
+            limit,
+            offset,
+        )
     }
-
-    if !item_type.is_empty() {
-        items.retain(|item| matches_item_type(item, &item_type));
-    }
-
-    if pinned_only {
-        items.retain(|item| item.is_pinned);
-    }
-
-    Ok(items.into_iter().skip(offset).take(limit).collect())
 }
 
 pub fn get_clipboard_item_detail(
@@ -83,6 +69,67 @@ pub fn toggle_pin_clipboard_item(
     )?;
 
     load_item(&connection, &id)
+}
+
+pub fn delete_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyError> {
+    let mut connection = database_service::connect(app)?;
+    let transaction = connection.transaction()?;
+
+    transaction.execute(
+        "UPDATE clipboard_items
+         SET is_deleted = 1,
+             updated_at = datetime('now')
+         WHERE id = ?1",
+        params![id],
+    )?;
+    transaction.execute(
+        "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
+        params![id],
+    )?;
+
+    transaction.commit()?;
+    Ok(())
+}
+
+pub fn clear_clipboard_history(app: &AppHandle, include_pinned: bool) -> Result<(), CliplyError> {
+    let mut connection = database_service::connect(app)?;
+    let transaction = connection.transaction()?;
+    let include_pinned_flag = if include_pinned { 1 } else { 0 };
+
+    let item_ids = {
+        let mut statement = transaction.prepare(
+            "SELECT id
+             FROM clipboard_items
+             WHERE is_deleted = 0
+               AND (?1 = 1 OR is_pinned = 0)",
+        )?;
+        let rows =
+            statement.query_map(params![include_pinned_flag], |row| row.get::<_, String>(0))?;
+        let mut item_ids = Vec::new();
+        for row in rows {
+            item_ids.push(row?);
+        }
+        item_ids
+    };
+
+    transaction.execute(
+        "UPDATE clipboard_items
+         SET is_deleted = 1,
+             updated_at = datetime('now')
+         WHERE is_deleted = 0
+           AND (?1 = 1 OR is_pinned = 0)",
+        params![include_pinned_flag],
+    )?;
+
+    for item_id in item_ids {
+        transaction.execute(
+            "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
+            params![item_id],
+        )?;
+    }
+
+    transaction.commit()?;
+    Ok(())
 }
 
 pub fn ingest_current_clipboard(app: &AppHandle) -> Result<Option<ClipboardItemDto>, CliplyError> {
@@ -198,43 +245,29 @@ pub fn ingest_clipboard_snapshot(
     Ok(Some(load_item(&connection, &id)?))
 }
 
-fn load_items(connection: &Connection) -> Result<Vec<ClipboardItemDto>, CliplyError> {
+fn load_items(
+    connection: &Connection,
+    item_type: &str,
+    pinned_only: bool,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<ClipboardItemDto>, CliplyError> {
     let mut statement = connection.prepare(
         "SELECT id, type, COALESCE(title, ''), COALESCE(preview_text, ''),
                 COALESCE(source_app, ''), source_window, copied_at, created_at,
                 COALESCE(size_bytes, 0), is_pinned
          FROM clipboard_items
          WHERE is_deleted = 0
-         ORDER BY is_pinned DESC, copied_at DESC",
+           AND (?1 = '' OR type = ?1)
+           AND (?2 = 0 OR is_pinned = 1)
+         ORDER BY is_pinned DESC, copied_at DESC
+         LIMIT ?3 OFFSET ?4",
     )?;
 
-    let rows = statement.query_map([], |row| {
-        let id: String = row.get(0)?;
-        let item_type: String = row.get(1)?;
-        Ok(ClipboardItemDto {
-            tags: Vec::new(),
-            id,
-            item_type: parse_item_type(&item_type),
-            title: row.get(2)?,
-            preview_text: row.get(3)?,
-            source_app: row.get(4)?,
-            source_window: row.get(5)?,
-            copied_at: row.get(6)?,
-            created_at: row.get(7)?,
-            relative_time: String::new(),
-            size_bytes: row.get(8)?,
-            is_pinned: row.get::<_, i64>(9)? == 1,
-        })
-    })?;
+    let pinned_only = if pinned_only { 1 } else { 0 };
+    let rows = statement.query_map(params![item_type, pinned_only, limit, offset], map_item_row)?;
 
-    let mut items = Vec::new();
-    for row in rows {
-        let mut item = row?;
-        item.tags = load_tags(connection, &item.id)?;
-        items.push(item);
-    }
-
-    Ok(items)
+    collect_items(connection, rows)
 }
 
 fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, CliplyError> {
@@ -334,16 +367,6 @@ fn parse_item_type(value: &str) -> ClipboardItemType {
     }
 }
 
-fn matches_item_type(item: &ClipboardItemDto, expected: &str) -> bool {
-    matches!(
-        (&item.item_type, expected),
-        (ClipboardItemType::Text, "text")
-            | (ClipboardItemType::Link, "link")
-            | (ClipboardItemType::Image, "image")
-            | (ClipboardItemType::Code, "code")
-    )
-}
-
 fn find_existing_item_id(
     connection: &Connection,
     hash: &str,
@@ -359,6 +382,154 @@ fn find_existing_item_id(
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(error) => Err(error.into()),
     }
+}
+
+fn search_items(
+    connection: &Connection,
+    query: &str,
+    item_type: &str,
+    pinned_only: bool,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<ClipboardItemDto>, CliplyError> {
+    let pinned_only = if pinned_only { 1 } else { 0 };
+    let like_query = format!("%{}%", escape_like(query));
+
+    if let Some(fts_query) = build_fts_query(query) {
+        let mut statement = connection.prepare(
+            "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
+                    COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
+                    ci.source_window, ci.copied_at, ci.created_at,
+                    COALESCE(ci.size_bytes, 0), ci.is_pinned
+             FROM clipboard_items ci
+             WHERE ci.is_deleted = 0
+               AND (?3 = '' OR ci.type = ?3)
+               AND (?4 = 0 OR ci.is_pinned = 1)
+               AND (
+                    ci.id IN (
+                        SELECT item_id
+                        FROM clipboard_items_fts
+                        WHERE clipboard_items_fts MATCH ?1
+                    )
+                    OR lower(COALESCE(ci.title, '')) LIKE ?2 ESCAPE '\\'
+                    OR lower(COALESCE(ci.preview_text, '')) LIKE ?2 ESCAPE '\\'
+                    OR lower(COALESCE(ci.normalized_text, '')) LIKE ?2 ESCAPE '\\'
+                    OR lower(COALESCE(ci.source_app, '')) LIKE ?2 ESCAPE '\\'
+                    OR lower(COALESCE(ci.source_window, '')) LIKE ?2 ESCAPE '\\'
+                    OR EXISTS (
+                        SELECT 1
+                        FROM clipboard_tags tag
+                        WHERE tag.item_id = ci.id
+                          AND lower(tag.tag) LIKE ?2 ESCAPE '\\'
+                    )
+               )
+             ORDER BY ci.is_pinned DESC, ci.copied_at DESC
+             LIMIT ?5 OFFSET ?6",
+        )?;
+
+        let rows = statement.query_map(
+            params![fts_query, like_query, item_type, pinned_only, limit, offset],
+            map_item_row,
+        )?;
+
+        return collect_items(connection, rows);
+    }
+
+    let mut statement = connection.prepare(
+        "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
+                COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
+                ci.source_window, ci.copied_at, ci.created_at,
+                COALESCE(ci.size_bytes, 0), ci.is_pinned
+         FROM clipboard_items ci
+         WHERE ci.is_deleted = 0
+           AND (?2 = '' OR ci.type = ?2)
+           AND (?3 = 0 OR ci.is_pinned = 1)
+           AND (
+                lower(COALESCE(ci.title, '')) LIKE ?1 ESCAPE '\\'
+                OR lower(COALESCE(ci.preview_text, '')) LIKE ?1 ESCAPE '\\'
+                OR lower(COALESCE(ci.normalized_text, '')) LIKE ?1 ESCAPE '\\'
+                OR lower(COALESCE(ci.source_app, '')) LIKE ?1 ESCAPE '\\'
+                OR lower(COALESCE(ci.source_window, '')) LIKE ?1 ESCAPE '\\'
+                OR EXISTS (
+                    SELECT 1
+                    FROM clipboard_tags tag
+                    WHERE tag.item_id = ci.id
+                      AND lower(tag.tag) LIKE ?1 ESCAPE '\\'
+                )
+           )
+         ORDER BY ci.is_pinned DESC, ci.copied_at DESC
+         LIMIT ?4 OFFSET ?5",
+    )?;
+
+    let rows = statement.query_map(
+        params![like_query, item_type, pinned_only, limit, offset],
+        map_item_row,
+    )?;
+
+    collect_items(connection, rows)
+}
+
+fn collect_items<I>(connection: &Connection, rows: I) -> Result<Vec<ClipboardItemDto>, CliplyError>
+where
+    I: IntoIterator<Item = rusqlite::Result<ClipboardItemDto>>,
+{
+    let mut items = Vec::new();
+    for row in rows {
+        let mut item = row?;
+        item.tags = load_tags(connection, &item.id)?;
+        items.push(item);
+    }
+
+    Ok(items)
+}
+
+fn map_item_row(row: &Row<'_>) -> rusqlite::Result<ClipboardItemDto> {
+    let id: String = row.get(0)?;
+    let item_type: String = row.get(1)?;
+    Ok(ClipboardItemDto {
+        tags: Vec::new(),
+        id,
+        item_type: parse_item_type(&item_type),
+        title: row.get(2)?,
+        preview_text: row.get(3)?,
+        source_app: row.get(4)?,
+        source_window: row.get(5)?,
+        copied_at: row.get(6)?,
+        created_at: row.get(7)?,
+        relative_time: String::new(),
+        size_bytes: row.get(8)?,
+        is_pinned: row.get::<_, i64>(9)? == 1,
+    })
+}
+
+fn build_fts_query(query: &str) -> Option<String> {
+    let terms = query
+        .split_whitespace()
+        .filter_map(|term| {
+            let sanitized = term
+                .chars()
+                .filter(|character| character.is_alphanumeric() || *character == '_')
+                .collect::<String>();
+            if sanitized.is_empty() {
+                None
+            } else {
+                Some(format!("\"{}\"", sanitized.replace('"', "\"\"")))
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if terms.is_empty() {
+        None
+    } else {
+        Some(terms.join(" AND "))
+    }
+}
+
+fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 fn upsert_fts(

@@ -32,7 +32,7 @@ export type ClipboardItem = {
 
 export type ClipboardItemDetail = ClipboardItem;
 
-export type ClipboardActionKind = "paste" | "copy" | "pastePlain" | "togglePin";
+export type ClipboardActionKind = "paste" | "copy" | "pastePlain" | "togglePin" | "delete";
 
 export type ClipboardActionStatus = {
   label: string;

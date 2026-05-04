@@ -112,6 +112,28 @@ export async function togglePinClipboardItem(id: string): Promise<ClipboardItem 
   return dtoToClipboardItem(item);
 }
 
+export async function deleteClipboardItem(id: string): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  await invokeWithMockFallback(
+    () => invoke<void>("delete_clipboard_item", { id }),
+    () => undefined,
+  );
+}
+
+export async function clearClipboardHistory(includePinned = false): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  await invokeWithMockFallback(
+    () => invoke<void>("clear_clipboard_history", { includePinned }),
+    () => undefined,
+  );
+}
+
 async function invokeWithMockFallback<T>(
   invokeCommand: () => Promise<T>,
   fallback: () => T,

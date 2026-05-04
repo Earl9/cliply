@@ -13,6 +13,8 @@ pub fn run() {
             commands::list_clipboard_items,
             commands::get_clipboard_item_detail,
             commands::toggle_pin_clipboard_item,
+            commands::delete_clipboard_item,
+            commands::clear_clipboard_history,
             commands::initialize_storage
         ])
         .setup(|app| {

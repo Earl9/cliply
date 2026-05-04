@@ -8,6 +8,8 @@ import type {
   ClipboardItem,
 } from "@/lib/clipboardTypes";
 import {
+  clearClipboardHistory,
+  deleteClipboardItem,
   getClipboardItemDetail,
   listClipboardItems,
   togglePinClipboardItem,
@@ -20,6 +22,7 @@ const actionLabels: Record<ClipboardActionKind, string> = {
   copy: "已模拟复制",
   pastePlain: "已模拟无格式粘贴",
   togglePin: "固定状态已更新",
+  delete: "记录已删除",
 };
 
 export function useClipboardStore() {
@@ -166,12 +169,17 @@ export function useClipboardStore() {
     setDetail((item) => (item?.id === id ? patchItem(item) : item));
   }, []);
 
+  const refreshItems = useCallback(() => {
+    setRefreshToken((token) => token + 1);
+  }, []);
+
   const updatePinnedState = useCallback(
     async (id: string) => {
       const updatedItem = await togglePinClipboardItem(id);
       patchPinnedState(id, updatedItem);
+      refreshItems();
     },
-    [patchPinnedState],
+    [patchPinnedState, refreshItems],
   );
 
   const moveSelection = useCallback(
@@ -190,6 +198,33 @@ export function useClipboardStore() {
     [selectedId, visibleItems],
   );
 
+  const removeItem = useCallback(
+    async (id: string) => {
+      const removedItem = visibleItems.find((item) => item.id === id) ?? selectedItem;
+      const removedIndex = visibleItems.findIndex((item) => item.id === id);
+      const nextItems = visibleItems.filter((item) => item.id !== id);
+      const nextSelectedId =
+        nextItems[Math.min(Math.max(removedIndex, 0), nextItems.length - 1)]?.id ?? null;
+
+      setVisibleItems(nextItems);
+      setAllItems((items) => items.filter((item) => item.id !== id));
+      setSelectedId(nextSelectedId);
+      setDetail((item) => (item?.id === id ? null : item));
+
+      await deleteClipboardItem(id);
+      refreshItems();
+
+      if (removedItem) {
+        setActionStatus({
+          label: actionLabels.delete,
+          itemTitle: removedItem.title,
+          at: Date.now(),
+        });
+      }
+    },
+    [refreshItems, selectedItem, visibleItems],
+  );
+
   const runMockAction = useCallback(
     (kind: ClipboardActionKind) => {
       const selected = selectedItem;
@@ -201,13 +236,18 @@ export function useClipboardStore() {
         void updatePinnedState(selected.id);
       }
 
+      if (kind === "delete") {
+        void removeItem(selected.id);
+        return;
+      }
+
       setActionStatus({
         label: actionLabels[kind],
         itemTitle: selected.title,
         at: Date.now(),
       });
     },
-    [selectedItem, updatePinnedState],
+    [removeItem, selectedItem, updatePinnedState],
   );
 
   const togglePinItem = useCallback(
@@ -247,6 +287,12 @@ export function useClipboardStore() {
         return;
       }
 
+      if (event.key === "Delete") {
+        event.preventDefault();
+        runMockAction("delete");
+        return;
+      }
+
       if (event.key === "Enter") {
         event.preventDefault();
         runMockAction(event.shiftKey ? "pastePlain" : "paste");
@@ -254,6 +300,22 @@ export function useClipboardStore() {
     },
     [moveSelection, runMockAction],
   );
+
+  const clearHistory = useCallback(() => {
+    const shouldClear = window.confirm("清空未固定的剪贴板历史？固定记录会保留。");
+    if (!shouldClear) {
+      return;
+    }
+
+    void clearClipboardHistory(false).then(() => {
+      setActionStatus({
+        label: "历史已清空",
+        itemTitle: "固定记录已保留",
+        at: Date.now(),
+      });
+      refreshItems();
+    });
+  }, [refreshItems]);
 
   return {
     state: {
@@ -274,6 +336,7 @@ export function useClipboardStore() {
     moveSelection,
     runMockAction,
     togglePinItem,
+    clearHistory,
     handleGlobalKeyDown,
   };
 }

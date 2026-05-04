@@ -2,7 +2,11 @@ import { ClipboardList, MoreHorizontal, Pin, Settings, X } from "lucide-react";
 import { IconButton } from "@/components/common/IconButton";
 import { hideMainWindow } from "@/lib/windowAdapter";
 
-export function TitleBar() {
+type TitleBarProps = {
+  onClearHistory?: () => void;
+};
+
+export function TitleBar({ onClearHistory }: TitleBarProps) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between px-7">
       <div className="flex min-w-0 items-center gap-3">
@@ -23,7 +27,7 @@ export function TitleBar() {
         <IconButton label="Settings">
           <Settings className="size-4" />
         </IconButton>
-        <IconButton label="More">
+        <IconButton label="More" onClick={onClearHistory}>
           <MoreHorizontal className="size-4" />
         </IconButton>
         <IconButton label="Hide Cliply" variant="danger" onClick={() => void hideMainWindow()}>
