@@ -267,6 +267,7 @@ fn set_change_sender(sender: Option<Sender<()>>) -> Result<(), CliplyError> {
     Ok(())
 }
 
+#[allow(dead_code)]
 struct ListenerHandle {
     hwnd: HWND,
     listener_thread: JoinHandle<()>,

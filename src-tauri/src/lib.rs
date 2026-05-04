@@ -9,6 +9,14 @@ mod tray;
 
 use tauri::Manager;
 
+struct ClipboardListenerShutdown;
+
+impl Drop for ClipboardListenerShutdown {
+    fn drop(&mut self) {
+        let _ = platform::stop_clipboard_listener();
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -34,6 +42,7 @@ pub fn run() {
             tray::create_tray(app.handle())?;
             shortcuts::register_default_shortcuts(app.handle())?;
             platform::start_clipboard_listener(app.handle().clone())?;
+            app.manage(ClipboardListenerShutdown);
             if let Some(window) = app.get_webview_window("main") {
                 let handle = app.handle().clone();
                 window.on_window_event(move |event| {

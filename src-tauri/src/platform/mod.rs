@@ -10,6 +10,7 @@ use tauri::AppHandle;
 pub struct ClipboardSnapshot {
     pub primary_type: ClipboardItemType,
     pub text: Option<String>,
+    #[allow(dead_code)]
     pub html: Option<String>,
     pub image: Option<ImageSnapshot>,
     pub formats: Vec<ClipboardFormatSnapshot>,
@@ -46,6 +47,7 @@ pub struct ForegroundAppInfo {
     pub window_title: Option<String>,
 }
 
+#[allow(dead_code)]
 pub trait ClipboardPlatform {
     fn start_listening(&self) -> Result<(), CliplyError>;
     fn stop_listening(&self) -> Result<(), CliplyError>;

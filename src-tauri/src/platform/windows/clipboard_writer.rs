@@ -1,5 +1,7 @@
 use crate::error::CliplyError;
 use crate::platform::ClipboardWritePayload;
+use image::DynamicImage;
+use std::path::Path;
 use std::ptr::{copy_nonoverlapping, null_mut};
 use std::thread;
 use std::time::Duration;
@@ -14,6 +16,8 @@ use windows_sys::Win32::System::Memory::{
 use super::clipboard_listener;
 
 const CF_UNICODETEXT: u32 = 13;
+const CF_DIB: u32 = 8;
+const BI_RGB: u32 = 0;
 
 #[link(name = "kernel32")]
 extern "system" {
@@ -24,11 +28,16 @@ pub fn write_payload(
     payload: ClipboardWritePayload,
     owner_window: Option<isize>,
 ) -> Result<(), CliplyError> {
-    let text = payload.text.ok_or_else(|| {
-        CliplyError::PlatformUnavailable("only text clipboard writes are implemented".into())
+    clipboard_listener::suppress_clipboard_events_for(Duration::from_millis(700));
+
+    if let Some(image_path) = payload.image_path {
+        return write_image_file(&image_path, owner_window);
+    }
+
+    let text = payload.text.or(payload.html).ok_or_else(|| {
+        CliplyError::PlatformUnavailable("clipboard payload has no writable content".into())
     })?;
 
-    clipboard_listener::suppress_clipboard_events_for(Duration::from_millis(700));
     write_unicode_text(&text, owner_window)
 }
 
@@ -38,27 +47,7 @@ fn write_unicode_text(value: &str, owner_window: Option<isize>) -> Result<(), Cl
     encoded.push(0);
 
     let byte_len = encoded.len() * std::mem::size_of::<u16>();
-    let handle = unsafe { GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, byte_len) };
-    if handle.is_null() {
-        return Err(CliplyError::PlatformUnavailable(
-            "failed to allocate clipboard memory".into(),
-        ));
-    }
-
-    let locked = unsafe { GlobalLock(handle) } as *mut u16;
-    if locked.is_null() {
-        unsafe {
-            GlobalFree(handle);
-        }
-        return Err(CliplyError::PlatformUnavailable(
-            "failed to lock clipboard memory".into(),
-        ));
-    }
-
-    unsafe {
-        copy_nonoverlapping(encoded.as_ptr(), locked, encoded.len());
-        GlobalUnlock(handle);
-    }
+    let handle = allocate_clipboard_bytes(encoded.as_ptr() as *const u8, byte_len)?;
 
     let emptied = unsafe { EmptyClipboard() } != 0;
     if !emptied {
@@ -81,6 +70,95 @@ fn write_unicode_text(value: &str, owner_window: Option<isize>) -> Result<(), Cl
     }
 
     Ok(())
+}
+
+fn write_image_file(image_path: &str, owner_window: Option<isize>) -> Result<(), CliplyError> {
+    let image = image::open(Path::new(image_path))
+        .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
+    let dib = image_to_dib(&image)?;
+    let handle = allocate_clipboard_bytes(dib.as_ptr(), dib.len())?;
+    let _clipboard = ClipboardGuard::open_with_retry(owner_window)?;
+
+    let emptied = unsafe { EmptyClipboard() } != 0;
+    if !emptied {
+        unsafe {
+            GlobalFree(handle);
+        }
+        return Err(CliplyError::PlatformUnavailable(
+            "failed to empty clipboard".into(),
+        ));
+    }
+
+    let set_handle = unsafe { SetClipboardData(CF_DIB, handle as HANDLE) };
+    if set_handle.is_null() {
+        unsafe {
+            GlobalFree(handle);
+        }
+        return Err(CliplyError::PlatformUnavailable(
+            "failed to set clipboard image".into(),
+        ));
+    }
+
+    Ok(())
+}
+
+fn image_to_dib(image: &DynamicImage) -> Result<Vec<u8>, CliplyError> {
+    let rgba = image.to_rgba8();
+    let width = rgba.width();
+    let height = rgba.height();
+    let pixel_bytes = width
+        .checked_mul(height)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or_else(|| CliplyError::PlatformUnavailable("image is too large".into()))?;
+    let mut dib = Vec::with_capacity(40 + pixel_bytes as usize);
+
+    dib.extend_from_slice(&40u32.to_le_bytes());
+    dib.extend_from_slice(&(width as i32).to_le_bytes());
+    dib.extend_from_slice(&(height as i32).to_le_bytes());
+    dib.extend_from_slice(&1u16.to_le_bytes());
+    dib.extend_from_slice(&32u16.to_le_bytes());
+    dib.extend_from_slice(&BI_RGB.to_le_bytes());
+    dib.extend_from_slice(&pixel_bytes.to_le_bytes());
+    dib.extend_from_slice(&0i32.to_le_bytes());
+    dib.extend_from_slice(&0i32.to_le_bytes());
+    dib.extend_from_slice(&0u32.to_le_bytes());
+    dib.extend_from_slice(&0u32.to_le_bytes());
+
+    for y in (0..height).rev() {
+        for x in 0..width {
+            let pixel = rgba.get_pixel(x, y);
+            let [red, green, blue, alpha] = pixel.0;
+            dib.extend_from_slice(&[blue, green, red, alpha]);
+        }
+    }
+
+    Ok(dib)
+}
+
+fn allocate_clipboard_bytes(source: *const u8, byte_len: usize) -> Result<HGLOBAL, CliplyError> {
+    let handle = unsafe { GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, byte_len) };
+    if handle.is_null() {
+        return Err(CliplyError::PlatformUnavailable(
+            "failed to allocate clipboard memory".into(),
+        ));
+    }
+
+    let locked = unsafe { GlobalLock(handle) } as *mut u8;
+    if locked.is_null() {
+        unsafe {
+            GlobalFree(handle);
+        }
+        return Err(CliplyError::PlatformUnavailable(
+            "failed to lock clipboard memory".into(),
+        ));
+    }
+
+    unsafe {
+        copy_nonoverlapping(source, locked, byte_len);
+        GlobalUnlock(handle);
+    }
+
+    Ok(handle)
 }
 
 struct ClipboardGuard;

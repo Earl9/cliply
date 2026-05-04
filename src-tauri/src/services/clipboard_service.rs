@@ -21,7 +21,8 @@ pub fn list_clipboard_items(
     offset: Option<i64>,
 ) -> Result<Vec<ClipboardItemDto>, CliplyError> {
     let connection = database_service::connect(app)?;
-    let normalized_query = query.unwrap_or_default().trim().to_lowercase();
+    let normalized_query =
+        crate::services::search_service::normalize_query(&query.unwrap_or_default());
     let item_type = item_type.unwrap_or_default().to_lowercase();
     let pinned_only = pinned_only.unwrap_or(false);
     let limit = limit.unwrap_or(50).max(1);

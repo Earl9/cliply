@@ -10,15 +10,20 @@ export function hasTextFallback(item: ClipboardItem) {
   const hasStoredText = item.formats.some(
     (format) => format.dataKind === "text" || format.dataKind === "html",
   );
+  const hasStoredImage = item.formats.some((format) => format.dataKind === "image_file");
   const hasLoadedText = Boolean(item.fullText?.trim());
   const hasPreviewFallback = item.type !== "image" && Boolean(item.previewText.trim());
 
-  return hasStoredText || hasLoadedText || hasPreviewFallback;
+  return hasStoredText || hasStoredImage || hasLoadedText || hasPreviewFallback;
 }
 
 export function canRunClipboardAction(kind: ClipboardActionKind, item: ClipboardItem) {
   if (kind === "togglePin" || kind === "delete") {
     return true;
+  }
+
+  if (kind === "pastePlain") {
+    return item.type !== "image" && hasTextFallback(item);
   }
 
   return hasTextFallback(item);

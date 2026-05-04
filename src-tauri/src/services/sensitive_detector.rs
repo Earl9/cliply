@@ -73,10 +73,6 @@ pub fn analyze(value: &str) -> SensitivityDetection {
     SensitivityDetection::none()
 }
 
-pub fn looks_sensitive(value: &str) -> bool {
-    analyze(value).risk == SensitivityRisk::High
-}
-
 fn looks_like_private_key(lower: &str) -> bool {
     [
         "-----begin private key-----",
@@ -326,14 +322,17 @@ fn is_common_prose_word(word: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{analyze, looks_sensitive, SensitivityRisk};
+    use super::{analyze, SensitivityRisk};
 
     #[test]
     fn blocks_private_keys() {
         let detection = analyze("-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----");
 
         assert_eq!(detection.risk, SensitivityRisk::High);
-        assert!(looks_sensitive("-----BEGIN OPENSSH PRIVATE KEY-----"));
+        assert_eq!(
+            analyze("-----BEGIN OPENSSH PRIVATE KEY-----").risk,
+            SensitivityRisk::High
+        );
     }
 
     #[test]

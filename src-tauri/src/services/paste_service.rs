@@ -24,11 +24,7 @@ pub fn paste_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyErr
 }
 
 pub fn paste_plain_text(app: &AppHandle, id: String) -> Result<(), CliplyError> {
-    paste_clipboard_item(app, id)
-}
-
-fn write_item_to_clipboard(app: &AppHandle, id: &str) -> Result<(), CliplyError> {
-    let text = load_item_text(app, id)?;
+    let text = load_item_text(app, &id)?;
     platform::write_clipboard_payload(
         ClipboardWritePayload {
             text: Some(text),
@@ -36,11 +32,60 @@ fn write_item_to_clipboard(app: &AppHandle, id: &str) -> Result<(), CliplyError>
             image_path: None,
         },
         main_window_handle(app),
-    )
+    )?;
+    increment_used_count(app, &id)?;
+    if settings_service::get_settings(app)
+        .map(|settings| settings.close_after_paste)
+        .unwrap_or(true)
+    {
+        hide_main_window(app);
+    }
+    thread::sleep(Duration::from_millis(120));
+    platform::paste_to_foreground()
+}
+
+fn write_item_to_clipboard(app: &AppHandle, id: &str) -> Result<(), CliplyError> {
+    let payload = load_item_payload(app, id)?;
+    platform::write_clipboard_payload(payload, main_window_handle(app))
+}
+
+fn load_item_payload(app: &AppHandle, id: &str) -> Result<ClipboardWritePayload, CliplyError> {
+    let connection = database_service::connect(app)?;
+    let item_type = connection.query_row(
+        "SELECT type
+         FROM clipboard_items
+         WHERE id = ?1 AND is_deleted = 0",
+        params![id],
+        |row| row.get::<_, String>(0),
+    );
+
+    match item_type {
+        Ok(item_type) if item_type == "image" => Ok(ClipboardWritePayload {
+            text: None,
+            html: None,
+            image_path: Some(load_item_image_path(&connection, id)?),
+        }),
+        Ok(_) => Ok(ClipboardWritePayload {
+            text: Some(load_item_text_with_connection(&connection, id)?),
+            html: None,
+            image_path: None,
+        }),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Err(CliplyError::PlatformUnavailable(
+            "selected clipboard item was not found".into(),
+        )),
+        Err(error) => Err(error.into()),
+    }
 }
 
 fn load_item_text(app: &AppHandle, id: &str) -> Result<String, CliplyError> {
     let connection = database_service::connect(app)?;
+    load_item_text_with_connection(&connection, id)
+}
+
+fn load_item_text_with_connection(
+    connection: &rusqlite::Connection,
+    id: &str,
+) -> Result<String, CliplyError> {
     let result = connection.query_row(
         "SELECT COALESCE(cf.data_text, ci.normalized_text, '')
          FROM clipboard_items ci
@@ -63,6 +108,32 @@ fn load_item_text(app: &AppHandle, id: &str) -> Result<String, CliplyError> {
         )),
         Err(rusqlite::Error::QueryReturnedNoRows) => Err(CliplyError::PlatformUnavailable(
             "selected clipboard item was not found".into(),
+        )),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn load_item_image_path(
+    connection: &rusqlite::Connection,
+    id: &str,
+) -> Result<String, CliplyError> {
+    let result = connection.query_row(
+        "SELECT data_path
+         FROM clipboard_formats
+         WHERE item_id = ?1
+           AND data_kind = 'image_file'
+           AND format_name <> 'thumbnail/png'
+           AND COALESCE(data_path, '') <> ''
+         ORDER BY priority DESC, created_at ASC
+         LIMIT 1",
+        params![id],
+        |row| row.get::<_, String>(0),
+    );
+
+    match result {
+        Ok(value) if !value.is_empty() => Ok(value),
+        Ok(_) | Err(rusqlite::Error::QueryReturnedNoRows) => Err(CliplyError::PlatformUnavailable(
+            "selected clipboard item has no image file".into(),
         )),
         Err(error) => Err(error.into()),
     }
