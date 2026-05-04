@@ -23,18 +23,18 @@ export function PillTabs<T extends string>({ options, value, onValueChange }: Pi
             type="button"
             onClick={() => onValueChange(option.value)}
             className={clsx(
-              "inline-flex h-10 min-w-28 shrink-0 items-center justify-center gap-2 rounded-xl border px-[22px] text-[16px] font-medium transition",
+              "inline-flex h-10 min-w-28 shrink-0 items-center justify-center gap-2 rounded-[12px] border px-[22px] text-[16px] font-semibold leading-none transition",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
               selected
-                ? "border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-[0_4px_12px_rgba(124,92,255,0.10)]"
-                : "border-transparent bg-white/60 text-[#596275] hover:border-[#e7ebf2] hover:bg-white",
+                ? "border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-[0_5px_14px_rgba(124,92,255,0.12)]"
+                : "border-transparent bg-white/45 text-[#5f6b7a] hover:border-[#e3e9f1] hover:bg-white",
             )}
           >
             <span>{option.label}</span>
             {typeof option.count === "number" ? (
               <span
                 className={clsx(
-                  "ml-0 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium",
+                  "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold leading-none",
                   selected
                     ? "bg-white text-[color:var(--cliply-accent-strong)]"
                     : "bg-[#eef2f7] text-[#718096]",

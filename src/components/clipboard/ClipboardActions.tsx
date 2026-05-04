@@ -41,7 +41,7 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
   ];
 
   return (
-    <footer className="grid shrink-0 grid-cols-[1.25fr_repeat(4,minmax(0,1fr))] gap-[14px] border-t border-[color:var(--cliply-border-soft)] bg-white/95 px-6 pb-5 pt-[18px]">
+    <footer className="grid shrink-0 grid-cols-[1.18fr_repeat(4,minmax(0,1fr))] gap-3 border-t border-[color:var(--cliply-border-soft)] bg-white px-6 py-3">
       {actions.map((action) => {
         const Icon = action.icon;
         return (
@@ -51,17 +51,19 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
             disabled={action.disabled}
             onClick={() => onAction(action.kind)}
             className={clsx(
-              "flex h-[78px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] text-[17px] font-semibold transition disabled:cursor-not-allowed disabled:border-transparent disabled:bg-[#f8fafc] disabled:text-[#a0a8b5] disabled:opacity-100",
+              "flex h-[62px] min-w-0 flex-col items-center justify-center gap-1 rounded-[13px] border text-[15px] font-semibold transition disabled:cursor-not-allowed disabled:border-[#eef1f5] disabled:bg-[#f8fafc] disabled:text-[#a0a8b5] disabled:opacity-100",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(124,92,255,0.45)]",
               action.primary
-                ? "bg-[color:var(--cliply-accent-strong)] text-white shadow-sm hover:bg-[color:var(--cliply-accent-dark)]"
+                ? "border-transparent bg-[color:var(--cliply-accent-strong)] text-white shadow-[0_8px_18px_rgba(100,65,232,0.24)] hover:bg-[color:var(--cliply-accent-dark)]"
                 : action.danger
-                  ? "border border-transparent bg-white text-[color:var(--cliply-body-text)] hover:border-[#fecaca] hover:bg-[#fef2f2] hover:text-[color:var(--cliply-danger)]"
-                  : "border border-transparent bg-white text-[color:var(--cliply-body-text)] hover:border-[color:var(--cliply-border-strong)] hover:bg-[#f8fafc]",
+                  ? "border-[#eef1f5] bg-[#fbfcfe] text-[#364152] hover:border-[#fecaca] hover:bg-[#fff5f5] hover:text-[color:var(--cliply-danger)]"
+                  : "border-[#eef1f5] bg-[#fbfcfe] text-[#364152] hover:border-[color:var(--cliply-border-strong)] hover:bg-white hover:shadow-[0_4px_12px_rgba(15,23,42,0.045)]",
             )}
           >
-            <Icon className={clsx(action.primary ? "size-[22px]" : "size-5")} />
-            <span>{action.label}</span>
+            <span className="flex items-center gap-2">
+              <Icon className={clsx(action.primary ? "size-[20px]" : "size-[18px]")} />
+              <span>{action.label}</span>
+            </span>
             <ShortcutKey
               keys={action.keys}
               compact

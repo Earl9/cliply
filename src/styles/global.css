@@ -11,20 +11,20 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --cliply-bg: #f3f6fa;
-  --cliply-bg-soft: #f8fafc;
-  --cliply-panel: #f8fafc;
+  --cliply-bg: #f5f7fb;
+  --cliply-bg-soft: #fbfdff;
+  --cliply-panel: #fbfdff;
   --cliply-panel-strong: #ffffff;
   --cliply-card: #ffffff;
   --cliply-card-solid: #ffffff;
-  --cliply-border: #e5eaf1;
-  --cliply-border-soft: #eef1f5;
-  --cliply-border-strong: #e2e8f0;
+  --cliply-border: #dfe6ef;
+  --cliply-border-soft: #edf1f6;
+  --cliply-border-strong: #d8e1ec;
   --cliply-text: #111827;
   --cliply-body-text: #1f2937;
-  --cliply-muted: #667085;
-  --cliply-faint: #8a94a6;
-  --cliply-placeholder: #7b8496;
+  --cliply-muted: #5f6b7a;
+  --cliply-faint: #7c8798;
+  --cliply-placeholder: #6f7b8d;
   --cliply-disabled: #b6bec9;
   --cliply-accent-50: #f4f0ff;
   --cliply-accent-100: #e9ddff;
@@ -39,11 +39,12 @@
   --cliply-info: #2563eb;
   --cliply-teal: #0f928b;
   --cliply-amber: #b7791f;
-  --cliply-shadow: 0 24px 80px rgba(15, 23, 42, 0.16);
-  --cliply-shadow-card: 0 8px 24px rgba(15, 23, 42, 0.045);
+  --cliply-shadow: 0 26px 84px rgba(15, 23, 42, 0.14);
+  --cliply-shadow-card: 0 12px 32px rgba(15, 23, 42, 0.055);
+  --cliply-shadow-card-hover: 0 10px 24px rgba(15, 23, 42, 0.07);
   --cliply-shadow-selected:
     0 0 0 1px #7c5cff,
-    0 8px 22px rgba(124, 92, 255, 0.12);
+    0 8px 22px rgba(124, 92, 255, 0.14);
 }
 
 :root[data-theme="dark"] {
@@ -97,7 +98,7 @@ body {
   width: 100%;
   height: 100%;
   background: var(--cliply-panel);
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 18px;
   box-shadow: var(--cliply-shadow);
   overflow: hidden;

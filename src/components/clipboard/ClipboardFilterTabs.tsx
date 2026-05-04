@@ -9,7 +9,7 @@ type ClipboardFilterTabsProps = {
 
 export function ClipboardFilterTabs({ filter, counts, onFilterChange }: ClipboardFilterTabsProps) {
   return (
-    <div className="px-8 pt-5">
+    <div className="px-8 pt-[18px]">
       <PillTabs
         value={filter}
         onValueChange={onFilterChange}

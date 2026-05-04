@@ -117,7 +117,7 @@ export function AppWindow() {
           onResumeMonitoring={toggleMonitoring}
         />
         <ClipboardFilterTabs filter={state.filter} counts={counts} onFilterChange={setFilter} />
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(390px,0.88fr)_minmax(520px,1.12fr)] gap-8 px-8 pb-6 pt-7">
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(390px,0.88fr)_minmax(520px,1.12fr)] gap-7 px-8 pb-5 pt-6">
           <ClipboardList
             items={filteredItems}
             totalCount={state.items.length}

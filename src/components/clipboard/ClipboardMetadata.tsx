@@ -29,7 +29,7 @@ export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
       : null;
 
   return (
-    <div className="mt-[18px] rounded-[14px] border border-[color:var(--cliply-border-soft)] bg-[#fbfcfe] px-5 py-[18px]">
+    <div className="mt-[18px] rounded-[14px] border border-[color:var(--cliply-border-soft)] bg-[#fbfcfe] px-5 py-[18px] shadow-[0_4px_14px_rgba(15,23,42,0.025)]">
       <h3 className="mb-[14px] text-base font-semibold text-[color:var(--cliply-text)]">元信息</h3>
       <dl className="grid grid-cols-[120px_minmax(0,1fr)] gap-x-5 gap-y-[14px]">
         {metadata.map(([label, value]) => (
@@ -55,7 +55,7 @@ export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
         ))}
       </dl>
       {imageDimensions ? (
-        <div className="mt-4 rounded-lg bg-[#f3f5f8] px-3 py-2 text-sm text-[color:var(--cliply-muted)]">
+        <div className="mt-4 rounded-lg bg-[#f5f7fa] px-3 py-2 text-sm text-[color:var(--cliply-muted)]">
           图片尺寸：<span className="font-medium text-[color:var(--cliply-text)]">{imageDimensions}</span>
         </div>
       ) : null}

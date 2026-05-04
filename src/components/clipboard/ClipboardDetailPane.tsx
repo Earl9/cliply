@@ -14,8 +14,8 @@ type ClipboardDetailPaneProps = {
 
 export function ClipboardDetailPane({ item, onAction }: ClipboardDetailPaneProps) {
   return (
-    <section className="grid min-h-0 min-w-0 grid-rows-[64px_1fr_auto] overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-white shadow-[var(--cliply-shadow-card)]">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] px-6">
+    <section className="grid min-h-0 min-w-0 grid-rows-[64px_1fr_auto] overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-white shadow-[var(--cliply-shadow-card)] ring-1 ring-white/80">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] bg-white px-6">
         <div>
           <h2 className="text-lg font-semibold text-[color:var(--cliply-text)]">
             {item ? `${typeLabel[item.type]} · ${item.sourceApp}` : "内容详情"}
@@ -33,7 +33,7 @@ export function ClipboardDetailPane({ item, onAction }: ClipboardDetailPaneProps
       </header>
       {item ? (
         <>
-          <div className="cliply-scrollbar min-h-0 overflow-y-auto px-6 pb-[18px] pt-6">
+          <div className="cliply-scrollbar min-h-0 overflow-y-auto bg-white px-6 pb-4 pt-4">
             <ClipboardPreview item={item} />
             <ClipboardMetadata item={item} />
           </div>

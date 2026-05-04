@@ -16,10 +16,10 @@ export function ShortcutKey({ keys, compact, tone = "default" }: ShortcutKeyProp
           ) : null}
           <kbd
             className={clsx(
-              "inline-flex min-w-5 items-center justify-center rounded-lg px-[9px] font-medium",
-              compact ? "h-[26px] text-[13px]" : "h-7 text-[13px]",
+              "inline-flex min-w-5 items-center justify-center rounded-[7px] px-2 font-medium",
+              compact ? "h-5 text-[12px]" : "h-[26px] text-[13px]",
               tone === "onPrimary"
-                ? "border border-transparent bg-white/90 text-[color:var(--cliply-accent-strong)]"
+                ? "border border-transparent bg-white/18 text-white"
                 : "border border-[#e4e8ef] bg-[#f3f5f8] text-[color:var(--cliply-muted)]",
             )}
           >
