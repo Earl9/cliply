@@ -84,6 +84,9 @@
 
         <UI>
             <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Property="WixUI_InstallMode" Value="Remove" Order="1">1</Publish>
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="2">1</Publish>
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" Order="3">Installed AND NOT PATCH</Publish>
 
             {{#unless license}}
             <!-- Skip license dialog -->

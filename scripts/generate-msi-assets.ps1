@@ -85,22 +85,12 @@ function New-Banner {
   $background = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(250, 252, 255))
   $graphics.FillRectangle($background, 0, 0, $width, $height)
 
-  $accentRect = [System.Drawing.Rectangle]::new(0, 0, 5, $height)
-  $accent = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
-    $accentRect,
-    [System.Drawing.Color]::FromArgb(126, 87, 255),
-    [System.Drawing.Color]::FromArgb(20, 184, 166),
-    90
-  )
-  $graphics.FillRectangle($accent, $accentRect)
-
   $linePen = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(226, 232, 240), 1)
   $graphics.DrawLine($linePen, 0, $height - 1, $width, $height - 1)
 
   Save-Bitmap $bitmap (Join-Path $outDir "banner.bmp")
 
   $linePen.Dispose()
-  $accent.Dispose()
   $background.Dispose()
   $graphics.Dispose()
   $bitmap.Dispose()
