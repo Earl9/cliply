@@ -85,7 +85,7 @@ function New-Banner {
   $background = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(250, 252, 255))
   $graphics.FillRectangle($background, 0, 0, $width, $height)
 
-  $accentRect = [System.Drawing.Rectangle]::new(0, 0, 7, $height)
+  $accentRect = [System.Drawing.Rectangle]::new(0, 0, 5, $height)
   $accent = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
     $accentRect,
     [System.Drawing.Color]::FromArgb(126, 87, 255),
@@ -94,27 +94,12 @@ function New-Banner {
   )
   $graphics.FillRectangle($accent, $accentRect)
 
-  New-CliplyMark -Graphics $graphics -X 24 -Y 13 -Size 32
-
-  $titleFont = [System.Drawing.Font]::new("Segoe UI Semibold", 14, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-  $subtitleFont = [System.Drawing.Font]::new("Microsoft YaHei UI", 10, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-  $titleBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(17, 24, 39))
-  $subtitleBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(100, 116, 139))
-
-  $bannerSubtitle = ConvertFrom-CodePoints @(0x672C, 0x5730, 0x526A, 0x8D34, 0x677F, 0x7BA1, 0x7406, 0x5668)
-  $graphics.DrawString("Cliply", $titleFont, $titleBrush, 68, 12)
-  $graphics.DrawString($bannerSubtitle, $subtitleFont, $subtitleBrush, 68, 31)
-
   $linePen = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(226, 232, 240), 1)
   $graphics.DrawLine($linePen, 0, $height - 1, $width, $height - 1)
 
   Save-Bitmap $bitmap (Join-Path $outDir "banner.bmp")
 
   $linePen.Dispose()
-  $titleBrush.Dispose()
-  $subtitleBrush.Dispose()
-  $titleFont.Dispose()
-  $subtitleFont.Dispose()
   $accent.Dispose()
   $background.Dispose()
   $graphics.Dispose()
@@ -160,67 +145,12 @@ function New-DialogImage {
   $graphics.DrawString("Cliply", $leftTitleFont, $whiteBrush, 36, 126)
   $graphics.DrawString($dialogTagline, $leftBodyFont, $mutedWhiteBrush, 38, 158)
 
-  $cardPath = [System.Drawing.Drawing2D.GraphicsPath]::new()
-  $cardRect = [System.Drawing.Rectangle]::new(192, 42, 246, 188)
-  $radius = 18
-  $diameter = $radius * 2
-  $cardPath.AddArc($cardRect.X, $cardRect.Y, $diameter, $diameter, 180, 90)
-  $cardPath.AddArc($cardRect.Right - $diameter, $cardRect.Y, $diameter, $diameter, 270, 90)
-  $cardPath.AddArc($cardRect.Right - $diameter, $cardRect.Bottom - $diameter, $diameter, $diameter, 0, 90)
-  $cardPath.AddArc($cardRect.X, $cardRect.Bottom - $diameter, $diameter, $diameter, 90, 90)
-  $cardPath.CloseFigure()
-
-  $cardBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(248, 255, 255, 255))
-  $graphics.FillPath($cardBrush, $cardPath)
-  $cardPen = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(226, 232, 240), 1)
-  $graphics.DrawPath($cardPen, $cardPath)
-
-  $titleFont = [System.Drawing.Font]::new("Microsoft YaHei UI", 21, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-  $bodyFont = [System.Drawing.Font]::new("Microsoft YaHei UI", 12, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-  $smallFont = [System.Drawing.Font]::new("Microsoft YaHei UI", 10, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-  $titleBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(15, 23, 42))
-  $bodyBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(71, 85, 105))
-  $tagBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(99, 102, 241))
-  $tagBack = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(238, 242, 255))
-
-  $installTitle = (ConvertFrom-CodePoints @(0x5B89, 0x88C5)) + " Cliply"
-  $installBody = "Windows " + (ConvertFrom-CodePoints @(0x672C, 0x5730, 0x526A, 0x8D34, 0x677F, 0x5386, 0x53F2, 0x5DE5, 0x5177, 0x3002))
-  $privacyLine = ConvertFrom-CodePoints @(0x65E0, 0x9700, 0x8D26, 0x53F7, 0x4E0E, 0x4E91, 0x540C, 0x6B65, 0xFF0C, 0x6570, 0x636E, 0x4FDD, 0x7559, 0x5728, 0x672C, 0x673A, 0x3002)
-
-  $graphics.DrawString($installTitle, $titleFont, $titleBrush, 216, 70)
-  $graphics.DrawString($installBody, $bodyFont, $bodyBrush, 216, 104)
-  $graphics.DrawString($privacyLine, $smallFont, $bodyBrush, 216, 132)
-
-  $pillPath = [System.Drawing.Drawing2D.GraphicsPath]::new()
-  $pillRect = [System.Drawing.Rectangle]::new(216, 172, 132, 26)
-  $pillRadius = 13
-  $pillPath.AddArc($pillRect.X, $pillRect.Y, $pillRadius * 2, $pillRadius * 2, 180, 90)
-  $pillPath.AddArc($pillRect.Right - $pillRadius * 2, $pillRect.Y, $pillRadius * 2, $pillRadius * 2, 270, 90)
-  $pillPath.AddArc($pillRect.Right - $pillRadius * 2, $pillRect.Bottom - $pillRadius * 2, $pillRadius * 2, $pillRadius * 2, 0, 90)
-  $pillPath.AddArc($pillRect.X, $pillRect.Bottom - $pillRadius * 2, $pillRadius * 2, $pillRadius * 2, 90, 90)
-  $pillPath.CloseFigure()
-  $graphics.FillPath($tagBack, $pillPath)
-  $graphics.DrawString("v0.1.0-alpha", $smallFont, $tagBrush, 232, 178)
-
-  $dotBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(20, 184, 166))
-  $graphics.FillEllipse($dotBrush, 216, 254, 7, 7)
-  $readyLine = (ConvertFrom-CodePoints @(0x51C6, 0x5907, 0x5B89, 0x88C5)) + " Windows MVP"
-  $graphics.DrawString($readyLine, $smallFont, $bodyBrush, 230, 250)
+  $dividerPen = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(220, 228, 240), 1)
+  $graphics.DrawLine($dividerPen, 150, 0, 150, $height)
 
   Save-Bitmap $bitmap (Join-Path $outDir "dialog.bmp")
 
-  $dotBrush.Dispose()
-  $pillPath.Dispose()
-  $tagBack.Dispose()
-  $tagBrush.Dispose()
-  $titleBrush.Dispose()
-  $bodyBrush.Dispose()
-  $titleFont.Dispose()
-  $bodyFont.Dispose()
-  $smallFont.Dispose()
-  $cardPen.Dispose()
-  $cardBrush.Dispose()
-  $cardPath.Dispose()
+  $dividerPen.Dispose()
   $whiteBrush.Dispose()
   $mutedWhiteBrush.Dispose()
   $leftTitleFont.Dispose()
