@@ -1,4 +1,5 @@
 use crate::error::CliplyError;
+use crate::logger;
 use crate::models::clipboard_item::{
     ClipboardFormatDto, ClipboardItemDetailDto, ClipboardItemDto, ClipboardItemType,
 };
@@ -30,7 +31,7 @@ pub fn list_clipboard_items(
         crate::services::search_service::normalize_query(&query.unwrap_or_default());
     let item_type = item_type.unwrap_or_default().to_lowercase();
     let pinned_only = pinned_only.unwrap_or(false);
-    let limit = limit.unwrap_or(50).max(1);
+    let limit = limit.unwrap_or(50).clamp(1, 200);
     let offset = offset.unwrap_or(0).max(0);
 
     if normalized_query.is_empty() {
@@ -75,13 +76,20 @@ pub fn toggle_pin_clipboard_item(
     id: String,
 ) -> Result<ClipboardItemDto, CliplyError> {
     let connection = database_service::connect(app)?;
-    connection.execute(
+    let changed_rows = connection.execute(
         "UPDATE clipboard_items
          SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END,
              updated_at = datetime('now')
-         WHERE id = ?1",
+         WHERE id = ?1
+           AND is_deleted = 0",
         params![id],
     )?;
+
+    if changed_rows == 0 {
+        return Err(CliplyError::PlatformUnavailable(
+            "clipboard item was not found".to_string(),
+        ));
+    }
 
     load_item(&connection, &id)
 }
@@ -90,13 +98,20 @@ pub fn delete_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyEr
     let mut connection = database_service::connect(app)?;
     let transaction = connection.transaction()?;
 
-    transaction.execute(
+    let changed_rows = transaction.execute(
         "UPDATE clipboard_items
          SET is_deleted = 1,
              updated_at = datetime('now')
-         WHERE id = ?1",
+         WHERE id = ?1
+           AND is_deleted = 0",
         params![id],
     )?;
+    if changed_rows == 0 {
+        return Err(CliplyError::PlatformUnavailable(
+            "clipboard item was not found".to_string(),
+        ));
+    }
+
     transaction.execute(
         "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
         params![id],
@@ -217,6 +232,7 @@ pub fn ingest_clipboard_snapshot(
     } else {
         hash_service::stable_text_hash(text)
     };
+    let item_type = item_type_as_str(&snapshot.primary_type);
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
@@ -234,12 +250,16 @@ pub fn ingest_clipboard_snapshot(
 
             let item = load_item(&connection, &existing_id)?;
             enforce_history_retention_for_connection(&mut connection, &settings)?;
+            logger::info(
+                app,
+                "clipboard_duplicate",
+                format!("item_id={existing_id} type={item_type}"),
+            );
             return Ok(Some(item));
         }
     }
 
     let id = Uuid::new_v4().to_string();
-    let item_type = item_type_as_str(&snapshot.primary_type);
     let (title, preview_text) = if redact_sensitive_text {
         (
             "已隐藏敏感内容".to_string(),
@@ -316,6 +336,11 @@ pub fn ingest_clipboard_snapshot(
 
     let item = load_item(&connection, &id)?;
     enforce_history_retention_for_connection(&mut connection, &settings)?;
+    logger::info(
+        app,
+        "clipboard_stored",
+        format!("item_id={id} type={item_type}"),
+    );
     Ok(Some(item))
 }
 
@@ -357,6 +382,11 @@ fn ingest_image_snapshot(
 
             let item = load_item(&connection, &existing_id)?;
             enforce_history_retention_for_connection(&mut connection, settings)?;
+            logger::info(
+                app,
+                "clipboard_duplicate",
+                format!("item_id={existing_id} type=image"),
+            );
             return Ok(Some(item));
         }
     }
@@ -440,6 +470,7 @@ fn ingest_image_snapshot(
 
     let item = load_item(&connection, &id)?;
     enforce_history_retention_for_connection(&mut connection, settings)?;
+    logger::info(app, "clipboard_stored", format!("item_id={id} type=image"));
     Ok(Some(item))
 }
 
@@ -980,8 +1011,8 @@ fn format_timestamp(value: OffsetDateTime) -> Result<String, CliplyError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_history_retention_policy, is_ignored_source_app, normalize_app_name,
-        HistoryRetentionPolicy,
+        apply_history_retention_policy, find_existing_item_id, is_ignored_source_app, load_items,
+        normalize_app_name, search_items, HistoryRetentionPolicy,
     };
     use rusqlite::{params, Connection};
 
@@ -1081,6 +1112,85 @@ mod tests {
         assert_eq!(fts_count(&connection, "expired-overflow"), 0);
     }
 
+    #[test]
+    fn list_items_respects_limit_and_filter() {
+        let connection = setup_retention_connection();
+        insert_retention_item(&connection, "one", false, "2026-05-04T10:00:00Z");
+        insert_retention_item(&connection, "two", false, "2026-05-04T09:00:00Z");
+        insert_typed_item(
+            &connection,
+            "link-one",
+            "link",
+            false,
+            "https://example.test",
+            "2026-05-04T08:00:00Z",
+        );
+
+        let limited = load_items(&connection, "", false, 2, 0).expect("items should load");
+        assert_eq!(limited.len(), 2);
+
+        let links = load_items(&connection, "link", false, 10, 0).expect("links should load");
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].id, "link-one");
+    }
+
+    #[test]
+    fn search_items_respects_query_filter_and_limit() {
+        let connection = setup_retention_connection();
+        insert_typed_item(
+            &connection,
+            "alpha",
+            "text",
+            false,
+            "Cliply alpha search target",
+            "2026-05-04T10:00:00Z",
+        );
+        insert_typed_item(
+            &connection,
+            "beta",
+            "text",
+            false,
+            "Cliply alpha second target",
+            "2026-05-04T09:00:00Z",
+        );
+        insert_typed_item(
+            &connection,
+            "link-alpha",
+            "link",
+            false,
+            "Cliply alpha link",
+            "2026-05-04T08:00:00Z",
+        );
+
+        let text_results =
+            search_items(&connection, "alpha", "text", false, 1, 0).expect("search should load");
+        assert_eq!(text_results.len(), 1);
+        assert_eq!(text_results[0].item_type, super::ClipboardItemType::Text);
+    }
+
+    #[test]
+    fn duplicate_lookup_ignores_deleted_items() {
+        let connection = setup_retention_connection();
+        insert_retention_item(&connection, "active", false, "2026-05-04T10:00:00Z");
+        insert_retention_item(&connection, "deleted", false, "2026-05-04T09:00:00Z");
+        connection
+            .execute(
+                "UPDATE clipboard_items SET hash = 'same-hash' WHERE id IN ('active', 'deleted')",
+                [],
+            )
+            .expect("hash should update");
+        connection
+            .execute(
+                "UPDATE clipboard_items SET is_deleted = 1 WHERE id = 'deleted'",
+                [],
+            )
+            .expect("deleted flag should update");
+
+        let existing =
+            find_existing_item_id(&connection, "same-hash").expect("duplicate lookup should run");
+        assert_eq!(existing.as_deref(), Some("active"));
+    }
+
     fn setup_retention_connection() -> Connection {
         let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
         connection
@@ -1113,6 +1223,25 @@ mod tests {
                   normalized_text,
                   source_app
                 );
+
+                CREATE TABLE clipboard_formats (
+                  id TEXT PRIMARY KEY,
+                  item_id TEXT NOT NULL,
+                  format_name TEXT NOT NULL,
+                  mime_type TEXT,
+                  data_kind TEXT NOT NULL,
+                  data_text TEXT,
+                  data_path TEXT,
+                  size_bytes INTEGER DEFAULT 0,
+                  priority INTEGER DEFAULT 0,
+                  created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE clipboard_tags (
+                  item_id TEXT NOT NULL,
+                  tag TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
                 ",
             )
             .expect("retention schema should initialize");
@@ -1138,6 +1267,40 @@ mod tests {
                 params![id],
             )
             .expect("retention fts row should insert");
+    }
+
+    fn insert_typed_item(
+        connection: &Connection,
+        id: &str,
+        item_type: &str,
+        is_pinned: bool,
+        text: &str,
+        copied_at: &str,
+    ) {
+        connection
+            .execute(
+                "INSERT INTO clipboard_items (
+                    id, type, title, preview_text, normalized_text, source_app,
+                    hash, is_pinned, copied_at, created_at, updated_at
+                 ) VALUES (?1, ?2, ?3, ?3, ?3, 'Test', ?1, ?4, ?5, ?5, ?5)",
+                params![
+                    id,
+                    item_type,
+                    text,
+                    if is_pinned { 1 } else { 0 },
+                    copied_at
+                ],
+            )
+            .expect("typed item should insert");
+
+        connection
+            .execute(
+                "INSERT INTO clipboard_items_fts (
+                    item_id, title, preview_text, normalized_text, source_app
+                 ) VALUES (?1, ?2, ?2, ?2, 'Test')",
+                params![id, text],
+            )
+            .expect("typed fts row should insert");
     }
 
     fn is_deleted(connection: &Connection, id: &str) -> i64 {

@@ -1,4 +1,5 @@
 use crate::error::CliplyError;
+use crate::logger;
 use crate::services::clipboard_service;
 use std::ptr::null;
 use std::sync::{
@@ -79,9 +80,13 @@ pub fn start_listener(app: AppHandle) -> Result<(), CliplyError> {
                 match clipboard_service::ingest_current_clipboard(&worker_app) {
                     Ok(Some(_item)) => {
                         let _ = worker_app.emit("clipboard-items-changed", ());
+                        logger::info(&worker_app, "clipboard_ingest", "stored item");
                     }
                     Ok(None) => {}
-                    Err(error) => eprintln!("[cliply] clipboard ingest failed: {error}"),
+                    Err(error) => {
+                        logger::error(&worker_app, "clipboard_ingest_failed", &error);
+                        let _ = worker_app.emit("cliply-error", "剪贴板读取失败，请稍后重试");
+                    }
                 }
             }
         })

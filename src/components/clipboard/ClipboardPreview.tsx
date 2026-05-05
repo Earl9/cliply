@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Code2, ExternalLink, FileText, Image as ImageIcon, Shield } from "lucide-react";
 import type { ClipboardItem } from "@/lib/clipboardTypes";
 
@@ -6,6 +7,12 @@ type ClipboardPreviewProps = {
 };
 
 export function ClipboardPreview({ item }: ClipboardPreviewProps) {
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setImageLoadFailed(false);
+  }, [item.id]);
+
   if (item.sensitiveScore >= 50) {
     return (
       <div className="rounded-[14px] border border-amber-200 bg-amber-50 p-[18px]">
@@ -76,16 +83,17 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
           {imageTitle(item)}
         </div>
         <div className="grid h-[320px] place-items-center overflow-hidden rounded-[14px] border border-[#dfe6ef] bg-[#f8fafc] bg-[linear-gradient(45deg,rgba(148,163,184,0.10)_25%,transparent_25%),linear-gradient(-45deg,rgba(148,163,184,0.10)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,rgba(148,163,184,0.10)_75%),linear-gradient(-45deg,transparent_75%,rgba(148,163,184,0.10)_75%)] bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.035)]">
-          {imageUrl ? (
+          {imageUrl && !imageLoadFailed ? (
             <img
               src={imageUrl}
               alt={item.imageAlt ?? item.title}
               className="max-h-full max-w-full rounded-[10px] object-contain"
+              onError={() => setImageLoadFailed(true)}
             />
           ) : (
             <div className="grid place-items-center gap-2 text-sm font-medium text-amber-600">
               <ImageIcon className="size-10 text-amber-500" />
-              <span>图片文件不可用</span>
+              <span>{imageUrl ? "图片加载失败" : "图片文件不可用"}</span>
             </div>
           )}
         </div>

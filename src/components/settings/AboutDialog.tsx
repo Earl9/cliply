@@ -1,6 +1,8 @@
 import { ClipboardList, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/common/Badge";
 import { IconButton } from "@/components/common/IconButton";
+import { getCliplyDebugInfo, type CliplyDebugInfo } from "@/lib/debugInfo";
 
 type AboutDialogProps = {
   open: boolean;
@@ -8,6 +10,31 @@ type AboutDialogProps = {
 };
 
 export function AboutDialog({ open, onClose }: AboutDialogProps) {
+  const [debugInfo, setDebugInfo] = useState<CliplyDebugInfo | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let cancelled = false;
+    void getCliplyDebugInfo()
+      .then((info) => {
+        if (!cancelled) {
+          setDebugInfo(info);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDebugInfo(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
@@ -39,6 +66,19 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <Badge tone="accent">Tauri v2</Badge>
             <Badge tone="teal">SQLite</Badge>
             <Badge>Local-first</Badge>
+          </div>
+          <div className="mt-5 w-full rounded-xl border border-[color:var(--cliply-border-soft)] bg-[#fbfcfe] p-3 text-left">
+            <div className="mb-2 text-sm font-semibold text-[color:var(--cliply-text)]">Debug</div>
+            <dl className="grid gap-2 text-xs leading-5 text-[color:var(--cliply-muted)]">
+              <div>
+                <dt className="font-medium text-[color:var(--cliply-body-text)]">日志文件</dt>
+                <dd className="break-all">{debugInfo?.logPath ?? "正在读取..."}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-[color:var(--cliply-body-text)]">数据库文件</dt>
+                <dd className="break-all">{debugInfo?.databasePath ?? "正在读取..."}</dd>
+              </div>
+            </dl>
           </div>
         </div>
       </section>

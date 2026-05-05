@@ -160,6 +160,7 @@ export function useClipboardStore() {
 
     let unlisten: (() => void) | undefined;
     let unlistenSettings: (() => void) | undefined;
+    let unlistenErrors: (() => void) | undefined;
     let cancelled = false;
 
     Promise.all([
@@ -169,6 +170,15 @@ export function useClipboardStore() {
       listen<CliplySettings>("cliply-settings-changed", (event) => {
         setSettingsState(event.payload);
       }),
+      listen<string>("cliply-error", (event) => {
+        setErrorMessage(event.payload);
+        setActionStatus({
+          label: event.payload,
+          itemTitle: "详情已写入本地日志",
+          at: Date.now(),
+          tone: "error",
+        });
+      }),
     ])
       .then((cleanup) => {
         if (cancelled) {
@@ -176,7 +186,7 @@ export function useClipboardStore() {
           return;
         }
 
-        [unlisten, unlistenSettings] = cleanup;
+        [unlisten, unlistenSettings, unlistenErrors] = cleanup;
       })
       .catch(() => {});
 
@@ -184,6 +194,7 @@ export function useClipboardStore() {
       cancelled = true;
       unlisten?.();
       unlistenSettings?.();
+      unlistenErrors?.();
     };
   }, []);
 
@@ -259,9 +270,20 @@ export function useClipboardStore() {
 
   const updatePinnedState = useCallback(
     async (id: string) => {
-      const updatedItem = await togglePinClipboardItem(id);
-      patchPinnedState(id, updatedItem);
-      refreshItems();
+      try {
+        const updatedItem = await togglePinClipboardItem(id);
+        patchPinnedState(id, updatedItem);
+        refreshItems();
+        return true;
+      } catch {
+        setActionStatus({
+          label: "数据库写入失败",
+          itemTitle: id,
+          at: Date.now(),
+          tone: "error",
+        });
+        return false;
+      }
     },
     [patchPinnedState, refreshItems],
   );
@@ -284,6 +306,8 @@ export function useClipboardStore() {
 
   const removeItem = useCallback(
     async (id: string) => {
+      const previousAllItems = allItems;
+      const previousVisibleItems = visibleItems;
       const removedItem = visibleItems.find((item) => item.id === id) ?? selectedItem;
       const removedIndex = visibleItems.findIndex((item) => item.id === id);
       const nextItems = visibleItems.filter((item) => item.id !== id);
@@ -295,8 +319,22 @@ export function useClipboardStore() {
       setSelectedId(nextSelectedId);
       setDetail((item) => (item?.id === id ? null : item));
 
-      await deleteClipboardItem(id);
-      refreshItems();
+      try {
+        await deleteClipboardItem(id);
+        refreshItems();
+      } catch {
+        setVisibleItems(previousVisibleItems);
+        setAllItems(previousAllItems);
+        setSelectedId(id);
+        setDetail(removedItem ?? null);
+        setActionStatus({
+          label: "数据库写入失败",
+          itemTitle: removedItem?.title ?? id,
+          at: Date.now(),
+          tone: "error",
+        });
+        return;
+      }
 
       if (removedItem) {
         setActionStatus({
@@ -306,7 +344,7 @@ export function useClipboardStore() {
         });
       }
     },
-    [refreshItems, selectedItem, visibleItems],
+    [allItems, refreshItems, selectedItem, visibleItems],
   );
 
   const runClipboardAction = useCallback(
@@ -327,11 +365,14 @@ export function useClipboardStore() {
       }
 
       if (kind === "togglePin") {
-        void updatePinnedState(selected.id);
-        setActionStatus({
-          label: actionLabels.togglePin,
-          itemTitle: selected.title,
-          at: Date.now(),
+        void updatePinnedState(selected.id).then((ok) => {
+          if (ok) {
+            setActionStatus({
+              label: actionLabels.togglePin,
+              itemTitle: selected.title,
+              at: Date.now(),
+            });
+          }
         });
         return;
       }
@@ -378,11 +419,14 @@ export function useClipboardStore() {
         return;
       }
 
-      void updatePinnedState(id);
-      setActionStatus({
-        label: actionLabels.togglePin,
-        itemTitle: item.title,
-        at: Date.now(),
+      void updatePinnedState(id).then((ok) => {
+        if (ok) {
+          setActionStatus({
+            label: actionLabels.togglePin,
+            itemTitle: item.title,
+            at: Date.now(),
+          });
+        }
       });
     },
     [updatePinnedState, visibleItems],
@@ -435,14 +479,23 @@ export function useClipboardStore() {
   );
 
   const clearHistory = useCallback(() => {
-    void clearClipboardHistory(false).then(() => {
-      setActionStatus({
-        label: "历史已清空",
-        itemTitle: "固定记录已保留",
-        at: Date.now(),
+    void clearClipboardHistory(false)
+      .then(() => {
+        setActionStatus({
+          label: "历史已清空",
+          itemTitle: "固定记录已保留",
+          at: Date.now(),
+        });
+        refreshItems();
+      })
+      .catch(() => {
+        setActionStatus({
+          label: "数据库写入失败",
+          itemTitle: "历史未清空",
+          at: Date.now(),
+          tone: "error",
+        });
       });
-      refreshItems();
-    });
   }, [refreshItems]);
 
   const closeDialogs = useCallback(() => {
@@ -497,9 +550,9 @@ export function useClipboardStore() {
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : storeErrorLabels.settings;
-        setErrorMessage(message || storeErrorLabels.settings);
+        setErrorMessage(message || "数据库写入失败，请检查本地数据目录权限");
         setActionStatus({
-          label: storeErrorLabels.settings,
+          label: "数据库写入失败",
           itemTitle: nextSettings.globalShortcut,
           at: Date.now(),
           tone: "error",
@@ -510,14 +563,24 @@ export function useClipboardStore() {
   const toggleMonitoring = useCallback(() => {
     const paused = !settings.pauseMonitoring;
     setSettingsState((current) => ({ ...current, pauseMonitoring: paused }));
-    void setMonitoringPaused(paused).then((savedSettings) => {
-      setSettingsState(savedSettings);
-      setActionStatus({
-        label: savedSettings.pauseMonitoring ? "监听已暂停" : "监听已恢复",
-        itemTitle: "剪贴板监听状态已更新",
-        at: Date.now(),
+    void setMonitoringPaused(paused)
+      .then((savedSettings) => {
+        setSettingsState(savedSettings);
+        setActionStatus({
+          label: savedSettings.pauseMonitoring ? "监听已暂停" : "监听已恢复",
+          itemTitle: "剪贴板监听状态已更新",
+          at: Date.now(),
+        });
+      })
+      .catch(() => {
+        setSettingsState((current) => ({ ...current, pauseMonitoring: !paused }));
+        setActionStatus({
+          label: "数据库写入失败",
+          itemTitle: "监听状态未保存",
+          at: Date.now(),
+          tone: "error",
+        });
       });
-    });
   }, [settings.pauseMonitoring]);
 
   return {

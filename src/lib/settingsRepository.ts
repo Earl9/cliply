@@ -7,10 +7,7 @@ export async function getCliplySettings(): Promise<CliplySettings> {
     return readMockSettings();
   }
 
-  return invokeWithMockFallback(
-    () => invoke<CliplySettings>("get_cliply_settings"),
-    readMockSettings,
-  );
+  return invoke<CliplySettings>("get_cliply_settings");
 }
 
 export async function updateCliplySettings(
@@ -21,13 +18,7 @@ export async function updateCliplySettings(
     return settings;
   }
 
-  return invokeWithMockFallback(
-    () => invoke<CliplySettings>("update_cliply_settings", { settings }),
-    () => {
-      writeMockSettings(settings);
-      return settings;
-    },
-  );
+  return invoke<CliplySettings>("update_cliply_settings", { settings });
 }
 
 export async function setMonitoringPaused(paused: boolean): Promise<CliplySettings> {
@@ -37,26 +28,7 @@ export async function setMonitoringPaused(paused: boolean): Promise<CliplySettin
     return settings;
   }
 
-  return invokeWithMockFallback(
-    () => invoke<CliplySettings>("set_monitoring_paused", { paused }),
-    () => {
-      const settings = { ...readMockSettings(), pauseMonitoring: paused };
-      writeMockSettings(settings);
-      return settings;
-    },
-  );
-}
-
-async function invokeWithMockFallback<T>(
-  invokeCommand: () => Promise<T>,
-  fallback: () => T,
-): Promise<T> {
-  try {
-    return await invokeCommand();
-  } catch (error) {
-    console.warn("[cliply:settings-fallback]", error);
-    return fallback();
-  }
+  return invoke<CliplySettings>("set_monitoring_paused", { paused });
 }
 
 function readMockSettings(): CliplySettings {

@@ -52,17 +52,13 @@ export async function listClipboardItems({
   const itemType = filter !== "all" && filter !== "pinned" ? filter : null;
   const pinnedOnly = filter === "pinned";
 
-  const items = await invokeWithMockFallback(
-    () =>
-      invoke<ClipboardItemDto[]>("list_clipboard_items", {
-        query: query || null,
-        itemType,
-        pinnedOnly,
-        limit: 100,
-        offset: 0,
-      }),
-    () => listMockClipboardItems({ query, filter }).map(clipboardItemToDto),
-  );
+  const items = await invoke<ClipboardItemDto[]>("list_clipboard_items", {
+    query: query || null,
+    itemType,
+    pinnedOnly,
+    limit: 100,
+    offset: 0,
+  });
 
   return items.map(dtoToClipboardItem);
 }
@@ -72,30 +68,7 @@ export async function getClipboardItemDetail(id: string): Promise<ClipboardItem 
     return mockClipboardItems.find((item) => item.id === id) ?? null;
   }
 
-  const detail = await invokeWithMockFallback(
-    () => invoke<ClipboardItemDetailDto>("get_clipboard_item_detail", { id }),
-    () => {
-      const item = mockClipboardItems.find((mockItem) => mockItem.id === id);
-      if (!item) {
-        return null;
-      }
-
-      return {
-        item: clipboardItemToDto(item),
-        fullText: item.fullText ?? item.previewText,
-        thumbnailPath: item.thumbnailUrl,
-        imagePath: item.imageUrl,
-        imageWidth: item.imageWidth,
-        imageHeight: item.imageHeight,
-        formats: item.formats.map((format) => ({
-          formatName: format.formatName,
-          mimeType: format.mimeType,
-          dataKind: format.dataKind,
-          sizeBytes: format.sizeBytes,
-        })),
-      } satisfies ClipboardItemDetailDto;
-    },
-  );
+  const detail = await invoke<ClipboardItemDetailDto>("get_clipboard_item_detail", { id });
 
   if (!detail) {
     return null;
@@ -109,14 +82,7 @@ export async function togglePinClipboardItem(id: string): Promise<ClipboardItem 
     return null;
   }
 
-  const item = await invokeWithMockFallback(
-    () => invoke<ClipboardItemDto>("toggle_pin_clipboard_item", { id }),
-    () => null,
-  );
-  if (!item) {
-    return null;
-  }
-
+  const item = await invoke<ClipboardItemDto>("toggle_pin_clipboard_item", { id });
   return dtoToClipboardItem(item);
 }
 
@@ -125,10 +91,7 @@ export async function deleteClipboardItem(id: string): Promise<void> {
     return;
   }
 
-  await invokeWithMockFallback(
-    () => invoke<void>("delete_clipboard_item", { id }),
-    () => undefined,
-  );
+  await invoke<void>("delete_clipboard_item", { id });
 }
 
 export async function clearClipboardHistory(includePinned = false): Promise<void> {
@@ -136,10 +99,7 @@ export async function clearClipboardHistory(includePinned = false): Promise<void
     return;
   }
 
-  await invokeWithMockFallback(
-    () => invoke<void>("clear_clipboard_history", { includePinned }),
-    () => undefined,
-  );
+  await invoke<void>("clear_clipboard_history", { includePinned });
 }
 
 export async function copyClipboardItem(id: string): Promise<void> {
@@ -164,18 +124,6 @@ export async function pastePlainText(id: string): Promise<void> {
   }
 
   await invoke<void>("paste_plain_text", { id });
-}
-
-async function invokeWithMockFallback<T>(
-  invokeCommand: () => Promise<T>,
-  fallback: () => T,
-): Promise<T> {
-  try {
-    return await invokeCommand();
-  } catch (error) {
-    console.warn("[cliply:tauri-fallback]", error);
-    return fallback();
-  }
 }
 
 function listMockClipboardItems({ query, filter }: ListClipboardItemsOptions) {
