@@ -58,6 +58,8 @@ pub fn run() {
             platform::start_clipboard_listener(app.handle().clone())?;
             logger::info(app.handle(), "clipboard_listener_started", "listener ready");
             app.manage(ClipboardListenerShutdown);
+            let settings = services::settings_service::get_settings(app.handle())
+                .unwrap_or_else(|_| services::settings_service::default_settings());
             if let Some(window) = app.get_webview_window("main") {
                 let handle = app.handle().clone();
                 window.on_window_event(move |event| {
@@ -66,6 +68,13 @@ pub fn run() {
                         let _ = hide_main_window(&handle);
                     }
                 });
+
+                if settings.start_minimized {
+                    window.hide()?;
+                    logger::info(app.handle(), "startup_window", "start_minimized=true");
+                } else {
+                    show_main_window(app.handle())?;
+                }
             }
             Ok(())
         })

@@ -2,6 +2,8 @@ export type CliplySettings = {
   maxHistoryItems: number;
   autoDeleteDays: number;
   pauseMonitoring: boolean;
+  launchAtStartup: boolean;
+  startMinimized: boolean;
   focusSearchOnOpen: boolean;
   closeAfterPaste: boolean;
   ignoreDuplicate: boolean;
@@ -19,6 +21,8 @@ export const defaultSettingsState: CliplySettings = {
   maxHistoryItems: 1000,
   autoDeleteDays: 30,
   pauseMonitoring: false,
+  launchAtStartup: false,
+  startMinimized: false,
   focusSearchOnOpen: true,
   closeAfterPaste: true,
   ignoreDuplicate: true,

@@ -84,6 +84,16 @@ export function SettingsDialog({
                 onChange={(value) => updateDraft("pauseMonitoring", value)}
               />
               <ToggleRow
+                label="开机自启"
+                checked={draft.launchAtStartup}
+                onChange={(value) => updateDraft("launchAtStartup", value)}
+              />
+              <ToggleRow
+                label="启动时最小化到托盘"
+                checked={draft.startMinimized}
+                onChange={(value) => updateDraft("startMinimized", value)}
+              />
+              <ToggleRow
                 label="打开后自动聚焦搜索框"
                 checked={draft.focusSearchOnOpen}
                 onChange={(value) => updateDraft("focusSearchOnOpen", value)}

@@ -550,10 +550,10 @@ export function useClipboardStore() {
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : storeErrorLabels.settings;
-        setErrorMessage(message || "数据库写入失败，请检查本地数据目录权限");
+        setErrorMessage(message || "设置保存失败，请检查本地权限");
         setActionStatus({
-          label: "数据库写入失败",
-          itemTitle: nextSettings.globalShortcut,
+          label: "设置保存失败",
+          itemTitle: "本地配置未保存",
           at: Date.now(),
           tone: "error",
         });
