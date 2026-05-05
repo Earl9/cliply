@@ -23,10 +23,10 @@ export function formatFullCopiedTime(value: string) {
   return fullFormatter.format(new Date(value));
 }
 
-export function formatRelativeTime(value: string, now = new Date("2026-05-04T10:43:00+08:00")) {
+export function formatRelativeTime(value: string, now = new Date()) {
   const copiedAt = new Date(value);
   const diffMs = now.getTime() - copiedAt.getTime();
-  const minutes = Math.max(0, Math.round(diffMs / 60_000));
+  const minutes = Math.max(0, Math.floor(diffMs / 60_000));
 
   if (minutes < 1) {
     return "刚刚";
@@ -36,7 +36,7 @@ export function formatRelativeTime(value: string, now = new Date("2026-05-04T10:
     return `${minutes} 分钟前`;
   }
 
-  const hours = Math.round(minutes / 60);
+  const hours = Math.floor(minutes / 60);
   if (hours < 24) {
     return `${hours} 小时前`;
   }
