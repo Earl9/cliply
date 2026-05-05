@@ -1,11 +1,11 @@
 !macro NSIS_HOOK_PREINSTALL
-  DetailPrint "Closing running Cliply process before installing..."
+  DetailPrint "正在关闭后台运行的 Cliply..."
   ExecWait '"$SYSDIR\taskkill.exe" /F /T /IM cliply.exe' $0
   Sleep 1000
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL
-  DetailPrint "Closing running Cliply process before uninstalling..."
+  DetailPrint "正在关闭后台运行的 Cliply..."
   ExecWait '"$SYSDIR\taskkill.exe" /F /T /IM cliply.exe' $0
   Sleep 1000
 !macroend

@@ -47,6 +47,15 @@
     ],
     "windows": {
       "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"],
+        "customLanguageFiles": {
+          "SimpChinese": "nsis/SimpChinese.nsh"
+        },
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Cliply",
         "installerHooks": "nsis/installer-hooks.nsh"
       }
     }
