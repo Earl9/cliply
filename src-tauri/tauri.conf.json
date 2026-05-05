@@ -47,6 +47,7 @@
     ],
     "windows": {
       "wix": {
+        "template": "wix/main.wxs",
         "language": {
           "zh-CN": {
             "localePath": "wix/zh-CN.wxl"
