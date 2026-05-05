@@ -5,7 +5,7 @@
   <String Id="DowngradeErrorMessage">已安装更新版本的 Cliply。</String>
   <String Id="PathEnvVarFeature">将 Cliply 可执行文件所在目录添加到系统 PATH 环境变量，便于在任意位置调用。</String>
   <String Id="InstallAppFeature">安装 Cliply。</String>
-  <String Id="VerifyReadyDlgRepairTitle">已准备好更新 Cliply</String>
-  <String Id="VerifyReadyDlgRepairText">单击“更新”将重新安装 Cliply 并刷新程序文件。您的本地剪贴板数据和设置不会被删除。</String>
-  <String Id="VerifyReadyDlgRepair">更新(&amp;U)</String>
+  <String Id="VerifyReadyDlgUpdateTitle">已准备好更新 Cliply</String>
+  <String Id="VerifyReadyDlgUpdateText">单击“更新”将应用此安装包。您的本地剪贴板数据和设置不会被删除。</String>
+  <String Id="VerifyReadyDlgUpdate">更新(&amp;U)</String>
 </WixLocalization>

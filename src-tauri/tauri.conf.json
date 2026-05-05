@@ -46,6 +46,7 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "allowDowngrades": false,
       "wix": {
         "template": "wix/main.wxs",
         "language": {
