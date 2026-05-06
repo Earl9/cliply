@@ -2,6 +2,19 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { CliplySettings } from "@/stores/settingsStore";
 import { defaultSettingsState } from "@/stores/settingsStore";
 
+export type SyncImportResult = {
+  importedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  deletedCount: number;
+  conflictedCount: number;
+};
+
+export type SyncPackageStatus = {
+  lastExportedAt?: string | null;
+  lastImportedAt?: string | null;
+};
+
 export type ShortcutCheck = {
   ok: boolean;
   normalized: string;
@@ -53,6 +66,41 @@ export async function setMonitoringPaused(paused: boolean): Promise<CliplySettin
   return invoke<CliplySettings>("set_monitoring_paused", { paused });
 }
 
+export async function exportSyncPackage(path: string, password: string): Promise<void> {
+  if (!isTauri()) {
+    writeMockSyncStatus({ ...readMockSyncStatus(), lastExportedAt: new Date().toISOString() });
+    return;
+  }
+
+  await invoke<void>("export_sync_package", { path, password });
+}
+
+export async function importSyncPackage(
+  path: string,
+  password: string,
+): Promise<SyncImportResult> {
+  if (!isTauri()) {
+    writeMockSyncStatus({ ...readMockSyncStatus(), lastImportedAt: new Date().toISOString() });
+    return {
+      importedCount: 0,
+      updatedCount: 0,
+      skippedCount: 0,
+      deletedCount: 0,
+      conflictedCount: 0,
+    };
+  }
+
+  return invoke<SyncImportResult>("import_sync_package", { path, password });
+}
+
+export async function getSyncPackageStatus(): Promise<SyncPackageStatus> {
+  if (!isTauri()) {
+    return readMockSyncStatus();
+  }
+
+  return invoke<SyncPackageStatus>("get_sync_package_status");
+}
+
 function readMockSettings(): CliplySettings {
   try {
     const raw = window.localStorage.getItem("cliply.settings");
@@ -68,6 +116,23 @@ function readMockSettings(): CliplySettings {
 
 function writeMockSettings(settings: CliplySettings) {
   window.localStorage.setItem("cliply.settings", JSON.stringify(settings));
+}
+
+function readMockSyncStatus(): SyncPackageStatus {
+  try {
+    const raw = window.localStorage.getItem("cliply.sync.status");
+    if (!raw) {
+      return {};
+    }
+
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function writeMockSyncStatus(status: SyncPackageStatus) {
+  window.localStorage.setItem("cliply.sync.status", JSON.stringify(status));
 }
 
 function checkMockShortcut(shortcut: string, currentShortcut?: string): ShortcutCheck {

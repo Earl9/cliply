@@ -1,7 +1,9 @@
 use crate::logger;
 use crate::models::clipboard_item::{ClipboardItemDetailDto, ClipboardItemDto};
 use crate::models::settings::CliplySettings;
-use crate::services::{clipboard_service, database_service, paste_service, settings_service};
+use crate::services::{
+    clipboard_service, database_service, paste_service, settings_service, sync_package_service,
+};
 use crate::{shortcuts, tray};
 use tauri::{AppHandle, Emitter};
 
@@ -63,6 +65,50 @@ pub async fn clear_clipboard_history(app: AppHandle, include_pinned: bool) -> Re
         .map_err(|error| command_error(&app, "clear_clipboard_history", error))?;
     let _ = app.emit("clipboard-items-changed", ());
     Ok(())
+}
+
+#[tauri::command]
+pub async fn export_sync_package(
+    app: AppHandle,
+    path: String,
+    password: String,
+) -> Result<(), String> {
+    sync_package_service::export_sync_package(&app, path, password)
+        .map_err(|error| command_error(&app, "export_sync_package", error))?;
+    logger::info(&app, "command.export_sync_package", "ok");
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn import_sync_package(
+    app: AppHandle,
+    path: String,
+    password: String,
+) -> Result<sync_package_service::SyncImportResult, String> {
+    let result = sync_package_service::import_sync_package(&app, path, password)
+        .map_err(|error| command_error(&app, "import_sync_package", error))?;
+    let _ = app.emit("clipboard-items-changed", ());
+    logger::info(
+        &app,
+        "command.import_sync_package",
+        format!(
+            "imported={} updated={} skipped={} deleted={} conflicted={}",
+            result.imported_count,
+            result.updated_count,
+            result.skipped_count,
+            result.deleted_count,
+            result.conflicted_count
+        ),
+    );
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn get_sync_package_status(
+    app: AppHandle,
+) -> Result<sync_package_service::SyncPackageStatus, String> {
+    sync_package_service::get_sync_package_status(&app)
+        .map_err(|error| command_error(&app, "get_sync_package_status", error))
 }
 
 #[tauri::command]

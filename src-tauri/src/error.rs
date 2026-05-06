@@ -8,6 +8,8 @@ pub enum CliplyError {
     Database(#[from] rusqlite::Error),
     #[error("filesystem error: {0}")]
     Filesystem(#[from] std::io::Error),
+    #[error("sync error: {0}")]
+    Sync(String),
     #[error("platform API is not available yet: {0}")]
     PlatformUnavailable(String),
 }

@@ -4,12 +4,18 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
-import { BellOff, History, Keyboard, Shield, Sparkles, X } from "lucide-react";
+import { open as openFileDialog, save as saveFileDialog } from "@tauri-apps/plugin-dialog";
+import { BellOff, History, Keyboard, RefreshCw, Shield, Sparkles, X } from "lucide-react";
 import { clsx } from "clsx";
 import { Badge } from "@/components/common/Badge";
 import { IconButton } from "@/components/common/IconButton";
 import {
   checkGlobalShortcut,
+  exportSyncPackage,
+  getSyncPackageStatus,
+  importSyncPackage,
+  type SyncImportResult,
+  type SyncPackageStatus,
   type ShortcutCheck,
 } from "@/lib/settingsRepository";
 import {
@@ -40,6 +46,11 @@ export function SettingsDialog({
   const [draft, setDraft] = useState(settings);
   const [capturingShortcut, setCapturingShortcut] = useState(false);
   const [shortcutCheck, setShortcutCheck] = useState<ShortcutCheck | null>(null);
+  const [syncPassword, setSyncPassword] = useState("");
+  const [syncStatus, setSyncStatus] = useState<SyncPackageStatus>({});
+  const [syncBusy, setSyncBusy] = useState<"export" | "import" | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const ignoreAppsText = draft.ignoreApps.join("\n");
 
   useEffect(() => {
@@ -47,6 +58,10 @@ export function SettingsDialog({
       setDraft(settings);
       setCapturingShortcut(false);
       setShortcutCheck(null);
+      setSyncPassword("");
+      setSyncMessage(null);
+      setSyncError(null);
+      void refreshSyncStatus();
     }
   }, [open, settings]);
 
@@ -113,6 +128,73 @@ export function SettingsDialog({
   };
 
   const saveDisabled = !shortcutCheck?.ok;
+  const syncActionDisabled = syncBusy !== null || !syncPassword.trim();
+
+  const refreshSyncStatus = async () => {
+    try {
+      setSyncStatus(await getSyncPackageStatus());
+    } catch {
+      setSyncStatus({});
+    }
+  };
+
+  const handleExportSyncPackage = async () => {
+    if (!syncPassword.trim()) {
+      setSyncError("请输入同步密码");
+      return;
+    }
+
+    const selectedPath = await saveFileDialog({
+      title: "导出 Cliply 同步包",
+      defaultPath: `Cliply-${new Date().toISOString().slice(0, 10)}.cliply-sync`,
+      filters: [{ name: "Cliply Sync Package", extensions: ["cliply-sync"] }],
+    });
+    if (!selectedPath) {
+      return;
+    }
+
+    setSyncBusy("export");
+    setSyncMessage(null);
+    setSyncError(null);
+    try {
+      await exportSyncPackage(selectedPath, syncPassword);
+      setSyncMessage("同步包已导出");
+      await refreshSyncStatus();
+    } catch (error) {
+      setSyncError(errorMessage(error, "同步包导出失败"));
+    } finally {
+      setSyncBusy(null);
+    }
+  };
+
+  const handleImportSyncPackage = async () => {
+    if (!syncPassword.trim()) {
+      setSyncError("请输入同步密码");
+      return;
+    }
+
+    const selectedPath = await openFileDialog({
+      title: "导入 Cliply 同步包",
+      multiple: false,
+      filters: [{ name: "Cliply Sync Package", extensions: ["cliply-sync"] }],
+    });
+    if (!selectedPath || Array.isArray(selectedPath)) {
+      return;
+    }
+
+    setSyncBusy("import");
+    setSyncMessage(null);
+    setSyncError(null);
+    try {
+      const result = await importSyncPackage(selectedPath, syncPassword);
+      setSyncMessage(syncImportResultMessage(result));
+      await refreshSyncStatus();
+    } catch (error) {
+      setSyncError(errorMessage(error, "导入失败，已回滚"));
+    } finally {
+      setSyncBusy(null);
+    }
+  };
 
   return (
     <div className="absolute inset-0 z-30 grid place-items-center bg-slate-900/18 px-6 backdrop-blur-sm">
@@ -264,6 +346,57 @@ export function SettingsDialog({
                 }}
               />
             </SettingSection>
+
+            <SettingSection icon={RefreshCw} title="同步">
+              <p className="rounded-lg bg-[color:var(--cliply-accent-50)] px-3 py-2 text-xs leading-5 text-[color:var(--cliply-text-secondary)]">
+                同步包已加密，请妥善保存同步密码。当前版本只支持手动导入/导出，不会连接云服务。
+              </p>
+              <label className="grid gap-1.5 text-sm font-medium text-[color:var(--cliply-muted)]">
+                同步密码
+                <input
+                  type="password"
+                  value={syncPassword}
+                  onChange={(event) => {
+                    setSyncPassword(event.target.value);
+                    setSyncError(null);
+                  }}
+                  placeholder="用于加密 .cliply-sync 文件"
+                  className="h-9 rounded-lg border border-[color:var(--cliply-border)] bg-white px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={syncActionDisabled}
+                  onClick={() => void handleExportSyncPackage()}
+                  className="h-9 rounded-lg border border-[color:var(--cliply-border)] bg-white px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[#fafafb] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
+                >
+                  {syncBusy === "export" ? "导出中..." : "导出同步包"}
+                </button>
+                <button
+                  type="button"
+                  disabled={syncActionDisabled}
+                  onClick={() => void handleImportSyncPackage()}
+                  className="h-9 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[#d8dee8] disabled:text-[#7b8496]"
+                >
+                  {syncBusy === "import" ? "导入中..." : "导入同步包"}
+                </button>
+              </div>
+              <div className="grid gap-1 rounded-lg bg-[#fafafb] px-3 py-2 text-xs font-medium text-[color:var(--cliply-muted)]">
+                <span>最近导出：{formatSyncTime(syncStatus.lastExportedAt)}</span>
+                <span>最近导入：{formatSyncTime(syncStatus.lastImportedAt)}</span>
+              </div>
+              {syncMessage ? (
+                <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                  {syncMessage}
+                </p>
+              ) : null}
+              {syncError ? (
+                <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                  {syncError}
+                </p>
+              ) : null}
+            </SettingSection>
           </div>
         </div>
 
@@ -292,7 +425,7 @@ export function SettingsDialog({
   );
 }
 
-type SectionIcon = typeof Keyboard;
+type SectionIcon = typeof Keyboard | typeof RefreshCw;
 
 function SettingSection({
   icon: Icon,
@@ -598,4 +731,37 @@ function normalizeShortcutKey(key: string, code: string) {
   };
 
   return knownKeys[key] ?? null;
+}
+
+function formatSyncTime(value?: string | null) {
+  if (!value) {
+    return "暂无";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function syncImportResultMessage(result: SyncImportResult) {
+  return `导入完成：新增 ${result.importedCount}，更新 ${result.updatedCount}，删除 ${result.deletedCount}，跳过 ${result.skippedCount}，冲突 ${result.conflictedCount}`;
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  if (typeof error === "string") {
+    return error || fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  return fallback;
 }

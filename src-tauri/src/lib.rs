@@ -24,6 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = show_main_window(app);
         }))
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::list_clipboard_items,
@@ -31,6 +32,9 @@ pub fn run() {
             commands::toggle_pin_clipboard_item,
             commands::delete_clipboard_item,
             commands::clear_clipboard_history,
+            commands::export_sync_package,
+            commands::import_sync_package,
+            commands::get_sync_package_status,
             commands::copy_clipboard_item,
             commands::paste_clipboard_item,
             commands::paste_plain_text,

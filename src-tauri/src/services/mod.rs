@@ -7,4 +7,7 @@ pub mod paste_service;
 pub mod search_service;
 pub mod sensitive_detector;
 pub mod settings_service;
+pub mod sync_crypto_service;
+pub mod sync_merge_service;
+pub mod sync_package_service;
 pub mod sync_service;
