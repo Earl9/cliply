@@ -13,6 +13,8 @@ export type CliplySettings = {
   ignoreApps: string[];
   globalShortcut: string;
   theme: "light" | "dark";
+  themeName: string;
+  accentColor: string;
 };
 
 export type SettingsState = CliplySettings;
@@ -32,4 +34,6 @@ export const defaultSettingsState: CliplySettings = {
   ignoreApps: ["1Password", "Bitwarden", "KeePass", "KeePassXC", "Windows Credential Manager"],
   globalShortcut: "Ctrl+Shift+V",
   theme: "light",
+  themeName: "purple-default",
+  accentColor: "#6D4CFF",
 };

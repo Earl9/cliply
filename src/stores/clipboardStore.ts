@@ -50,14 +50,18 @@ const storeErrorLabels: Record<StoreErrorKind, string> = {
   settings: "保存设置失败，请检查快捷键或本地配置",
 };
 
+const initialClipboardItems = isTauri() ? [] : mockClipboardItems;
+
 export function useClipboardStore() {
-  const [allItems, setAllItems] = useState<ClipboardItem[]>(mockClipboardItems);
-  const [visibleItems, setVisibleItems] = useState<ClipboardItem[]>(mockClipboardItems);
+  const [allItems, setAllItems] = useState<ClipboardItem[]>(initialClipboardItems);
+  const [visibleItems, setVisibleItems] = useState<ClipboardItem[]>(initialClipboardItems);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filter, setFilter] = useState<ClipboardFilter>("all");
-  const [selectedId, setSelectedId] = useState<string | null>(mockClipboardItems[0]?.id ?? null);
-  const [detail, setDetail] = useState<ClipboardItem | null>(mockClipboardItems[0] ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialClipboardItems[0]?.id ?? null,
+  );
+  const [detail, setDetail] = useState<ClipboardItem | null>(initialClipboardItems[0] ?? null);
   const [loading, setLoading] = useState(false);
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -213,9 +217,12 @@ export function useClipboardStore() {
           setErrorMessage(null);
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (!cancelled) {
-          setErrorMessage(storeErrorLabels.detail);
+          setDetail(null);
+          if (!isMissingClipboardItemError(error)) {
+            setErrorMessage(storeErrorLabels.detail);
+          }
         }
       });
 
@@ -536,6 +543,7 @@ export function useClipboardStore() {
   }, [clearHistory, closeDialogs]);
 
   const setSettings = useCallback((nextSettings: CliplySettings) => {
+    const previousSettings = settings;
     setSettingsState(nextSettings);
     closeDialogs();
     void updateCliplySettings(nextSettings)
@@ -550,6 +558,7 @@ export function useClipboardStore() {
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : storeErrorLabels.settings;
+        setSettingsState(previousSettings);
         setErrorMessage(message || "设置保存失败，请检查本地权限");
         setActionStatus({
           label: "设置保存失败",
@@ -558,7 +567,7 @@ export function useClipboardStore() {
           tone: "error",
         });
       });
-  }, [closeDialogs]);
+  }, [closeDialogs, settings]);
 
   const toggleMonitoring = useCallback(() => {
     const paused = !settings.pauseMonitoring;
@@ -614,4 +623,12 @@ export function useClipboardStore() {
     toggleMonitoring,
     handleGlobalKeyDown,
   };
+}
+
+function isMissingClipboardItemError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("Query returned no rows") ||
+    message.includes("clipboard item was not found")
+  );
 }

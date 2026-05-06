@@ -28,22 +28,22 @@ export function ClipboardList({
   const footerText = getFooterText({ query, filter, shownCount: items.length, totalCount });
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-[color:var(--cliply-border)] bg-white shadow-[var(--cliply-shadow-card)] ring-1 ring-white/80">
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] bg-white px-6">
-        <span className="text-[17px] font-semibold text-[color:var(--cliply-text)]">剪贴板历史</span>
-        <span className="text-sm text-[color:var(--cliply-muted)]">{items.length} 条</span>
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[12px] border border-[color:var(--cliply-border)] bg-white shadow-[var(--cliply-shadow-card)] ring-1 ring-white/80">
+      <div className="flex h-11 shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] bg-white px-4">
+        <span className="text-[15px] font-semibold text-[color:var(--cliply-text)]">剪贴板历史</span>
+        <span className="text-xs text-[color:var(--cliply-muted)]">{items.length} 条</span>
       </div>
-      <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto bg-white px-[14px] pt-[14px]">
+      <div className="cliply-scrollbar min-h-0 flex-1 overflow-auto bg-white px-2.5 pt-2.5">
         {loading ? (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={index}
-                className="h-[104px] animate-pulse rounded-[14px] border border-[#e3e9f1] bg-white p-4"
+                className="h-[78px] animate-pulse rounded-[12px] border border-[#e3e9f1] bg-white p-3"
               >
-                <div className="mb-3 h-3 w-28 rounded bg-slate-200" />
-                <div className="mb-3 h-4 w-4/5 rounded bg-slate-200" />
-                <div className="h-3 w-40 rounded bg-slate-100" />
+                <div className="mb-2 h-2.5 w-24 rounded bg-slate-200" />
+                <div className="mb-2 h-3.5 w-4/5 rounded bg-slate-200" />
+                <div className="h-2.5 w-36 rounded bg-slate-100" />
               </div>
             ))}
           </div>
@@ -53,7 +53,7 @@ export function ClipboardList({
             description={errorMessage}
           />
         ) : items.length ? (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {items.map((item) => (
               <ClipboardListItem
                 key={item.id}
@@ -77,7 +77,7 @@ export function ClipboardList({
           />
         )}
       </div>
-      <div className="flex h-11 shrink-0 items-center border-t border-[color:var(--cliply-border-soft)] bg-white px-6 text-sm text-[color:var(--cliply-muted)]">
+      <div className="flex h-9 shrink-0 items-center border-t border-[color:var(--cliply-border-soft)] bg-white px-4 text-xs text-[color:var(--cliply-muted)]">
         {footerText}
       </div>
     </section>

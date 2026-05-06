@@ -11,6 +11,12 @@ import { FooterShortcuts } from "@/components/shell/FooterShortcuts";
 import { PrivacyBanner } from "@/components/shell/PrivacyBanner";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { hideMainWindow, toggleAlwaysOnTop } from "@/lib/windowAdapter";
+import {
+  DEFAULT_THEME_NAME,
+  applyCliplyTheme,
+  isCliplyThemeName,
+  storeCliplyThemeName,
+} from "@/theme/theme";
 import { useClipboardStore } from "@/stores/clipboardStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -74,6 +80,14 @@ export function AppWindow() {
   }, [settings.focusSearchOnOpen]);
 
   useEffect(() => {
+    const themeName = isCliplyThemeName(settings.themeName)
+      ? settings.themeName
+      : DEFAULT_THEME_NAME;
+    applyCliplyTheme(themeName);
+    storeCliplyThemeName(themeName);
+  }, [settings.themeName]);
+
+  useEffect(() => {
     const removeListeners: Array<() => void> = [];
 
     const registerTauriListeners = async () => {
@@ -117,7 +131,7 @@ export function AppWindow() {
           onResumeMonitoring={toggleMonitoring}
         />
         <ClipboardFilterTabs filter={state.filter} counts={counts} onFilterChange={setFilter} />
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(390px,0.88fr)_minmax(520px,1.12fr)] gap-7 px-8 pb-5 pt-6">
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(310px,0.86fr)_minmax(420px,1.14fr)] gap-4 px-5 pb-4 pt-4">
           <ClipboardList
             items={filteredItems}
             totalCount={state.items.length}

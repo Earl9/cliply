@@ -21,6 +21,9 @@ impl Drop for ClipboardListenerShutdown {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = show_main_window(app);
+        }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::list_clipboard_items,
@@ -35,6 +38,7 @@ pub fn run() {
             commands::get_debug_info,
             commands::get_cliply_settings,
             commands::update_cliply_settings,
+            commands::check_global_shortcut,
             commands::set_monitoring_paused,
             commands::show_main_window,
             commands::hide_main_window,
@@ -58,8 +62,6 @@ pub fn run() {
             platform::start_clipboard_listener(app.handle().clone())?;
             logger::info(app.handle(), "clipboard_listener_started", "listener ready");
             app.manage(ClipboardListenerShutdown);
-            let settings = services::settings_service::get_settings(app.handle())
-                .unwrap_or_else(|_| services::settings_service::default_settings());
             if let Some(window) = app.get_webview_window("main") {
                 let handle = app.handle().clone();
                 window.on_window_event(move |event| {
@@ -69,9 +71,9 @@ pub fn run() {
                     }
                 });
 
-                if settings.start_minimized {
+                if should_start_minimized() {
                     window.hide()?;
-                    logger::info(app.handle(), "startup_window", "start_minimized=true");
+                    logger::info(app.handle(), "startup_window", "startup_arg_minimized=true");
                 } else {
                     show_main_window(app.handle())?;
                 }
@@ -80,6 +82,10 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("failed to run Cliply");
+}
+
+fn should_start_minimized() -> bool {
+    std::env::args().any(|arg| arg == "--minimized" || arg == "--start-minimized")
 }
 
 pub fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {

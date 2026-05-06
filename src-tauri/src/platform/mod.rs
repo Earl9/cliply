@@ -135,15 +135,16 @@ pub fn paste_to_foreground() -> Result<(), CliplyError> {
     }
 }
 
-pub fn set_launch_at_startup(enabled: bool) -> Result<(), CliplyError> {
+pub fn set_launch_at_startup(enabled: bool, start_minimized: bool) -> Result<(), CliplyError> {
     #[cfg(target_os = "windows")]
     {
-        return windows::startup::set_launch_at_startup(enabled);
+        return windows::startup::set_launch_at_startup(enabled, start_minimized);
     }
 
     #[cfg(not(target_os = "windows"))]
     {
         let _ = enabled;
+        let _ = start_minimized;
         Ok(())
     }
 }

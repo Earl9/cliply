@@ -29,21 +29,21 @@ export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
       : null;
 
   return (
-    <div className="mt-[18px] rounded-[14px] border border-[color:var(--cliply-border-soft)] bg-[#fbfcfe] px-5 py-[18px] shadow-[0_4px_14px_rgba(15,23,42,0.025)]">
-      <h3 className="mb-[14px] text-base font-semibold text-[color:var(--cliply-text)]">元信息</h3>
-      <dl className="grid grid-cols-[120px_minmax(0,1fr)] gap-x-5 gap-y-[14px]">
+    <div className="mt-3 rounded-[12px] border border-[color:var(--cliply-border-soft)] bg-[#fbfcfe] px-4 py-3 shadow-[0_3px_10px_rgba(15,23,42,0.025)]">
+      <h3 className="mb-3 text-sm font-semibold text-[color:var(--cliply-text)]">元信息</h3>
+      <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-4 gap-y-2.5">
         {metadata.map(([label, value]) => (
           <div key={label} className="contents">
-            <dt className="text-sm font-normal text-[color:var(--cliply-muted)]">{label}</dt>
-            <dd className="min-w-0 truncate text-[15px] font-medium text-[color:var(--cliply-body-text)]">
+            <dt className="text-xs font-normal text-[color:var(--cliply-muted)]">{label}</dt>
+            <dd className="min-w-0 truncate text-[13px] font-medium text-[color:var(--cliply-body-text)]">
               {label === "类型" ? (
-                <Badge tone="accent" className="h-6 rounded-[7px] px-2 text-[13px]">
+                <Badge tone="accent" className="h-5 rounded-md px-1.5 text-xs">
                   {value}
                 </Badge>
               ) : label === "固定状态" ? (
                 <Badge
                   tone={item.isPinned ? "accent" : "neutral"}
-                  className="h-6 rounded-[7px] px-2 text-[13px]"
+                  className="h-5 rounded-md px-1.5 text-xs"
                 >
                   {value}
                 </Badge>
@@ -55,12 +55,12 @@ export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
         ))}
       </dl>
       {imageDimensions ? (
-        <div className="mt-4 rounded-lg bg-[#f5f7fa] px-3 py-2 text-sm text-[color:var(--cliply-muted)]">
+        <div className="mt-3 rounded-lg bg-[#f5f7fa] px-3 py-2 text-xs text-[color:var(--cliply-muted)]">
           图片尺寸：<span className="font-medium text-[color:var(--cliply-text)]">{imageDimensions}</span>
         </div>
       ) : null}
       {item.tags.length ? (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {item.tags.map((tag) => (
             <Badge key={tag}>#{tag}</Badge>
           ))}

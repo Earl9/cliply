@@ -14,7 +14,7 @@ type PillTabsProps<T extends string> = {
 
 export function PillTabs<T extends string>({ options, value, onValueChange }: PillTabsProps<T>) {
   return (
-    <div className="flex h-10 min-w-0 items-center gap-4 overflow-x-auto">
+    <div className="flex h-8 min-w-0 items-center gap-2 overflow-x-auto">
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -23,7 +23,7 @@ export function PillTabs<T extends string>({ options, value, onValueChange }: Pi
             type="button"
             onClick={() => onValueChange(option.value)}
             className={clsx(
-              "inline-flex h-10 min-w-28 shrink-0 items-center justify-center gap-2 rounded-[12px] border px-[22px] text-[16px] font-semibold leading-none transition",
+              "inline-flex h-8 min-w-20 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border px-3 text-sm font-semibold leading-none transition",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
               selected
                 ? "border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-[0_5px_14px_rgba(124,92,255,0.12)]"

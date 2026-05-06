@@ -1,5 +1,5 @@
 use crate::models::settings::CliplySettings;
-use crate::{error::CliplyError, logger, platform, services::database_service};
+use crate::{error::CliplyError, logger, platform, services::database_service, shortcuts};
 use rusqlite::{params, Connection};
 use serde::{de::DeserializeOwned, Serialize};
 use tauri::{AppHandle, Emitter};
@@ -19,6 +19,8 @@ const KEY_SAVE_SENSITIVE: &str = "save_sensitive";
 const KEY_IGNORE_APPS: &str = "ignore_apps";
 const KEY_GLOBAL_SHORTCUT: &str = "global_shortcut";
 const KEY_THEME: &str = "theme";
+const KEY_THEME_NAME: &str = "theme_name";
+const KEY_ACCENT_COLOR: &str = "accent_color";
 
 pub fn default_settings() -> CliplySettings {
     CliplySettings::default()
@@ -35,12 +37,24 @@ pub fn update_settings(
 ) -> Result<CliplySettings, CliplyError> {
     let connection = database_service::connect(app)?;
     let previous_settings = load_settings(&connection).unwrap_or_else(|_| default_settings());
-    if previous_settings.launch_at_startup != settings.launch_at_startup {
-        platform::set_launch_at_startup(settings.launch_at_startup)?;
+    if previous_settings.global_shortcut != settings.global_shortcut {
+        if let Err(error) = shortcuts::register_user_shortcut(app, &settings.global_shortcut) {
+            let _ = shortcuts::register_user_shortcut(app, &previous_settings.global_shortcut);
+            return Err(error);
+        }
+    }
+
+    if previous_settings.launch_at_startup != settings.launch_at_startup
+        || previous_settings.start_minimized != settings.start_minimized
+    {
+        platform::set_launch_at_startup(settings.launch_at_startup, settings.start_minimized)?;
         logger::info(
             app,
             "startup_setting",
-            format!("launch_at_startup={}", settings.launch_at_startup),
+            format!(
+                "launch_at_startup={} start_minimized={}",
+                settings.launch_at_startup, settings.start_minimized
+            ),
         );
     }
     save_settings(&connection, &settings)?;
@@ -87,6 +101,8 @@ fn load_settings(connection: &Connection) -> Result<CliplySettings, CliplyError>
         global_shortcut: get_value(connection, KEY_GLOBAL_SHORTCUT)?
             .unwrap_or(default.global_shortcut),
         theme: get_value(connection, KEY_THEME)?.unwrap_or(default.theme),
+        theme_name: get_value(connection, KEY_THEME_NAME)?.unwrap_or(default.theme_name),
+        accent_color: get_value(connection, KEY_ACCENT_COLOR)?.unwrap_or(default.accent_color),
     })
 }
 
@@ -121,6 +137,8 @@ fn save_settings(connection: &Connection, settings: &CliplySettings) -> Result<(
     set_value(connection, KEY_IGNORE_APPS, &settings.ignore_apps)?;
     set_value(connection, KEY_GLOBAL_SHORTCUT, &settings.global_shortcut)?;
     set_value(connection, KEY_THEME, &settings.theme)?;
+    set_value(connection, KEY_THEME_NAME, &settings.theme_name)?;
+    set_value(connection, KEY_ACCENT_COLOR, &settings.accent_color)?;
     Ok(())
 }
 

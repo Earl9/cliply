@@ -96,16 +96,8 @@ pub async fn update_cliply_settings(
 ) -> Result<CliplySettings, String> {
     shortcuts::validate_shortcut(&settings.global_shortcut)
         .map_err(|error| command_error(&app, "update_cliply_settings.validate_shortcut", error))?;
-    let previous_settings = settings_service::get_settings(&app)
-        .map_err(|error| command_error(&app, "update_cliply_settings.get", error))?;
     let updated_settings = settings_service::update_settings(&app, settings)
         .map_err(|error| command_error(&app, "update_cliply_settings.save", error))?;
-
-    if previous_settings.global_shortcut != updated_settings.global_shortcut {
-        shortcuts::register_default_shortcuts(&app).map_err(|error| {
-            command_error(&app, "update_cliply_settings.shortcut_register", error)
-        })?;
-    }
 
     let cleanup =
         clipboard_service::enforce_history_retention_with_settings(&app, &updated_settings)
@@ -117,6 +109,19 @@ pub async fn update_cliply_settings(
     tray::refresh_tray(&app)
         .map_err(|error| command_error(&app, "update_cliply_settings.tray", error))?;
     Ok(updated_settings)
+}
+
+#[tauri::command]
+pub async fn check_global_shortcut(
+    app: AppHandle,
+    shortcut: String,
+    current_shortcut: Option<String>,
+) -> Result<shortcuts::ShortcutCheck, String> {
+    Ok(shortcuts::check_shortcut(
+        &app,
+        &shortcut,
+        current_shortcut.as_deref(),
+    ))
 }
 
 #[tauri::command]

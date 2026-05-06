@@ -17,6 +17,8 @@ pub struct CliplySettings {
     pub ignore_apps: Vec<String>,
     pub global_shortcut: String,
     pub theme: String,
+    pub theme_name: String,
+    pub accent_color: String,
 }
 
 impl Default for CliplySettings {
@@ -42,6 +44,8 @@ impl Default for CliplySettings {
             ],
             global_shortcut: "Ctrl+Shift+V".to_string(),
             theme: "light".to_string(),
+            theme_name: "purple-default".to_string(),
+            accent_color: "#6D4CFF".to_string(),
         }
     }
 }

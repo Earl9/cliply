@@ -44,7 +44,7 @@ export function ClipboardListItem({
         }
       }}
       className={clsx(
-        "group grid h-[104px] w-full cursor-pointer grid-cols-[56px_minmax(0,1fr)_28px] items-center gap-4 rounded-[14px] border px-[18px] py-4 text-left transition duration-150 active:scale-[0.995]",
+        "group grid h-[78px] w-full cursor-pointer grid-cols-[44px_minmax(0,1fr)_24px] items-center gap-3 rounded-[12px] border px-3 py-2.5 text-left transition duration-150 active:scale-[0.995]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
         selected
           ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] shadow-[var(--cliply-shadow-selected)]"
@@ -53,7 +53,7 @@ export function ClipboardListItem({
     >
       <span
         className={clsx(
-          "grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-xl border border-[#e3e9f1] bg-white",
+          "grid size-[42px] shrink-0 place-items-center overflow-hidden rounded-[10px] border border-[#e3e9f1] bg-white",
           item.type === "code" && "bg-indigo-50 text-indigo-700",
           item.type === "link" && "bg-teal-50 text-teal-700",
           item.type === "text" && "bg-slate-100 text-slate-600",
@@ -65,20 +65,20 @@ export function ClipboardListItem({
           <img
             src={item.thumbnailUrl}
             alt={item.imageAlt ?? item.title}
-            className="size-full rounded-[11px] object-contain"
+            className="size-full rounded-[9px] object-contain"
           />
         ) : (
-          <Icon className="size-5" />
+          <Icon className="size-4" />
         )}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium leading-5 text-[color:var(--cliply-faint)]">
+        <span className="block truncate text-xs font-medium leading-4 text-[color:var(--cliply-faint)]">
           {sensitive ? "隐私" : typeLabel[item.type]} · {item.sourceApp}
         </span>
-        <span className="mt-1 block truncate text-[17px] font-bold leading-6 text-[color:var(--cliply-text)]">
+        <span className="mt-0.5 block truncate text-[15px] font-semibold leading-5 text-[color:var(--cliply-text)]">
           {sensitive ? "已隐藏敏感内容" : item.previewText}
         </span>
-        <span className="mt-1 flex min-w-0 items-center gap-2 text-sm leading-5 text-[color:var(--cliply-faint)]">
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-4 text-[color:var(--cliply-faint)]">
           <span>{formatCopiedTime(item.copiedAt)}</span>
           <span>·</span>
           <span>{formatRelativeTime(item.copiedAt)}</span>
@@ -98,13 +98,13 @@ export function ClipboardListItem({
           onTogglePin();
         }}
         className={clsx(
-          "grid size-7 shrink-0 place-items-center rounded-lg text-[#a5afbd] opacity-35 transition hover:bg-white hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-85",
+          "grid size-6 shrink-0 place-items-center rounded-md text-[#a5afbd] opacity-30 transition hover:bg-white hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-80",
           item.isPinned && "text-[color:var(--cliply-accent-strong)] opacity-100",
         )}
       >
         <Pin
           className={clsx(
-            "size-[18px]",
+            "size-4",
             item.isPinned && "fill-[color:var(--cliply-accent-strong)]",
           )}
         />

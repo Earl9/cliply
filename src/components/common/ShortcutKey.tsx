@@ -16,8 +16,8 @@ export function ShortcutKey({ keys, compact, tone = "default" }: ShortcutKeyProp
           ) : null}
           <kbd
             className={clsx(
-              "inline-flex min-w-5 items-center justify-center rounded-[7px] px-2 font-medium",
-              compact ? "h-5 text-[12px]" : "h-[26px] text-[13px]",
+              "inline-flex min-w-4 items-center justify-center rounded-md px-1.5 font-medium",
+              compact ? "h-[18px] text-[11px]" : "h-6 text-xs",
               tone === "onPrimary"
                 ? "border border-transparent bg-white/18 text-white"
                 : "border border-[#e4e8ef] bg-[#f3f5f8] text-[color:var(--cliply-muted)]",

@@ -13,7 +13,7 @@ use windows_sys::Win32::System::Registry::{
 const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const RUN_VALUE_NAME: &str = "Cliply";
 
-pub fn set_launch_at_startup(enabled: bool) -> Result<(), CliplyError> {
+pub fn set_launch_at_startup(enabled: bool, start_minimized: bool) -> Result<(), CliplyError> {
     let mut key: HKEY = null_mut();
     let open_result = unsafe {
         RegOpenKeyExW(
@@ -32,7 +32,7 @@ pub fn set_launch_at_startup(enabled: bool) -> Result<(), CliplyError> {
     }
 
     let result = if enabled {
-        set_startup_value(key)
+        set_startup_value(key, start_minimized)
     } else {
         delete_startup_value(key)
     };
@@ -44,9 +44,10 @@ pub fn set_launch_at_startup(enabled: bool) -> Result<(), CliplyError> {
     result
 }
 
-fn set_startup_value(key: HKEY) -> Result<(), CliplyError> {
+fn set_startup_value(key: HKEY, start_minimized: bool) -> Result<(), CliplyError> {
     let executable = std::env::current_exe()?;
-    let command = format!("\"{}\"", executable.display());
+    let minimized_arg = if start_minimized { " --minimized" } else { "" };
+    let command = format!("\"{}\"{}", executable.display(), minimized_arg);
     let value_name = wide_null(RUN_VALUE_NAME);
     let value = wide_null(&command);
     let byte_len = value.len() * size_of::<u16>();

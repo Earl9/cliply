@@ -47,20 +47,20 @@ export function TitleBar({
 
   return (
     <header
-      className="flex h-14 shrink-0 select-none items-center justify-between px-8"
+      className="flex h-12 shrink-0 select-none items-center justify-between px-5"
       data-tauri-drag-region
       onDoubleClick={() => void toggleMainWindowMaximize()}
     >
-      <div className="flex min-w-0 items-center gap-[14px]" data-tauri-drag-region>
+      <div className="flex min-w-0 items-center gap-3" data-tauri-drag-region>
         <div
-          className="grid size-9 place-items-center rounded-xl bg-[color:var(--cliply-accent-strong)] text-white shadow-sm"
+          className="grid size-8 place-items-center rounded-[10px] bg-[color:var(--cliply-accent-strong)] text-white shadow-sm"
           data-tauri-drag-region
         >
-          <ClipboardList className="size-[18px]" />
+          <ClipboardList className="size-4" />
         </div>
         <div className="min-w-0" data-tauri-drag-region>
           <div
-            className="truncate text-2xl font-semibold tracking-normal text-[color:var(--cliply-text)]"
+            className="truncate text-xl font-semibold tracking-normal text-[color:var(--cliply-text)]"
             data-tauri-drag-region
           >
             Cliply
@@ -97,7 +97,7 @@ export function TitleBar({
             <MoreHorizontal className="size-4" />
           </IconButton>
           {menuOpen ? (
-            <div className="absolute right-0 top-11 z-20 w-48 overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-1 shadow-xl">
+            <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-1 shadow-xl">
               <MenuButton onClick={() => runMenuAction(onToggleMonitoring)}>
                 {monitoringPaused ? "恢复监听" : "暂停监听"}
               </MenuButton>
@@ -130,7 +130,7 @@ function MenuButton({
     <button
       type="button"
       onClick={onClick}
-      className="h-9 w-full rounded-lg px-3 text-left text-sm font-medium text-[color:var(--cliply-text)] transition hover:bg-slate-900/[0.06]"
+      className="h-8 w-full rounded-lg px-3 text-left text-[13px] font-medium text-[color:var(--cliply-text)] transition hover:bg-slate-900/[0.06]"
     >
       {children}
     </button>
