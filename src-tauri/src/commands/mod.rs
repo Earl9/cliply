@@ -1,8 +1,10 @@
 use crate::logger;
 use crate::models::clipboard_item::{ClipboardItemDetailDto, ClipboardItemDto};
 use crate::models::settings::CliplySettings;
+use crate::services::sync_storage_provider::SyncProviderConfig;
 use crate::services::{
-    clipboard_service, database_service, paste_service, settings_service, sync_package_service,
+    clipboard_service, database_service, paste_service, remote_sync_service, settings_service,
+    sync_package_service,
 };
 use crate::{shortcuts, tray};
 use tauri::{AppHandle, Emitter};
@@ -109,6 +111,62 @@ pub async fn get_sync_package_status(
 ) -> Result<sync_package_service::SyncPackageStatus, String> {
     sync_package_service::get_sync_package_status(&app)
         .map_err(|error| command_error(&app, "get_sync_package_status", error))
+}
+
+#[tauri::command]
+pub async fn get_remote_sync_status(
+    app: AppHandle,
+) -> Result<remote_sync_service::RemoteSyncStatus, String> {
+    remote_sync_service::get_remote_sync_status(&app)
+        .map_err(|error| command_error(&app, "get_remote_sync_status", error))
+}
+
+#[tauri::command]
+pub async fn set_remote_sync_provider(
+    app: AppHandle,
+    config: SyncProviderConfig,
+) -> Result<remote_sync_service::RemoteSyncStatus, String> {
+    remote_sync_service::set_remote_sync_provider(&app, config)
+        .map_err(|error| command_error(&app, "set_remote_sync_provider", error))
+}
+
+#[tauri::command]
+pub async fn export_to_remote_sync_folder(
+    app: AppHandle,
+    password: String,
+) -> Result<remote_sync_service::RemoteSyncResult, String> {
+    let result = remote_sync_service::export_to_remote_sync_folder(&app, password)
+        .map_err(|error| command_error(&app, "export_to_remote_sync_folder", error))?;
+    logger::info(
+        &app,
+        "command.export_to_remote_sync_folder",
+        format!("snapshots={}", result.snapshot_count),
+    );
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn import_from_remote_sync_folder(
+    app: AppHandle,
+    password: String,
+) -> Result<remote_sync_service::RemoteSyncResult, String> {
+    let result = remote_sync_service::import_from_remote_sync_folder(&app, password)
+        .map_err(|error| command_error(&app, "import_from_remote_sync_folder", error))?;
+    let _ = app.emit("clipboard-items-changed", ());
+    logger::info(
+        &app,
+        "command.import_from_remote_sync_folder",
+        format!(
+            "imported={} updated={} skipped={} deleted={} conflicted={} snapshots={}",
+            result.imported_count,
+            result.updated_count,
+            result.skipped_count,
+            result.deleted_count,
+            result.conflicted_count,
+            result.snapshot_count
+        ),
+    );
+    Ok(result)
 }
 
 #[tauri::command]

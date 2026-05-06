@@ -15,6 +15,42 @@ export type SyncPackageStatus = {
   lastImportedAt?: string | null;
 };
 
+export type SyncProviderConfig =
+  | { type: "disabled" }
+  | { type: "local-folder"; path: string }
+  | { type: "webdav"; url: string; username: string; password: string; remotePath: string }
+  | { type: "sftp"; host: string; port: number; username: string; authType: string; remotePath: string }
+  | { type: "ftp"; host: string; port: number; username: string; password: string; secure: boolean; remotePath: string }
+  | {
+      type: "s3";
+      endpoint: string;
+      bucket: string;
+      accessKeyId: string;
+      secretAccessKey: string;
+      region: string;
+      prefix: string;
+    };
+
+export type RemoteSyncStatus = {
+  provider: SyncProviderConfig;
+  manifestExists: boolean;
+  lastSyncedAt?: string | null;
+  lastStatus?: string | null;
+  lastError?: string | null;
+  snapshotCount: number;
+};
+
+export type RemoteSyncResult = {
+  exportedCount: number;
+  importedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  deletedCount: number;
+  conflictedCount: number;
+  snapshotCount: number;
+  syncedAt: string;
+};
+
 export type ShortcutCheck = {
   ok: boolean;
   normalized: string;
@@ -101,6 +137,76 @@ export async function getSyncPackageStatus(): Promise<SyncPackageStatus> {
   return invoke<SyncPackageStatus>("get_sync_package_status");
 }
 
+export async function getRemoteSyncStatus(): Promise<RemoteSyncStatus> {
+  if (!isTauri()) {
+    return readMockRemoteSyncStatus();
+  }
+
+  return invoke<RemoteSyncStatus>("get_remote_sync_status");
+}
+
+export async function setRemoteSyncProvider(
+  config: SyncProviderConfig,
+): Promise<RemoteSyncStatus> {
+  if (!isTauri()) {
+    const status = { ...readMockRemoteSyncStatus(), provider: config };
+    writeMockRemoteSyncStatus(status);
+    return status;
+  }
+
+  return invoke<RemoteSyncStatus>("set_remote_sync_provider", { config });
+}
+
+export async function exportToRemoteSyncFolder(password: string): Promise<RemoteSyncResult> {
+  if (!isTauri()) {
+    const syncedAt = new Date().toISOString();
+    const status = {
+      ...readMockRemoteSyncStatus(),
+      manifestExists: true,
+      lastSyncedAt: syncedAt,
+      lastStatus: "success",
+      snapshotCount: readMockRemoteSyncStatus().snapshotCount + 1,
+    };
+    writeMockRemoteSyncStatus(status);
+    return {
+      exportedCount: 1,
+      importedCount: 0,
+      updatedCount: 0,
+      skippedCount: 0,
+      deletedCount: 0,
+      conflictedCount: 0,
+      snapshotCount: status.snapshotCount,
+      syncedAt,
+    };
+  }
+
+  return invoke<RemoteSyncResult>("export_to_remote_sync_folder", { password });
+}
+
+export async function importFromRemoteSyncFolder(password: string): Promise<RemoteSyncResult> {
+  if (!isTauri()) {
+    const syncedAt = new Date().toISOString();
+    const status = {
+      ...readMockRemoteSyncStatus(),
+      lastSyncedAt: syncedAt,
+      lastStatus: "success",
+    };
+    writeMockRemoteSyncStatus(status);
+    return {
+      exportedCount: 0,
+      importedCount: 0,
+      updatedCount: 0,
+      skippedCount: 0,
+      deletedCount: 0,
+      conflictedCount: 0,
+      snapshotCount: status.snapshotCount,
+      syncedAt,
+    };
+  }
+
+  return invoke<RemoteSyncResult>("import_from_remote_sync_folder", { password });
+}
+
 function readMockSettings(): CliplySettings {
   try {
     const raw = window.localStorage.getItem("cliply.settings");
@@ -133,6 +239,27 @@ function readMockSyncStatus(): SyncPackageStatus {
 
 function writeMockSyncStatus(status: SyncPackageStatus) {
   window.localStorage.setItem("cliply.sync.status", JSON.stringify(status));
+}
+
+function readMockRemoteSyncStatus(): RemoteSyncStatus {
+  try {
+    const raw = window.localStorage.getItem("cliply.remoteSync.status");
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch {
+    // Fall through to default mock state.
+  }
+
+  return {
+    provider: { type: "disabled" },
+    manifestExists: false,
+    snapshotCount: 0,
+  };
+}
+
+function writeMockRemoteSyncStatus(status: RemoteSyncStatus) {
+  window.localStorage.setItem("cliply.remoteSync.status", JSON.stringify(status));
 }
 
 function checkMockShortcut(shortcut: string, currentShortcut?: string): ShortcutCheck {

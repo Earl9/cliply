@@ -12,10 +12,17 @@ import { IconButton } from "@/components/common/IconButton";
 import {
   checkGlobalShortcut,
   exportSyncPackage,
+  exportToRemoteSyncFolder,
+  getRemoteSyncStatus,
   getSyncPackageStatus,
+  importFromRemoteSyncFolder,
   importSyncPackage,
+  setRemoteSyncProvider,
+  type RemoteSyncResult,
+  type RemoteSyncStatus,
   type SyncImportResult,
   type SyncPackageStatus,
+  type SyncProviderConfig,
   type ShortcutCheck,
 } from "@/lib/settingsRepository";
 import {
@@ -36,6 +43,19 @@ type SettingsDialogProps = {
   onClearHistory: () => void;
 };
 
+const SYNC_PROVIDER_OPTIONS: Array<{
+  type: SyncProviderConfig["type"];
+  label: string;
+  disabled?: boolean;
+}> = [
+  { type: "disabled", label: "关闭同步" },
+  { type: "local-folder", label: "本地同步文件夹" },
+  { type: "webdav", label: "WebDAV", disabled: true },
+  { type: "sftp", label: "SFTP", disabled: true },
+  { type: "ftp", label: "FTP/FTPS", disabled: true },
+  { type: "s3", label: "S3/R2", disabled: true },
+];
+
 export function SettingsDialog({
   open,
   settings,
@@ -48,6 +68,11 @@ export function SettingsDialog({
   const [shortcutCheck, setShortcutCheck] = useState<ShortcutCheck | null>(null);
   const [syncPassword, setSyncPassword] = useState("");
   const [syncStatus, setSyncStatus] = useState<SyncPackageStatus>({});
+  const [remoteSyncStatus, setRemoteSyncStatus] = useState<RemoteSyncStatus>({
+    provider: { type: "disabled" },
+    manifestExists: false,
+    snapshotCount: 0,
+  });
   const [syncBusy, setSyncBusy] = useState<"export" | "import" | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -132,9 +157,102 @@ export function SettingsDialog({
 
   const refreshSyncStatus = async () => {
     try {
-      setSyncStatus(await getSyncPackageStatus());
+      const [packageStatus, remoteStatus] = await Promise.all([
+        getSyncPackageStatus(),
+        getRemoteSyncStatus(),
+      ]);
+      setSyncStatus(packageStatus);
+      setRemoteSyncStatus(remoteStatus);
     } catch {
       setSyncStatus({});
+    }
+  };
+
+  const handleSyncProviderChange = async (type: SyncProviderConfig["type"]) => {
+    if (type !== "disabled" && type !== "local-folder") {
+      setSyncMessage(null);
+      setSyncError("该同步方式开发中，本轮只支持本地同步文件夹");
+      return;
+    }
+
+    const nextProvider =
+      type === "disabled"
+        ? { type: "disabled" as const }
+        : {
+            type: "local-folder" as const,
+            path:
+              remoteSyncStatus.provider.type === "local-folder"
+                ? remoteSyncStatus.provider.path
+                : "",
+          };
+
+    try {
+      const status = await setRemoteSyncProvider(nextProvider);
+      setRemoteSyncStatus(status);
+      setSyncMessage(type === "disabled" ? "同步已关闭" : "已切换到本地同步文件夹");
+      setSyncError(null);
+    } catch (error) {
+      setSyncError(errorMessage(error, "同步方式保存失败"));
+    }
+  };
+
+  const handleChooseSyncFolder = async () => {
+    const selectedPath = await openFileDialog({
+      title: "选择 Cliply 同步文件夹",
+      directory: true,
+      multiple: false,
+    });
+    if (!selectedPath || Array.isArray(selectedPath)) {
+      return;
+    }
+
+    try {
+      const status = await setRemoteSyncProvider({ type: "local-folder", path: selectedPath });
+      setRemoteSyncStatus(status);
+      setSyncMessage("同步文件夹已设置");
+      setSyncError(null);
+    } catch (error) {
+      setSyncError(errorMessage(error, "同步文件夹设置失败"));
+    }
+  };
+
+  const handleExportToRemoteFolder = async () => {
+    if (!syncPassword.trim()) {
+      setSyncError("请输入同步密码");
+      return;
+    }
+
+    setSyncBusy("export");
+    setSyncMessage(null);
+    setSyncError(null);
+    try {
+      const result = await exportToRemoteSyncFolder(syncPassword);
+      setSyncMessage(remoteSyncResultMessage(result, "导出到同步文件夹完成"));
+      await refreshSyncStatus();
+    } catch (error) {
+      setSyncError(errorMessage(error, "导出到同步文件夹失败"));
+    } finally {
+      setSyncBusy(null);
+    }
+  };
+
+  const handleImportFromRemoteFolder = async () => {
+    if (!syncPassword.trim()) {
+      setSyncError("请输入同步密码");
+      return;
+    }
+
+    setSyncBusy("import");
+    setSyncMessage(null);
+    setSyncError(null);
+    try {
+      const result = await importFromRemoteSyncFolder(syncPassword);
+      setSyncMessage(remoteSyncResultMessage(result, "从同步文件夹导入完成"));
+      await refreshSyncStatus();
+    } catch (error) {
+      setSyncError(errorMessage(error, "从同步文件夹导入失败"));
+    } finally {
+      setSyncBusy(null);
     }
   };
 
@@ -349,8 +467,61 @@ export function SettingsDialog({
 
             <SettingSection icon={RefreshCw} title="同步">
               <p className="rounded-lg bg-[color:var(--cliply-accent-50)] px-3 py-2 text-xs leading-5 text-[color:var(--cliply-text-secondary)]">
-                同步包已加密，请妥善保存同步密码。当前版本只支持手动导入/导出，不会连接云服务。
+                同步包已加密，请妥善保存同步密码。当前版本只实现本地同步文件夹，不会连接云服务。
               </p>
+              <div className="grid gap-2">
+                <span className="text-sm font-medium text-[color:var(--cliply-muted)]">同步方式</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {SYNC_PROVIDER_OPTIONS.map((option) => {
+                    const selected = remoteSyncStatus.provider.type === option.type;
+                    return (
+                      <button
+                        key={option.type}
+                        type="button"
+                        onClick={() => void handleSyncProviderChange(option.type)}
+                        className={clsx(
+                          "flex h-9 items-center justify-between rounded-lg border px-3 text-left text-[13px] font-semibold transition",
+                          selected
+                            ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)]"
+                            : "border-[color:var(--cliply-border)] bg-white text-[color:var(--cliply-text)] hover:border-[color:var(--cliply-border-strong)]",
+                          option.disabled && "opacity-60",
+                        )}
+                      >
+                        <span>{option.label}</span>
+                        {option.disabled ? (
+                          <span className="text-[11px] font-semibold text-[color:var(--cliply-muted)]">
+                            开发中
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {remoteSyncStatus.provider.type === "local-folder" ? (
+                <div className="grid gap-2 rounded-lg border border-[color:var(--cliply-border)] bg-white px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-[color:var(--cliply-muted)]">
+                      同步文件夹
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleChooseSyncFolder()}
+                      className="h-7 rounded-lg border border-[color:var(--cliply-border)] bg-white px-2.5 text-xs font-semibold text-[color:var(--cliply-text)] transition hover:bg-[#fafafb]"
+                    >
+                      选择
+                    </button>
+                  </div>
+                  <p className="cliply-code-font truncate text-xs font-medium text-[color:var(--cliply-text-secondary)]">
+                    {remoteSyncStatus.provider.path || "尚未选择"}
+                  </p>
+                  <div className="grid grid-cols-3 gap-1 text-xs font-medium text-[color:var(--cliply-muted)]">
+                    <span>Manifest：{remoteSyncStatus.manifestExists ? "已检测" : "未检测"}</span>
+                    <span>快照：{remoteSyncStatus.snapshotCount}</span>
+                    <span>状态：{remoteSyncStatus.lastStatus || "暂无"}</span>
+                  </div>
+                </div>
+              ) : null}
               <label className="grid gap-1.5 text-sm font-medium text-[color:var(--cliply-muted)]">
                 同步密码
                 <input
@@ -382,9 +553,30 @@ export function SettingsDialog({
                   {syncBusy === "import" ? "导入中..." : "导入同步包"}
                 </button>
               </div>
+              {remoteSyncStatus.provider.type === "local-folder" ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={syncActionDisabled || !remoteSyncStatus.provider.path}
+                    onClick={() => void handleExportToRemoteFolder()}
+                    className="h-9 rounded-lg border border-[color:var(--cliply-border)] bg-white px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[#fafafb] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
+                  >
+                    {syncBusy === "export" ? "导出中..." : "导出到同步文件夹"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={syncActionDisabled || !remoteSyncStatus.provider.path}
+                    onClick={() => void handleImportFromRemoteFolder()}
+                    className="h-9 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[#d8dee8] disabled:text-[#7b8496]"
+                  >
+                    {syncBusy === "import" ? "导入中..." : "从同步文件夹导入"}
+                  </button>
+                </div>
+              ) : null}
               <div className="grid gap-1 rounded-lg bg-[#fafafb] px-3 py-2 text-xs font-medium text-[color:var(--cliply-muted)]">
                 <span>最近导出：{formatSyncTime(syncStatus.lastExportedAt)}</span>
                 <span>最近导入：{formatSyncTime(syncStatus.lastImportedAt)}</span>
+                <span>最近同步：{formatSyncTime(remoteSyncStatus.lastSyncedAt)}</span>
               </div>
               {syncMessage ? (
                 <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
@@ -752,6 +944,10 @@ function formatSyncTime(value?: string | null) {
 
 function syncImportResultMessage(result: SyncImportResult) {
   return `导入完成：新增 ${result.importedCount}，更新 ${result.updatedCount}，删除 ${result.deletedCount}，跳过 ${result.skippedCount}，冲突 ${result.conflictedCount}`;
+}
+
+function remoteSyncResultMessage(result: RemoteSyncResult, prefix: string) {
+  return `${prefix}：快照 ${result.snapshotCount}，新增 ${result.importedCount}，更新 ${result.updatedCount}，删除 ${result.deletedCount}，冲突 ${result.conflictedCount}`;
 }
 
 function errorMessage(error: unknown, fallback: string) {

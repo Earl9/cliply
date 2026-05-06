@@ -119,6 +119,21 @@ pub fn export_sync_package(
     path: String,
     password: String,
 ) -> Result<(), CliplyError> {
+    let (package_json, exported_at) = build_sync_package_bytes(app, &password)?;
+    let connection = database_service::connect(app)?;
+    let output_path = normalize_package_path(Path::new(&path));
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(output_path, package_json)?;
+    set_sync_state_value(&connection, LAST_EXPORTED_AT_KEY, &exported_at)?;
+    Ok(())
+}
+
+pub fn build_sync_package_bytes(
+    app: &AppHandle,
+    password: &str,
+) -> Result<(Vec<u8>, String), CliplyError> {
     let connection = database_service::connect(app)?;
     let exported_at = current_timestamp()?;
     let device = load_current_device(&connection)?;
@@ -145,13 +160,7 @@ pub fn export_sync_package(
     };
     let package_json = serde_json::to_vec_pretty(&envelope)
         .map_err(|error| CliplyError::Sync(format!("同步包序列化失败: {error}")))?;
-    let output_path = normalize_package_path(Path::new(&path));
-    if let Some(parent) = output_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(output_path, package_json)?;
-    set_sync_state_value(&connection, LAST_EXPORTED_AT_KEY, &exported_at)?;
-    Ok(())
+    Ok((package_json, exported_at))
 }
 
 pub fn import_sync_package(
@@ -159,8 +168,18 @@ pub fn import_sync_package(
     path: String,
     password: String,
 ) -> Result<SyncImportResult, CliplyError> {
-    let package_json = fs::read_to_string(path)?;
-    let envelope: SyncPackageEnvelope = serde_json::from_str(&package_json)
+    let package_bytes = fs::read(path)?;
+    import_sync_package_bytes(app, &package_bytes, &password)
+}
+
+pub fn import_sync_package_bytes(
+    app: &AppHandle,
+    package_bytes: &[u8],
+    password: &str,
+) -> Result<SyncImportResult, CliplyError> {
+    let package_json = std::str::from_utf8(package_bytes)
+        .map_err(|_| CliplyError::Sync("file format is invalid".to_string()))?;
+    let envelope: SyncPackageEnvelope = serde_json::from_str(package_json)
         .map_err(|_| CliplyError::Sync("文件格式不正确".to_string()))?;
     validate_envelope(&envelope)?;
 
@@ -173,6 +192,13 @@ pub fn import_sync_package(
         .map_err(|_| CliplyError::Sync("密码错误或同步包已损坏".to_string()))?;
     validate_payload(&payload)?;
 
+    import_sync_payload(app, &payload)
+}
+
+pub fn import_sync_payload(
+    app: &AppHandle,
+    payload: &SyncPackagePayload,
+) -> Result<SyncImportResult, CliplyError> {
     let mut connection = database_service::connect(app)?;
     let imported_at = current_timestamp()?;
     let transaction = connection.transaction()?;
@@ -181,10 +207,10 @@ pub fn import_sync_package(
             set_sync_state_value(&transaction, LAST_IMPORTED_AT_KEY, &imported_at)?;
             Ok(result)
         })
-        .map_err(|error| CliplyError::Sync(format!("导入失败，已回滚: {error}")))?;
+        .map_err(|error| CliplyError::Sync(format!("import failed and rolled back: {error}")))?;
     transaction
         .commit()
-        .map_err(|error| CliplyError::Sync(format!("导入失败，已回滚: {error}")))?;
+        .map_err(|error| CliplyError::Sync(format!("import failed and rolled back: {error}")))?;
     Ok(result)
 }
 
