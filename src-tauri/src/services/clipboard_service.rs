@@ -7,6 +7,7 @@ use crate::models::settings::CliplySettings;
 use crate::platform::{self, ClipboardSnapshot};
 use crate::services::{
     blob_service, database_service, hash_service, sensitive_detector, settings_service,
+    sync_service,
 };
 use rusqlite::{params, Connection, Row};
 use tauri::AppHandle;
@@ -76,13 +77,17 @@ pub fn toggle_pin_clipboard_item(
     id: String,
 ) -> Result<ClipboardItemDto, CliplyError> {
     let connection = database_service::connect(app)?;
+    let now = current_timestamp()?;
     let changed_rows = connection.execute(
         "UPDATE clipboard_items
          SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END,
-             updated_at = datetime('now')
+             revision = COALESCE(revision, 1) + 1,
+             updated_at = ?2,
+             sync_status = 'pending'
          WHERE id = ?1
-           AND is_deleted = 0",
-        params![id],
+           AND is_deleted = 0
+           AND deleted_at IS NULL",
+        params![id, now],
     )?;
 
     if changed_rows == 0 {
@@ -91,20 +96,26 @@ pub fn toggle_pin_clipboard_item(
         ));
     }
 
+    sync_service::mark_item_updated(&connection, &id, &now)?;
     load_item(&connection, &id)
 }
 
 pub fn delete_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyError> {
     let mut connection = database_service::connect(app)?;
     let transaction = connection.transaction()?;
+    let now = current_timestamp()?;
 
     let changed_rows = transaction.execute(
         "UPDATE clipboard_items
          SET is_deleted = 1,
-             updated_at = datetime('now')
+             deleted_at = ?2,
+             revision = COALESCE(revision, 1) + 1,
+             updated_at = ?2,
+             sync_status = 'pending'
          WHERE id = ?1
-           AND is_deleted = 0",
-        params![id],
+           AND is_deleted = 0
+           AND deleted_at IS NULL",
+        params![id, now],
     )?;
     if changed_rows == 0 {
         return Err(CliplyError::PlatformUnavailable(
@@ -117,6 +128,8 @@ pub fn delete_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyEr
         params![id],
     )?;
 
+    sync_service::mark_item_deleted(&transaction, &id, &now)?;
+
     transaction.commit()?;
     Ok(())
 }
@@ -125,12 +138,14 @@ pub fn clear_clipboard_history(app: &AppHandle, include_pinned: bool) -> Result<
     let mut connection = database_service::connect(app)?;
     let transaction = connection.transaction()?;
     let include_pinned_flag = if include_pinned { 1 } else { 0 };
+    let now = current_timestamp()?;
 
     let item_ids = {
         let mut statement = transaction.prepare(
             "SELECT id
              FROM clipboard_items
              WHERE is_deleted = 0
+               AND deleted_at IS NULL
                AND (?1 = 1 OR is_pinned = 0)",
         )?;
         let rows =
@@ -145,10 +160,14 @@ pub fn clear_clipboard_history(app: &AppHandle, include_pinned: bool) -> Result<
     transaction.execute(
         "UPDATE clipboard_items
          SET is_deleted = 1,
-             updated_at = datetime('now')
+             deleted_at = ?2,
+             revision = COALESCE(revision, 1) + 1,
+             updated_at = ?2,
+             sync_status = 'pending'
          WHERE is_deleted = 0
+           AND deleted_at IS NULL
            AND (?1 = 1 OR is_pinned = 0)",
-        params![include_pinned_flag],
+        params![include_pinned_flag, now],
     )?;
 
     for item_id in item_ids {
@@ -156,6 +175,7 @@ pub fn clear_clipboard_history(app: &AppHandle, include_pinned: bool) -> Result<
             "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
             params![item_id],
         )?;
+        sync_service::mark_item_deleted(&transaction, &item_id, &now)?;
     }
 
     transaction.commit()?;
@@ -236,6 +256,7 @@ pub fn ingest_clipboard_snapshot(
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
+    let device_id = sync_service::current_device_id(&connection)?;
 
     if !redact_sensitive_text && settings.ignore_duplicate {
         if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
@@ -244,7 +265,7 @@ pub fn ingest_clipboard_snapshot(
                  SET copied_at = ?1,
                      updated_at = ?1,
                      used_count = COALESCE(used_count, 0) + 1
-                 WHERE id = ?2 AND is_deleted = 0",
+                 WHERE id = ?2 AND is_deleted = 0 AND deleted_at IS NULL",
                 params![now, existing_id],
             )?;
 
@@ -260,6 +281,7 @@ pub fn ingest_clipboard_snapshot(
     }
 
     let id = Uuid::new_v4().to_string();
+    let sync_id = Uuid::new_v4().to_string();
     let (title, preview_text) = if redact_sensitive_text {
         (
             "已隐藏敏感内容".to_string(),
@@ -275,8 +297,10 @@ pub fn ingest_clipboard_snapshot(
     connection.execute(
         "INSERT INTO clipboard_items (
             id, type, title, preview_text, normalized_text, source_app, source_window,
-            hash, size_bytes, is_pinned, sensitive_score, copied_at, created_at, updated_at, used_count
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?11, ?11, ?11, 0)",
+            hash, size_bytes, is_pinned, sensitive_score, copied_at, created_at, updated_at, used_count,
+            sync_id, device_id, revision, deleted_at, sync_status, last_synced_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?11, ?11, ?11, 0,
+                  ?12, ?13, 1, NULL, 'pending', NULL)",
         params![
             id,
             item_type,
@@ -288,7 +312,9 @@ pub fn ingest_clipboard_snapshot(
             hash,
             size_bytes,
             sensitive_score,
-            now
+            now,
+            sync_id,
+            device_id
         ],
     )?;
 
@@ -333,6 +359,7 @@ pub fn ingest_clipboard_snapshot(
         &normalized_text,
         &source_app,
     )?;
+    sync_service::mark_item_created(&connection, &id, item_type, &sync_id, &device_id, &now)?;
 
     let item = load_item(&connection, &id)?;
     enforce_history_retention_for_connection(&mut connection, &settings)?;
@@ -368,6 +395,7 @@ fn ingest_image_snapshot(
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
+    let device_id = sync_service::current_device_id(&connection)?;
 
     if settings.ignore_duplicate {
         if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
@@ -376,7 +404,7 @@ fn ingest_image_snapshot(
                  SET copied_at = ?1,
                      updated_at = ?1,
                      used_count = COALESCE(used_count, 0) + 1
-                 WHERE id = ?2 AND is_deleted = 0",
+                 WHERE id = ?2 AND is_deleted = 0 AND deleted_at IS NULL",
                 params![now, existing_id],
             )?;
 
@@ -392,6 +420,7 @@ fn ingest_image_snapshot(
     }
 
     let id = Uuid::new_v4().to_string();
+    let sync_id = Uuid::new_v4().to_string();
     let stored_blob = blob_service::store_image(app, &id, &image)?;
     let title = format!("图片 {} x {}", image.width, image.height);
     let preview_text = format!(
@@ -404,8 +433,10 @@ fn ingest_image_snapshot(
     connection.execute(
         "INSERT INTO clipboard_items (
             id, type, title, preview_text, normalized_text, source_app, source_window,
-            hash, size_bytes, is_pinned, sensitive_score, copied_at, created_at, updated_at, used_count
-        ) VALUES (?1, 'image', ?2, ?3, '', ?4, ?5, ?6, ?7, 0, 0, ?8, ?8, ?8, 0)",
+            hash, size_bytes, is_pinned, sensitive_score, copied_at, created_at, updated_at, used_count,
+            sync_id, device_id, revision, deleted_at, sync_status, last_synced_at
+        ) VALUES (?1, 'image', ?2, ?3, '', ?4, ?5, ?6, ?7, 0, 0, ?8, ?8, ?8, 0,
+                  ?9, ?10, 1, NULL, 'pending', NULL)",
         params![
             id,
             title,
@@ -414,7 +445,9 @@ fn ingest_image_snapshot(
             source_window,
             hash,
             stored_blob.size_bytes,
-            now
+            now,
+            sync_id,
+            device_id
         ],
     )?;
 
@@ -467,6 +500,7 @@ fn ingest_image_snapshot(
     }
 
     upsert_fts(&connection, &id, &title, &preview_text, "", &source_app)?;
+    sync_service::mark_item_created(&connection, &id, "image", &sync_id, &device_id, &now)?;
 
     let item = load_item(&connection, &id)?;
     enforce_history_retention_for_connection(&mut connection, settings)?;
@@ -506,6 +540,7 @@ fn apply_history_retention_policy(
             "SELECT id
              FROM clipboard_items
              WHERE is_deleted = 0
+               AND deleted_at IS NULL
                AND is_pinned = 0
                AND datetime(copied_at) < datetime(?1)",
         )?;
@@ -521,6 +556,7 @@ fn apply_history_retention_policy(
             "SELECT id
              FROM clipboard_items
              WHERE is_deleted = 0
+               AND deleted_at IS NULL
                AND is_pinned = 0
              ORDER BY datetime(copied_at) DESC, copied_at DESC, id DESC
              LIMIT -1 OFFSET ?1",
@@ -541,9 +577,13 @@ fn apply_history_retention_policy(
         let affected = transaction.execute(
             "UPDATE clipboard_items
              SET is_deleted = 1,
+                 deleted_at = ?2,
+                 revision = COALESCE(revision, 1) + 1,
+                 sync_status = 'pending',
                  updated_at = ?2
              WHERE id = ?1
                AND is_deleted = 0
+               AND deleted_at IS NULL
                AND is_pinned = 0",
             params![item_id, policy.updated_at],
         )?;
@@ -554,6 +594,7 @@ fn apply_history_retention_policy(
                 "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
                 params![item_id],
             )?;
+            sync_service::mark_item_deleted(&transaction, &item_id, &policy.updated_at)?;
         }
     }
 
@@ -579,7 +620,7 @@ fn load_items(
                 COALESCE(source_app, ''), source_window, copied_at, created_at,
                 COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0)
          FROM clipboard_items
-         WHERE is_deleted = 0
+         WHERE is_deleted = 0 AND deleted_at IS NULL
            AND (?1 = '' OR type = ?1)
            AND (?2 = 0 OR is_pinned = 1)
          ORDER BY is_pinned DESC, copied_at DESC
@@ -598,7 +639,7 @@ fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, Clip
                 COALESCE(source_app, ''), source_window, copied_at, created_at,
                 COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0)
          FROM clipboard_items
-         WHERE id = ?1 AND is_deleted = 0",
+         WHERE id = ?1 AND is_deleted = 0 AND deleted_at IS NULL",
         params![id],
         |row| {
             let item_type: String = row.get(1)?;
@@ -749,7 +790,7 @@ fn find_existing_item_id(
     hash: &str,
 ) -> Result<Option<String>, CliplyError> {
     let result = connection.query_row(
-        "SELECT id FROM clipboard_items WHERE hash = ?1 AND is_deleted = 0 LIMIT 1",
+        "SELECT id FROM clipboard_items WHERE hash = ?1 AND is_deleted = 0 AND deleted_at IS NULL LIMIT 1",
         params![hash],
         |row| row.get(0),
     );
@@ -780,6 +821,7 @@ fn search_items(
                     COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0)
              FROM clipboard_items ci
              WHERE ci.is_deleted = 0
+               AND ci.deleted_at IS NULL
                AND (?3 = '' OR ci.type = ?3)
                AND (?4 = 0 OR ci.is_pinned = 1)
                AND (
@@ -819,6 +861,7 @@ fn search_items(
                 COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0)
          FROM clipboard_items ci
          WHERE ci.is_deleted = 0
+           AND ci.deleted_at IS NULL
            AND (?2 = '' OR ci.type = ?2)
            AND (?3 = 0 OR ci.is_pinned = 1)
            AND (
@@ -1181,7 +1224,10 @@ mod tests {
             .expect("hash should update");
         connection
             .execute(
-                "UPDATE clipboard_items SET is_deleted = 1 WHERE id = 'deleted'",
+                "UPDATE clipboard_items
+                 SET is_deleted = 1,
+                     deleted_at = '2026-05-04T09:30:00Z'
+                 WHERE id = 'deleted'",
                 [],
             )
             .expect("deleted flag should update");
@@ -1189,6 +1235,30 @@ mod tests {
         let existing =
             find_existing_item_id(&connection, "same-hash").expect("duplicate lookup should run");
         assert_eq!(existing.as_deref(), Some("active"));
+    }
+
+    #[test]
+    fn retention_soft_delete_writes_sync_event() {
+        let mut connection = setup_retention_connection();
+        insert_retention_item(&connection, "old-normal", false, "2026-01-01T00:00:00Z");
+
+        let result = apply_history_retention_policy(
+            &mut connection,
+            &HistoryRetentionPolicy {
+                max_history_items: 100,
+                auto_delete_before: Some("2026-02-01T00:00:00Z".to_string()),
+                updated_at: "2026-05-04T00:00:00Z".to_string(),
+            },
+        )
+        .expect("retention should soft delete");
+
+        assert_eq!(result.deleted_items, 1);
+        assert_eq!(is_deleted(&connection, "old-normal"), 1);
+        assert_eq!(
+            deleted_at(&connection, "old-normal").as_deref(),
+            Some("2026-05-04T00:00:00Z")
+        );
+        assert_eq!(sync_event_count(&connection, "item_deleted"), 1);
     }
 
     fn setup_retention_connection() -> Connection {
@@ -1213,7 +1283,13 @@ mod tests {
                   copied_at TEXT NOT NULL,
                   created_at TEXT NOT NULL,
                   updated_at TEXT NOT NULL,
-                  used_count INTEGER DEFAULT 0
+                  used_count INTEGER DEFAULT 0,
+                  sync_id TEXT,
+                  device_id TEXT,
+                  revision INTEGER DEFAULT 1,
+                  deleted_at TEXT NULL,
+                  sync_status TEXT DEFAULT 'pending',
+                  last_synced_at TEXT NULL
                 );
 
                 CREATE VIRTUAL TABLE clipboard_items_fts USING fts5(
@@ -1241,6 +1317,15 @@ mod tests {
                   item_id TEXT NOT NULL,
                   tag TEXT NOT NULL,
                   created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE sync_events (
+                  id TEXT PRIMARY KEY,
+                  item_id TEXT,
+                  event_type TEXT NOT NULL,
+                  payload_json TEXT,
+                  created_at TEXT NOT NULL,
+                  synced_at TEXT NULL
                 );
                 ",
             )
@@ -1321,5 +1406,25 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("fts count should load")
+    }
+
+    fn deleted_at(connection: &Connection, id: &str) -> Option<String> {
+        connection
+            .query_row(
+                "SELECT deleted_at FROM clipboard_items WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .expect("retention item should exist")
+    }
+
+    fn sync_event_count(connection: &Connection, event_type: &str) -> i64 {
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_events WHERE event_type = ?1",
+                params![event_type],
+                |row| row.get(0),
+            )
+            .expect("sync event count should load")
     }
 }

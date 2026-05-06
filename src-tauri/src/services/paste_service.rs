@@ -54,7 +54,9 @@ fn load_item_payload(app: &AppHandle, id: &str) -> Result<ClipboardWritePayload,
     let item_type = connection.query_row(
         "SELECT type
          FROM clipboard_items
-         WHERE id = ?1 AND is_deleted = 0",
+         WHERE id = ?1
+           AND is_deleted = 0
+           AND deleted_at IS NULL",
         params![id],
         |row| row.get::<_, String>(0),
     );
@@ -94,6 +96,7 @@ fn load_item_text_with_connection(
               AND COALESCE(cf.data_text, '') <> ''
          WHERE ci.id = ?1
            AND ci.is_deleted = 0
+           AND ci.deleted_at IS NULL
            AND ci.type <> 'image'
          ORDER BY cf.priority DESC, cf.created_at ASC
          LIMIT 1",
