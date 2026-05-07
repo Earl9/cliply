@@ -168,18 +168,31 @@ impl ClipboardGuard {
         let owner = owner_window
             .map(|handle| handle as HWND)
             .unwrap_or_else(null_mut);
+        let retry_delays = [
+            Duration::from_millis(15),
+            Duration::from_millis(30),
+            Duration::from_millis(60),
+            Duration::from_millis(100),
+            Duration::from_millis(160),
+            Duration::from_millis(240),
+        ];
 
-        for _ in 0..6 {
+        for delay in retry_delays {
             let opened = unsafe { OpenClipboard(owner) } != 0;
             if opened {
                 return Ok(Self);
             }
 
-            thread::sleep(Duration::from_millis(20));
+            thread::sleep(delay);
+        }
+
+        let opened = unsafe { OpenClipboard(owner) } != 0;
+        if opened {
+            return Ok(Self);
         }
 
         Err(CliplyError::PlatformUnavailable(
-            "windows clipboard is currently unavailable".into(),
+            "windows clipboard is currently unavailable after retry".into(),
         ))
     }
 }

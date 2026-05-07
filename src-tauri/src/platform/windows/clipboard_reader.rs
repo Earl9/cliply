@@ -4,6 +4,8 @@ use crate::platform::{ClipboardFormatSnapshot, ClipboardSnapshot, ImageSnapshot}
 use crate::services::content_detector;
 use std::ffi::c_void;
 use std::slice;
+use std::thread;
+use std::time::Duration;
 use windows_sys::Win32::Foundation::HGLOBAL;
 use windows_sys::Win32::System::DataExchange::{
     CloseClipboard, EnumClipboardFormats, GetClipboardData, GetClipboardFormatNameW,
@@ -278,14 +280,33 @@ struct ClipboardGuard;
 
 impl ClipboardGuard {
     fn open() -> Result<Self, CliplyError> {
-        let opened = unsafe { OpenClipboard(std::ptr::null_mut::<c_void>()) } != 0;
-        if !opened {
-            return Err(CliplyError::PlatformUnavailable(
-                "windows clipboard is currently unavailable".into(),
-            ));
+        let owner = std::ptr::null_mut::<c_void>();
+        let retry_delays = [
+            Duration::from_millis(15),
+            Duration::from_millis(30),
+            Duration::from_millis(60),
+            Duration::from_millis(100),
+            Duration::from_millis(160),
+            Duration::from_millis(240),
+        ];
+
+        for delay in retry_delays {
+            let opened = unsafe { OpenClipboard(owner) } != 0;
+            if opened {
+                return Ok(Self);
+            }
+
+            thread::sleep(delay);
         }
 
-        Ok(Self)
+        let opened = unsafe { OpenClipboard(owner) } != 0;
+        if opened {
+            return Ok(Self);
+        }
+
+        Err(CliplyError::PlatformUnavailable(
+            "windows clipboard is currently unavailable after retry".into(),
+        ))
     }
 }
 

@@ -1,0 +1,440 @@
+:root {
+  --cliply-primary: #6d4cff;
+  --cliply-primary-hover: #5b3fe6;
+  --cliply-primary-soft: #f3f0ff;
+  --cliply-app-bg: #f5f7fb;
+  --cliply-panel-bg: #ffffff;
+  --cliply-border: #e7eaf1;
+  --cliply-text: #1f2937;
+  --cliply-text-secondary: #667085;
+  --cliply-muted: #98a2b3;
+  --cliply-danger: #ef4444;
+  font-family:
+    "Segoe UI",
+    "Microsoft YaHei UI",
+    system-ui,
+    sans-serif;
+  color: var(--cliply-text);
+  background: var(--cliply-app-bg);
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.installer-root {
+  width: 100vw;
+  height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(109, 76, 255, 0.08), transparent 36%),
+    var(--cliply-app-bg);
+}
+
+.titlebar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 18px;
+  user-select: none;
+}
+
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--cliply-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.titlebar-brand img {
+  width: 22px;
+  height: 22px;
+}
+
+.window-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.window-actions button {
+  width: 32px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cliply-text-secondary);
+  cursor: pointer;
+}
+
+.window-actions button:hover {
+  background: rgba(31, 41, 55, 0.07);
+  color: var(--cliply-text);
+}
+
+.installer-window {
+  height: calc(100vh - 44px);
+  padding: 18px 28px 28px;
+}
+
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.setup-screen {
+  gap: 18px;
+}
+
+.hero-row {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.logo-wrap {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(109, 76, 255, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, var(--cliply-primary-soft));
+  box-shadow: 0 18px 42px rgba(109, 76, 255, 0.14);
+}
+
+.logo-wrap img {
+  width: 52px;
+  height: 52px;
+}
+
+.logo-wrap.danger,
+.installing-mark.danger,
+.complete-mark.danger {
+  border-color: rgba(239, 68, 68, 0.16);
+  background: linear-gradient(180deg, #ffffff, #fff1f2);
+  color: var(--cliply-danger);
+  box-shadow: 0 18px 42px rgba(239, 68, 68, 0.12);
+}
+
+.eyebrow {
+  margin-bottom: 4px;
+  color: var(--cliply-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  color: var(--cliply-text);
+  font-size: 30px;
+  line-height: 1.12;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+p {
+  margin: 10px 0 0;
+  color: var(--cliply-text-secondary);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.setup-panel {
+  padding: 18px;
+  border: 1px solid var(--cliply-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.055);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--cliply-text);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.path-row {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 10px;
+}
+
+.path-row input {
+  width: 100%;
+  height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--cliply-border);
+  border-radius: 11px;
+  outline: none;
+  background: #fff;
+  color: var(--cliply-text);
+  font-size: 13px;
+}
+
+.readonly-path {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  overflow: hidden;
+  border: 1px solid var(--cliply-border);
+  border-radius: 11px;
+  background: #fff;
+  color: var(--cliply-text-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-row input:focus {
+  border-color: rgba(109, 76, 255, 0.55);
+  box-shadow: 0 0 0 4px rgba(109, 76, 255, 0.13);
+}
+
+.ghost-button,
+.secondary-button,
+.primary-button,
+.danger-button {
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 11px;
+  border: 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.ghost-button {
+  border: 1px solid var(--cliply-border);
+  background: #fff;
+  color: var(--cliply-text-secondary);
+}
+
+.ghost-button:hover,
+.secondary-button:hover {
+  border-color: rgba(109, 76, 255, 0.24);
+  background: var(--cliply-primary-soft);
+  color: var(--cliply-primary);
+}
+
+.update-note {
+  height: 38px;
+  margin-top: 14px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 11px;
+  background: var(--cliply-primary-soft);
+  color: var(--cliply-primary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.update-note.neutral {
+  background: #f8fafc;
+  color: var(--cliply-text-secondary);
+}
+
+.option-grid {
+  margin-top: 15px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.option-grid.single {
+  grid-template-columns: 1fr;
+}
+
+.check-option {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--cliply-border);
+  border-radius: 11px;
+  background: #fff;
+  color: var(--cliply-text);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.check-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.box {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d8dee8;
+  border-radius: 6px;
+  color: #fff;
+  background: #fff;
+}
+
+.check-option input:checked + .box {
+  border-color: var(--cliply-primary);
+  background: var(--cliply-primary);
+}
+
+.error-banner {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.16);
+  border-radius: 11px;
+  background: #fff5f5;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.error-banner.compact {
+  max-width: 420px;
+  margin-top: 12px;
+}
+
+.actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.secondary-button {
+  min-width: 92px;
+  border: 1px solid var(--cliply-border);
+  background: #fff;
+  color: var(--cliply-text-secondary);
+}
+
+.primary-button {
+  min-width: 136px;
+  padding: 0 18px;
+  background: var(--cliply-primary);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(109, 76, 255, 0.22);
+}
+
+.primary-button:hover {
+  background: var(--cliply-primary-hover);
+}
+
+.danger-button {
+  min-width: 136px;
+  padding: 0 18px;
+  background: #ef4444;
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(239, 68, 68, 0.18);
+}
+
+.danger-button:hover {
+  background: #dc2626;
+}
+
+.centered-screen {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.installing-mark,
+.complete-mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+  border-radius: 20px;
+  background: var(--cliply-primary-soft);
+  color: var(--cliply-primary);
+}
+
+.installing-mark svg {
+  animation: spin 1s linear infinite;
+}
+
+.muted-copy {
+  min-height: 24px;
+  color: var(--cliply-text-secondary);
+}
+
+.progress-track {
+  width: 430px;
+  height: 10px;
+  margin-top: 28px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9ecf4;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cliply-primary), #8f7bff);
+  transition: width 180ms ease;
+}
+
+.progress-fill.danger {
+  background: linear-gradient(90deg, #ef4444, #fb7185);
+}
+
+.progress-value {
+  margin-top: 10px;
+  color: var(--cliply-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.single-action {
+  margin-top: 36px;
+  justify-content: center;
+}
+
+.finish-option {
+  width: 240px;
+  margin-top: 28px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

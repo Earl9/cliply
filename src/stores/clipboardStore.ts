@@ -8,6 +8,7 @@ import type {
   ClipboardItem,
 } from "@/lib/clipboardTypes";
 import { canRunClipboardAction } from "@/lib/clipboardCapabilities";
+import { getCliplyDebugInfo } from "@/lib/debugInfo";
 import {
   clearClipboardHistory,
   copyClipboardItem,
@@ -66,7 +67,8 @@ export function useClipboardStore() {
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [settings, setSettingsState] = useState<CliplySettings>(defaultSettingsState);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [listErrorMessage, setListErrorMessage] = useState<string | null>(null);
+  const [monitoringErrorMessage, setMonitoringErrorMessage] = useState<string | null>(null);
   const [dialogs, setDialogs] = useState({
     settings: false,
     about: false,
@@ -84,7 +86,7 @@ export function useClipboardStore() {
       })
       .catch(() => {
         if (!cancelled) {
-          setErrorMessage(storeErrorLabels.settings);
+          setMonitoringErrorMessage(storeErrorLabels.settings);
         }
       });
 
@@ -101,35 +103,35 @@ export function useClipboardStore() {
   useEffect(() => {
     let cancelled = false;
 
-    listClipboardItems({ query: "", filter: "all" })
+    listClipboardItems({ query: "", filter: "all", limit: settings.maxHistoryItems })
       .then((items) => {
         if (!cancelled) {
           setAllItems(items);
-          setErrorMessage(null);
+          setListErrorMessage(null);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setErrorMessage(storeErrorLabels.list);
+          setListErrorMessage(storeErrorLabels.list);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [refreshToken]);
+  }, [refreshToken, settings.maxHistoryItems]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
-    listClipboardItems({ query: debouncedQuery, filter })
+    listClipboardItems({ query: debouncedQuery, filter, limit: settings.maxHistoryItems })
       .then((items) => {
         if (cancelled) {
           return;
         }
 
-        setErrorMessage(null);
+        setListErrorMessage(null);
         setVisibleItems(items);
         setSelectedId((currentSelectedId) => {
           if (items.some((item) => item.id === currentSelectedId)) {
@@ -141,7 +143,7 @@ export function useClipboardStore() {
       })
       .catch(() => {
         if (!cancelled) {
-          setErrorMessage(storeErrorLabels.list);
+          setListErrorMessage(storeErrorLabels.list);
           setVisibleItems([]);
           setSelectedId(null);
         }
@@ -155,7 +157,7 @@ export function useClipboardStore() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, filter, refreshToken]);
+  }, [debouncedQuery, filter, refreshToken, settings.maxHistoryItems]);
 
   useEffect(() => {
     if (!isTauri()) {
@@ -175,10 +177,9 @@ export function useClipboardStore() {
         setSettingsState(event.payload);
       }),
       listen<string>("cliply-error", (event) => {
-        setErrorMessage(event.payload);
         setActionStatus({
           label: event.payload,
-          itemTitle: "详情已写入本地日志",
+          itemTitle: "稍后会自动继续监听",
           at: Date.now(),
           tone: "error",
         });
@@ -214,14 +215,14 @@ export function useClipboardStore() {
       .then((item) => {
         if (!cancelled) {
           setDetail(item);
-          setErrorMessage(null);
+          setListErrorMessage(null);
         }
       })
       .catch((error) => {
         if (!cancelled) {
           setDetail(null);
           if (!isMissingClipboardItemError(error)) {
-            setErrorMessage(storeErrorLabels.detail);
+            setListErrorMessage(storeErrorLabels.detail);
           }
         }
       });
@@ -354,17 +355,32 @@ export function useClipboardStore() {
     [allItems, refreshItems, selectedItem, visibleItems],
   );
 
+  const findActionItem = useCallback(
+    (id?: string) =>
+      id
+        ? (detail?.id === id ? detail : null) ??
+          visibleItems.find((item) => item.id === id) ??
+          allItems.find((item) => item.id === id) ??
+          null
+        : selectedItem,
+    [allItems, detail, selectedItem, visibleItems],
+  );
+
   const runClipboardAction = useCallback(
-    (kind: ClipboardActionKind) => {
-      const selected = selectedItem;
-      if (!selected) {
+    (kind: ClipboardActionKind, itemId?: string) => {
+      const item = findActionItem(itemId);
+      if (!item) {
         return;
       }
 
-      if (!canRunClipboardAction(kind, selected)) {
+      if (itemId && itemId !== selectedId) {
+        setSelectedId(itemId);
+      }
+
+      if (!canRunClipboardAction(kind, item)) {
         setActionStatus({
           label: "当前记录没有可粘贴的文本",
-          itemTitle: selected.title,
+          itemTitle: item.title,
           at: Date.now(),
           tone: "error",
         });
@@ -372,11 +388,11 @@ export function useClipboardStore() {
       }
 
       if (kind === "togglePin") {
-        void updatePinnedState(selected.id).then((ok) => {
+        void updatePinnedState(item.id).then((ok) => {
           if (ok) {
             setActionStatus({
               label: actionLabels.togglePin,
-              itemTitle: selected.title,
+              itemTitle: item.title,
               at: Date.now(),
             });
           }
@@ -385,24 +401,24 @@ export function useClipboardStore() {
       }
 
       if (kind === "delete") {
-        void removeItem(selected.id);
+        void removeItem(item.id);
         return;
       }
 
       const command =
         kind === "copy"
-          ? copyClipboardItem(selected.id)
+          ? copyClipboardItem(item.id)
           : kind === "pastePlain"
-            ? pastePlainText(selected.id)
+            ? pastePlainText(item.id)
             : kind === "paste"
-              ? pasteClipboardItem(selected.id)
+              ? pasteClipboardItem(item.id)
               : Promise.resolve();
 
       void command
         .then(() => {
           setActionStatus({
             label: actionLabels[kind],
-            itemTitle: selected.title,
+            itemTitle: item.title,
             at: Date.now(),
           });
           refreshItems();
@@ -410,13 +426,13 @@ export function useClipboardStore() {
         .catch(() => {
           setActionStatus({
             label: actionErrorLabels[kind as "paste" | "copy" | "pastePlain"],
-            itemTitle: selected.title,
+            itemTitle: item.title,
             at: Date.now(),
             tone: "error",
           });
         });
     },
-    [refreshItems, removeItem, selectedItem, updatePinnedState],
+    [findActionItem, refreshItems, removeItem, selectedId, updatePinnedState],
   );
 
   const togglePinItem = useCallback(
@@ -438,6 +454,31 @@ export function useClipboardStore() {
     },
     [updatePinnedState, visibleItems],
   );
+
+  const copyDebugPath = useCallback(async (pathKind: "dataDir" | "logPath" | "databasePath") => {
+    try {
+      const debugInfo = await getCliplyDebugInfo();
+      const value = debugInfo[pathKind];
+      await navigator.clipboard.writeText(value);
+      const labels = {
+        dataDir: "数据目录路径已复制",
+        logPath: "日志路径已复制",
+        databasePath: "数据库路径已复制",
+      };
+      setActionStatus({
+        label: labels[pathKind],
+        itemTitle: value,
+        at: Date.now(),
+      });
+    } catch {
+      setActionStatus({
+        label: "路径复制失败",
+        itemTitle: "请从设置或日志说明中查看",
+        at: Date.now(),
+        tone: "error",
+      });
+    }
+  }, []);
 
   const handleGlobalKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -549,7 +590,7 @@ export function useClipboardStore() {
     void updateCliplySettings(nextSettings)
       .then((savedSettings) => {
         setSettingsState(savedSettings);
-        setErrorMessage(null);
+        setMonitoringErrorMessage(null);
         setActionStatus({
           label: "设置已保存",
           itemTitle: "本地配置已更新",
@@ -559,7 +600,7 @@ export function useClipboardStore() {
       .catch((error) => {
         const message = error instanceof Error ? error.message : storeErrorLabels.settings;
         setSettingsState(previousSettings);
-        setErrorMessage(message || "设置保存失败，请检查本地权限");
+        setMonitoringErrorMessage(message || "设置保存失败，请检查本地权限");
         setActionStatus({
           label: "设置保存失败",
           itemTitle: "本地配置未保存",
@@ -600,7 +641,8 @@ export function useClipboardStore() {
       filter,
       loading,
       detail,
-      errorMessage,
+      listErrorMessage,
+      monitoringErrorMessage,
     },
     filteredItems: visibleItems,
     selectedItem,
@@ -614,6 +656,7 @@ export function useClipboardStore() {
     moveSelection,
     runMockAction: runClipboardAction,
     togglePinItem,
+    copyDebugPath,
     requestClearHistory,
     confirmClearHistory,
     setSettings,

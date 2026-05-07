@@ -25,6 +25,7 @@ export type ClipboardItem = {
   sizeBytes: number;
   isPinned: boolean;
   sensitiveScore: number;
+  isRedacted?: boolean;
   tags: string[];
   thumbnailUrl?: string;
   imageUrl?: string;

@@ -3,7 +3,7 @@ use crate::logger;
 use crate::services::clipboard_service;
 use std::ptr::null;
 use std::sync::{
-    mpsc::{self, Sender},
+    mpsc::{self, Receiver, Sender},
     Mutex, OnceLock,
 };
 use std::thread::{self, JoinHandle};
@@ -70,14 +70,12 @@ pub fn start_listener(app: AppHandle) -> Result<(), CliplyError> {
     let worker_thread = thread::Builder::new()
         .name("cliply-clipboard-worker".into())
         .spawn(move || {
-            let mut last_handled_at = Instant::now() - Duration::from_secs(1);
+            let mut last_error_emitted_at = Instant::now() - Duration::from_secs(10);
             while change_rx.recv().is_ok() {
-                if last_handled_at.elapsed() < Duration::from_millis(140) {
-                    thread::sleep(Duration::from_millis(140));
-                }
+                thread::sleep(Duration::from_millis(50));
+                drain_pending_clipboard_events(&change_rx);
 
-                last_handled_at = Instant::now();
-                match clipboard_service::ingest_current_clipboard(&worker_app) {
+                match ingest_current_clipboard_with_retry(&worker_app) {
                     Ok(Some(_item)) => {
                         let _ = worker_app.emit("clipboard-items-changed", ());
                         logger::info(&worker_app, "clipboard_ingest", "stored item");
@@ -85,7 +83,10 @@ pub fn start_listener(app: AppHandle) -> Result<(), CliplyError> {
                     Ok(None) => {}
                     Err(error) => {
                         logger::error(&worker_app, "clipboard_ingest_failed", &error);
-                        let _ = worker_app.emit("cliply-error", "剪贴板读取失败，请稍后重试");
+                        if last_error_emitted_at.elapsed() >= Duration::from_secs(5) {
+                            last_error_emitted_at = Instant::now();
+                            let _ = worker_app.emit("cliply-error", "剪贴板读取失败，请稍后重试");
+                        }
                     }
                 }
             }
@@ -145,6 +146,38 @@ pub fn suppress_clipboard_events_for(duration: Duration) {
     if let Ok(mut suppress_until) = suppress_slot.lock() {
         *suppress_until = Some(Instant::now() + duration);
     }
+}
+
+fn drain_pending_clipboard_events(change_rx: &Receiver<()>) {
+    while change_rx.try_recv().is_ok() {}
+}
+
+fn ingest_current_clipboard_with_retry(
+    app: &AppHandle,
+) -> Result<Option<crate::models::clipboard_item::ClipboardItemDto>, CliplyError> {
+    let retry_delays = [
+        Duration::from_millis(120),
+        Duration::from_millis(240),
+        Duration::from_millis(420),
+    ];
+
+    for delay in retry_delays {
+        match clipboard_service::ingest_current_clipboard(app) {
+            Ok(result) => return Ok(result),
+            Err(error) if is_transient_clipboard_error(&error) => {
+                thread::sleep(delay);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    clipboard_service::ingest_current_clipboard(app)
+}
+
+fn is_transient_clipboard_error(error: &CliplyError) -> bool {
+    error
+        .to_string()
+        .contains("windows clipboard is currently unavailable")
 }
 
 fn run_message_window(message_tx: Sender<ListenerMessage>) {

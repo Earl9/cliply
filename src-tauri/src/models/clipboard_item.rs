@@ -24,6 +24,7 @@ pub struct ClipboardItemDto {
     pub size_bytes: i64,
     pub is_pinned: bool,
     pub sensitive_score: i64,
+    pub is_redacted: bool,
     pub tags: Vec<String>,
     pub thumbnail_path: Option<String>,
 }

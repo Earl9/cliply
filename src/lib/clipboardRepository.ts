@@ -15,6 +15,7 @@ type ClipboardItemDto = {
   sizeBytes: number;
   isPinned: boolean;
   sensitiveScore?: number;
+  isRedacted?: boolean;
   tags: string[];
   thumbnailPath?: string | null;
 };
@@ -39,11 +40,13 @@ type ClipboardItemDetailDto = {
 type ListClipboardItemsOptions = {
   query: string;
   filter: ClipboardFilter;
+  limit?: number;
 };
 
 export async function listClipboardItems({
   query,
   filter,
+  limit,
 }: ListClipboardItemsOptions): Promise<ClipboardItem[]> {
   if (!isTauri()) {
     return listMockClipboardItems({ query, filter });
@@ -56,7 +59,7 @@ export async function listClipboardItems({
     query: query || null,
     itemType,
     pinnedOnly,
-    limit: 100,
+    limit: limit ?? 1000,
     offset: 0,
   });
 
@@ -188,6 +191,7 @@ function dtoToClipboardItem(item: ClipboardItemDto): ClipboardItem {
     sizeBytes: item.sizeBytes,
     isPinned: item.isPinned,
     sensitiveScore: item.sensitiveScore ?? 0,
+    isRedacted: item.isRedacted ?? false,
     tags: item.tags ?? [],
     thumbnailUrl: toAssetUrl(item.thumbnailPath),
     formats: [],
@@ -208,6 +212,7 @@ function clipboardItemToDto(item: ClipboardItem): ClipboardItemDto {
     sizeBytes: item.sizeBytes,
     isPinned: item.isPinned,
     sensitiveScore: item.sensitiveScore,
+    isRedacted: item.isRedacted,
     tags: item.tags,
     thumbnailPath: item.thumbnailUrl,
   };

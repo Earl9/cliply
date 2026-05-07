@@ -1,4 +1,5 @@
 import { Code2, FileText, Image, Link2, Pin, Shield } from "lucide-react";
+import type { MouseEvent } from "react";
 import { clsx } from "clsx";
 import type { ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
 import { formatCopiedTime, formatRelativeTime } from "@/lib/formatTime";
@@ -8,6 +9,7 @@ type ClipboardListItemProps = {
   selected?: boolean;
   onSelect: () => void;
   onTogglePin: () => void;
+  onContextMenu: (event: MouseEvent<HTMLElement>) => void;
 };
 
 const iconByType: Record<ClipboardItemType, typeof FileText> = {
@@ -29,14 +31,16 @@ export function ClipboardListItem({
   selected,
   onSelect,
   onTogglePin,
+  onContextMenu,
 }: ClipboardListItemProps) {
-  const sensitive = item.sensitiveScore >= 50;
+  const sensitive = Boolean(item.isRedacted);
   const Icon = sensitive ? Shield : iconByType[item.type] ?? FileText;
 
   return (
     <article
       tabIndex={0}
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();

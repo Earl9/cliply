@@ -43,6 +43,8 @@ type SettingsDialogProps = {
   onClearHistory: () => void;
 };
 
+type FtpProviderConfig = Extract<SyncProviderConfig, { type: "ftp" }>;
+
 const SYNC_PROVIDER_OPTIONS: Array<{
   type: SyncProviderConfig["type"];
   label: string;
@@ -52,9 +54,11 @@ const SYNC_PROVIDER_OPTIONS: Array<{
   { type: "local-folder", label: "本地同步文件夹" },
   { type: "webdav", label: "WebDAV", disabled: true },
   { type: "sftp", label: "SFTP", disabled: true },
-  { type: "ftp", label: "FTP/FTPS", disabled: true },
+  { type: "ftp", label: "FTP/FTPS" },
   { type: "s3", label: "S3/R2", disabled: true },
 ];
+
+let sessionSyncPassword = "";
 
 export function SettingsDialog({
   open,
@@ -66,14 +70,21 @@ export function SettingsDialog({
   const [draft, setDraft] = useState(settings);
   const [capturingShortcut, setCapturingShortcut] = useState(false);
   const [shortcutCheck, setShortcutCheck] = useState<ShortcutCheck | null>(null);
-  const [syncPassword, setSyncPassword] = useState("");
+  const [syncPassword, setSyncPassword] = useState(sessionSyncPassword);
   const [syncStatus, setSyncStatus] = useState<SyncPackageStatus>({});
   const [remoteSyncStatus, setRemoteSyncStatus] = useState<RemoteSyncStatus>({
     provider: { type: "disabled" },
     manifestExists: false,
     snapshotCount: 0,
   });
+  const [savedSyncProvider, setSavedSyncProvider] = useState<SyncProviderConfig>({
+    type: "disabled",
+  });
+  const [ftpDraft, setFtpDraft] = useState<FtpProviderConfig>(defaultFtpConfig());
+  const [selectedSyncProviderType, setSelectedSyncProviderType] =
+    useState<SyncProviderConfig["type"]>("disabled");
   const [syncBusy, setSyncBusy] = useState<"export" | "import" | null>(null);
+  const [providerBusy, setProviderBusy] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const ignoreAppsText = draft.ignoreApps.join("\n");
@@ -83,7 +94,7 @@ export function SettingsDialog({
       setDraft(settings);
       setCapturingShortcut(false);
       setShortcutCheck(null);
-      setSyncPassword("");
+      setSyncPassword(sessionSyncPassword);
       setSyncMessage(null);
       setSyncError(null);
       void refreshSyncStatus();
@@ -95,6 +106,14 @@ export function SettingsDialog({
       applyCliplyTheme(getDraftThemeName(draft.themeName));
     }
   }, [draft.themeName, open]);
+
+  useEffect(() => {
+    setSavedSyncProvider(remoteSyncStatus.provider);
+    setSelectedSyncProviderType(remoteSyncStatus.provider.type);
+    if (remoteSyncStatus.provider.type === "ftp") {
+      setFtpDraft(normalizeFtpConfig(remoteSyncStatus.provider));
+    }
+  }, [remoteSyncStatus.provider]);
 
   useEffect(() => {
     if (!open) {
@@ -163,15 +182,29 @@ export function SettingsDialog({
       ]);
       setSyncStatus(packageStatus);
       setRemoteSyncStatus(remoteStatus);
+      if (remoteStatus.lastError) {
+        setSyncError(remoteStatus.lastError);
+      }
     } catch {
       setSyncStatus({});
+      setSyncError("同步配置读取失败");
     }
   };
 
   const handleSyncProviderChange = async (type: SyncProviderConfig["type"]) => {
-    if (type !== "disabled" && type !== "local-folder") {
+    if (type !== "disabled" && type !== "local-folder" && type !== "ftp") {
       setSyncMessage(null);
-      setSyncError("该同步方式开发中，本轮只支持本地同步文件夹");
+      setSyncError("该同步方式开发中，本轮只支持本地同步文件夹和 FTP/FTPS");
+      return;
+    }
+
+    setSelectedSyncProviderType(type);
+    if (type === "ftp") {
+      setFtpDraft(
+        savedSyncProvider.type === "ftp" ? normalizeFtpConfig(savedSyncProvider) : defaultFtpConfig(),
+      );
+      setSyncMessage("请填写 FTP/FTPS 信息后点击保存");
+      setSyncError(null);
       return;
     }
 
@@ -181,15 +214,16 @@ export function SettingsDialog({
         : {
             type: "local-folder" as const,
             path:
-              remoteSyncStatus.provider.type === "local-folder"
-                ? remoteSyncStatus.provider.path
+              savedSyncProvider.type === "local-folder"
+                ? savedSyncProvider.path
                 : "",
           };
 
     try {
       const status = await setRemoteSyncProvider(nextProvider);
       setRemoteSyncStatus(status);
-      setSyncMessage(type === "disabled" ? "同步已关闭" : "已切换到本地同步文件夹");
+      setSavedSyncProvider(status.provider);
+      setSyncMessage(type === "disabled" ? "同步已关闭" : "请选择本地同步文件夹");
       setSyncError(null);
     } catch (error) {
       setSyncError(errorMessage(error, "同步方式保存失败"));
@@ -209,10 +243,42 @@ export function SettingsDialog({
     try {
       const status = await setRemoteSyncProvider({ type: "local-folder", path: selectedPath });
       setRemoteSyncStatus(status);
+      setSavedSyncProvider(status.provider);
+      setSelectedSyncProviderType("local-folder");
       setSyncMessage("同步文件夹已设置");
       setSyncError(null);
     } catch (error) {
       setSyncError(errorMessage(error, "同步文件夹设置失败"));
+    }
+  };
+
+  const handleSaveFtpProvider = async () => {
+    const nextConfig = normalizeFtpConfig(ftpDraft);
+    if (!nextConfig.host.trim() || !nextConfig.username.trim() || !nextConfig.password) {
+      setSyncMessage(null);
+      setSyncError("请填写 FTP 主机、用户名和密码");
+      return;
+    }
+
+    setProviderBusy(true);
+    setSyncMessage(null);
+    setSyncError(null);
+    try {
+      const status = await setRemoteSyncProvider(nextConfig);
+      const savedProvider =
+        status.provider.type === "ftp" ? normalizeFtpConfig(status.provider) : nextConfig;
+      setFtpDraft(savedProvider);
+      setRemoteSyncStatus(status);
+      setSavedSyncProvider(status.provider);
+      setSelectedSyncProviderType("ftp");
+      setSyncMessage(
+        `${nextConfig.secure ? "FTPS" : "FTP"} 配置已保存。导出或导入时会连接服务器。`,
+      );
+      setSyncError(null);
+    } catch (error) {
+      setSyncError(errorMessage(error, "FTP 同步配置保存失败"));
+    } finally {
+      setProviderBusy(false);
     }
   };
 
@@ -227,8 +293,13 @@ export function SettingsDialog({
     setSyncError(null);
     try {
       const result = await exportToRemoteSyncFolder(syncPassword);
-      setSyncMessage(remoteSyncResultMessage(result, "导出到同步文件夹完成"));
-      await refreshSyncStatus();
+      setSyncMessage(
+        remoteSyncResultMessage(
+          result,
+          selectedSyncProviderType === "ftp" ? "导出到 FTP/FTPS 完成" : "导出到同步文件夹完成",
+        ),
+      );
+      applyRemoteSyncResult(result);
     } catch (error) {
       setSyncError(errorMessage(error, "导出到同步文件夹失败"));
     } finally {
@@ -247,8 +318,13 @@ export function SettingsDialog({
     setSyncError(null);
     try {
       const result = await importFromRemoteSyncFolder(syncPassword);
-      setSyncMessage(remoteSyncResultMessage(result, "从同步文件夹导入完成"));
-      await refreshSyncStatus();
+      setSyncMessage(
+        remoteSyncResultMessage(
+          result,
+          selectedSyncProviderType === "ftp" ? "从 FTP/FTPS 导入完成" : "从同步文件夹导入完成",
+        ),
+      );
+      applyRemoteSyncResult(result);
     } catch (error) {
       setSyncError(errorMessage(error, "从同步文件夹导入失败"));
     } finally {
@@ -283,6 +359,17 @@ export function SettingsDialog({
     } finally {
       setSyncBusy(null);
     }
+  };
+
+  const applyRemoteSyncResult = (result: RemoteSyncResult) => {
+    setRemoteSyncStatus((current) => ({
+      ...current,
+      manifestExists: true,
+      snapshotCount: result.snapshotCount,
+      lastSyncedAt: result.syncedAt,
+      lastStatus: "success",
+      lastError: "",
+    }));
   };
 
   const handleImportSyncPackage = async () => {
@@ -467,13 +554,13 @@ export function SettingsDialog({
 
             <SettingSection icon={RefreshCw} title="同步">
               <p className="rounded-lg bg-[color:var(--cliply-accent-50)] px-3 py-2 text-xs leading-5 text-[color:var(--cliply-text-secondary)]">
-                同步包已加密，请妥善保存同步密码。当前版本只实现本地同步文件夹，不会连接云服务。
+                同步包已加密，请妥善保存同步密码。当前版本支持本地同步文件夹和 FTP/FTPS，不会连接云账号服务。
               </p>
               <div className="grid gap-2">
                 <span className="text-sm font-medium text-[color:var(--cliply-muted)]">同步方式</span>
                 <div className="grid grid-cols-2 gap-2">
                   {SYNC_PROVIDER_OPTIONS.map((option) => {
-                    const selected = remoteSyncStatus.provider.type === option.type;
+                    const selected = selectedSyncProviderType === option.type;
                     return (
                       <button
                         key={option.type}
@@ -498,7 +585,7 @@ export function SettingsDialog({
                   })}
                 </div>
               </div>
-              {remoteSyncStatus.provider.type === "local-folder" ? (
+              {selectedSyncProviderType === "local-folder" ? (
                 <div className="grid gap-2 rounded-lg border border-[color:var(--cliply-border)] bg-white px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-[color:var(--cliply-muted)]">
@@ -513,8 +600,79 @@ export function SettingsDialog({
                     </button>
                   </div>
                   <p className="cliply-code-font truncate text-xs font-medium text-[color:var(--cliply-text-secondary)]">
-                    {remoteSyncStatus.provider.path || "尚未选择"}
+                    {remoteSyncStatus.provider.type === "local-folder"
+                      ? remoteSyncStatus.provider.path || "尚未选择"
+                      : "尚未选择"}
                   </p>
+                  <div className="grid grid-cols-3 gap-1 text-xs font-medium text-[color:var(--cliply-muted)]">
+                    <span>Manifest：{remoteSyncStatus.manifestExists ? "已检测" : "未检测"}</span>
+                    <span>快照：{remoteSyncStatus.snapshotCount}</span>
+                    <span>状态：{remoteSyncStatus.lastStatus || "暂无"}</span>
+                  </div>
+                </div>
+              ) : null}
+              {selectedSyncProviderType === "ftp" ? (
+                <div className="grid min-w-0 gap-2 rounded-lg border border-[color:var(--cliply-border)] bg-white px-3 py-2">
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_72px] gap-2">
+                    <TextInput
+                      label="主机"
+                      value={ftpDraft.host}
+                      placeholder="example.com"
+                      onChange={(value) => setFtpDraft((current) => ({ ...current, host: value }))}
+                    />
+                    <TextInput
+                      label="端口"
+                      value={String(ftpDraft.port || 21)}
+                      placeholder="21"
+                      onChange={(value) =>
+                        setFtpDraft((current) => ({ ...current, port: normalizePort(value) }))
+                      }
+                    />
+                  </div>
+                  <div className="grid min-w-0 grid-cols-2 gap-2">
+                    <TextInput
+                      label="用户名"
+                      value={ftpDraft.username}
+                      placeholder="ftp user"
+                      onChange={(value) =>
+                        setFtpDraft((current) => ({ ...current, username: value }))
+                      }
+                    />
+                    <TextInput
+                      label="密码"
+                      type="password"
+                      value={ftpDraft.password}
+                      placeholder="ftp password"
+                      onChange={(value) =>
+                        setFtpDraft((current) => ({ ...current, password: value }))
+                      }
+                    />
+                  </div>
+                  <TextInput
+                    label="远程目录"
+                    value={ftpDraft.remotePath}
+                    placeholder="cliply"
+                    onChange={(value) =>
+                      setFtpDraft((current) => ({ ...current, remotePath: value }))
+                    }
+                  />
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <ToggleRow
+                      label="使用 FTPS"
+                      checked={ftpDraft.secure}
+                      onChange={(value) =>
+                        setFtpDraft((current) => ({ ...current, secure: value }))
+                      }
+                    />
+                    <button
+                      type="button"
+                      disabled={providerBusy}
+                      onClick={() => void handleSaveFtpProvider()}
+                      className="h-8 shrink-0 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[#d8dee8] disabled:text-[#7b8496]"
+                    >
+                      {providerBusy ? "保存中..." : "保存 FTP"}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-3 gap-1 text-xs font-medium text-[color:var(--cliply-muted)]">
                     <span>Manifest：{remoteSyncStatus.manifestExists ? "已检测" : "未检测"}</span>
                     <span>快照：{remoteSyncStatus.snapshotCount}</span>
@@ -528,6 +686,7 @@ export function SettingsDialog({
                   type="password"
                   value={syncPassword}
                   onChange={(event) => {
+                    sessionSyncPassword = event.target.value;
                     setSyncPassword(event.target.value);
                     setSyncError(null);
                   }}
@@ -553,23 +712,31 @@ export function SettingsDialog({
                   {syncBusy === "import" ? "导入中..." : "导入同步包"}
                 </button>
               </div>
-              {remoteSyncStatus.provider.type === "local-folder" ? (
+              {selectedSyncProviderType !== "disabled" ? (
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    disabled={syncActionDisabled || !remoteSyncStatus.provider.path}
+                    disabled={
+                      syncActionDisabled ||
+                      selectedSyncProviderType !== remoteSyncStatus.provider.type ||
+                      !canUseRemoteProvider(remoteSyncStatus.provider)
+                    }
                     onClick={() => void handleExportToRemoteFolder()}
                     className="h-9 rounded-lg border border-[color:var(--cliply-border)] bg-white px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[#fafafb] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
                   >
-                    {syncBusy === "export" ? "导出中..." : "导出到同步文件夹"}
+                  {syncBusy === "export" ? "导出中..." : remoteSyncActionLabel(selectedSyncProviderType, "export")}
                   </button>
                   <button
                     type="button"
-                    disabled={syncActionDisabled || !remoteSyncStatus.provider.path}
+                    disabled={
+                      syncActionDisabled ||
+                      selectedSyncProviderType !== remoteSyncStatus.provider.type ||
+                      !canUseRemoteProvider(remoteSyncStatus.provider)
+                    }
                     onClick={() => void handleImportFromRemoteFolder()}
                     className="h-9 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[#d8dee8] disabled:text-[#7b8496]"
                   >
-                    {syncBusy === "import" ? "导入中..." : "从同步文件夹导入"}
+                  {syncBusy === "import" ? "导入中..." : remoteSyncActionLabel(selectedSyncProviderType, "import")}
                   </button>
                 </div>
               ) : null}
@@ -771,6 +938,33 @@ function ToggleRow({
   );
 }
 
+function TextInput({
+  label,
+  value,
+  placeholder,
+  type = "text",
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  type?: "text" | "password";
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid min-w-0 gap-1 text-xs font-medium text-[color:var(--cliply-muted)]">
+      {label}
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-8 w-full min-w-0 rounded-lg border border-[color:var(--cliply-border)] bg-white px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
+      />
+    </label>
+  );
+}
+
 function NumberRow({
   label,
   value,
@@ -860,6 +1054,67 @@ function ThemePicker({
 
 function getDraftThemeName(value: string): CliplyThemeName {
   return isCliplyThemeName(value) ? value : DEFAULT_THEME_NAME;
+}
+
+function defaultFtpConfig(): FtpProviderConfig {
+  return {
+    type: "ftp",
+    host: "",
+    port: 21,
+    username: "",
+    password: "",
+    secure: false,
+    remotePath: "cliply",
+  };
+}
+
+function normalizeFtpConfig(config: FtpProviderConfig): FtpProviderConfig {
+  return {
+    ...config,
+    host: config.host.trim(),
+    port: config.port || (config.secure ? 21 : 21),
+    username: config.username.trim(),
+    remotePath: normalizeRemotePath(config.remotePath),
+  };
+}
+
+function normalizeRemotePath(value: string) {
+  const normalized = value.replace(/\\/g, "/").trim();
+  const isAbsolute = normalized.startsWith("/");
+  const path = normalized
+    .split("/")
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
+  if (path.startsWith("mnt/")) {
+    return `/${path}`;
+  }
+  return isAbsolute && path ? `/${path}` : path;
+}
+
+function normalizePort(value: string) {
+  const port = Number.parseInt(value, 10);
+  if (!Number.isFinite(port)) {
+    return 21;
+  }
+  return Math.min(Math.max(port, 1), 65535);
+}
+
+function canUseRemoteProvider(provider: SyncProviderConfig) {
+  if (provider.type === "local-folder") {
+    return Boolean(provider.path.trim());
+  }
+  if (provider.type === "ftp") {
+    return Boolean(provider.host.trim() && provider.username.trim() && provider.password);
+  }
+  return false;
+}
+
+function remoteSyncActionLabel(type: SyncProviderConfig["type"], action: "export" | "import") {
+  if (type === "ftp") {
+    return action === "export" ? "导出到 FTP/FTPS" : "从 FTP/FTPS 导入";
+  }
+  return action === "export" ? "导出到同步文件夹" : "从同步文件夹导入";
 }
 
 function shortcutFromKeyboardEvent(event: ReactKeyboardEvent<HTMLButtonElement>) {

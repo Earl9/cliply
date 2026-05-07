@@ -1,5 +1,6 @@
-import { ClipboardList, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import cliplyLogo from "@/assets/cliply-logo.png";
 import { Badge } from "@/components/common/Badge";
 import { IconButton } from "@/components/common/IconButton";
 import { getCliplyDebugInfo, type CliplyDebugInfo } from "@/lib/debugInfo";
@@ -53,9 +54,12 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
           </IconButton>
         </div>
         <div className="grid justify-items-center text-center">
-          <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-[#9577ff] to-[#5b3fd7] text-white shadow-sm">
-            <ClipboardList className="size-7" />
-          </div>
+          <img
+            src={cliplyLogo}
+            alt="Cliply"
+            className="mb-4 size-16 rounded-2xl object-contain shadow-sm"
+            draggable={false}
+          />
           <h2 id="cliply-about-title" className="text-xl font-semibold text-[color:var(--cliply-text)]">
             Cliply
           </h2>

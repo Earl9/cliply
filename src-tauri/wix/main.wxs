@@ -36,6 +36,7 @@
         <Property Id="AUTOLAUNCHAPP" Secure="yes" />
         <!-- Property to forward cli args to the launched app to not lose those of the pre-update instance -->
         <Property Id="LAUNCHAPPARGS" Secure="yes" />
+        <Property Id="CLIPLY_LAUNCH_APP" Value="1" />
 
         {{#if allow_downgrades}}
             <MajorUpgrade Schedule="afterInstallInitialize" AllowDowngrades="yes" />
@@ -83,10 +84,61 @@
         </Property>
 
         <UI>
+            <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+            <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+            <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+            <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+            <Property Id="WixUI_Mode" Value="InstallDir" />
             <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
-            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Property="WixUI_InstallMode" Value="Update" Order="1">1</Publish>
-            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="2">1</Publish>
-            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" Order="3">Installed AND NOT PATCH</Publish>
+
+            <DialogRef Id="BrowseDlg" />
+            <DialogRef Id="DiskCostDlg" />
+            <DialogRef Id="ErrorDlg" />
+            <DialogRef Id="FatalError" />
+            <DialogRef Id="FilesInUse" />
+            <DialogRef Id="InstallDirDlg" />
+            <DialogRef Id="InvalidDirDlg" />
+            {{#if license}}
+            <DialogRef Id="LicenseAgreementDlg" />
+            {{/if}}
+            <DialogRef Id="MaintenanceTypeDlg" />
+            <DialogRef Id="MaintenanceWelcomeDlg" />
+            <DialogRef Id="MsiRMFilesInUse" />
+            <DialogRef Id="PrepareDlg" />
+            <DialogRef Id="ProgressDlg" />
+            <DialogRef Id="ResumeDlg" />
+            <DialogRef Id="UserExit" />
+            <DialogRef Id="VerifyReadyDlg" />
+            <DialogRef Id="WelcomeDlg" />
+
+            <Dialog Id="CliplyExitDialog" Width="370" Height="270" Title="!(loc.ExitDialog_Title)">
+                <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="!(loc.WixUIFinish)" />
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Disabled="yes" Text="!(loc.WixUICancel)" />
+                <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="!(loc.ExitDialogBitmap)" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="!(loc.WixUIBack)" />
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+                <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="40" Transparent="yes" NoPrefix="yes" Text="!(loc.ExitDialogDescription)" />
+                <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.ExitDialogTitle)" />
+                <Control Id="OptionalText" Type="Text" X="135" Y="110" Width="220" Height="70" Transparent="yes" Text="[WIXUI_EXITDIALOGOPTIONALTEXT]">
+                    <Condition Action="show">WIXUI_EXITDIALOGOPTIONALTEXT AND NOT Installed</Condition>
+                    <Condition Action="hide">NOT WIXUI_EXITDIALOGOPTIONALTEXT OR Installed</Condition>
+                </Control>
+                <Control Id="LaunchAppCheckBox" Type="CheckBox" X="135" Y="190" Width="14" Height="14" Property="CLIPLY_LAUNCH_APP" CheckBoxValue="1" Text=" ">
+                    <Condition Action="show">NOT REMOVE</Condition>
+                    <Condition Action="hide">REMOVE</Condition>
+                </Control>
+                <Control Id="LaunchAppText" Type="Text" X="154" Y="189" Width="190" Height="17" Transparent="yes" Text="!(loc.LaunchApp)">
+                    <Condition Action="show">NOT REMOVE</Condition>
+                    <Condition Action="hide">REMOVE</Condition>
+                </Control>
+            </Dialog>
+
+            <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+            <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4">NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;"1"</Publish>
+
+            <Publish Dialog="CliplyExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Order="998">CLIPLY_LAUNCH_APP = 1 AND NOT REMOVE</Publish>
+            <Publish Dialog="CliplyExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
 
             {{#unless license}}
             <!-- Skip license dialog -->
@@ -94,16 +146,48 @@
                      Control="Next"
                      Event="NewDialog"
                      Value="InstallDirDlg"
-                     Order="2">1</Publish>
+                     Order="1">NOT Installed</Publish>
             <Publish Dialog="InstallDirDlg"
                      Control="Back"
                      Event="NewDialog"
                      Value="WelcomeDlg"
-                     Order="2">1</Publish>
+                     Order="1">1</Publish>
             {{/unless}}
+            {{#if license}}
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Order="1">NOT Installed</Publish>
+            <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="1">1</Publish>
+            <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="1">LicenseAccepted = "1"</Publish>
+            {{/if}}
+
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="1">Installed AND PATCH</Publish>
+
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3">NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;"1"</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1">NOT Installed</Publish>
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" Order="2">Installed AND NOT PATCH</Publish>
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">Installed AND PATCH</Publish>
+
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Property="WixUI_InstallMode" Value="Update" Order="1">1</Publish>
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="2">1</Publish>
+
+            <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" Order="1">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" Order="1">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" Order="1">1</Publish>
+
+            <InstallUISequence>
+                <Show Dialog="CliplyExitDialog" OnExit="success" />
+            </InstallUISequence>
+            <AdminUISequence>
+                <Show Dialog="CliplyExitDialog" OnExit="success" />
+            </AdminUISequence>
         </UI>
 
-        <UIRef Id="WixUI_InstallDir" />
+        <UIRef Id="WixUI_Common" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">
@@ -188,6 +272,14 @@
 							   KeyPath="yes" />
             </Component>
         </DirectoryRef>
+
+        <CustomAction
+            Id="LaunchApplication"
+            FileKey="Path"
+            ExeCommand="[LAUNCHAPPARGS]"
+            Execute="immediate"
+            Return="asyncNoWait"
+            Impersonate="yes" />
 
         <DirectoryRef Id="ApplicationProgramsFolder">
             <Component Id="ApplicationShortcut" Guid="*">

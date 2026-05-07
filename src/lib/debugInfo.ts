@@ -3,6 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 export type CliplyDebugInfo = {
   logPath: string;
   databasePath: string;
+  dataDir: string;
 };
 
 export async function getCliplyDebugInfo(): Promise<CliplyDebugInfo> {
@@ -10,6 +11,7 @@ export async function getCliplyDebugInfo(): Promise<CliplyDebugInfo> {
     return {
       logPath: "%APPDATA%\\com.cliply.app\\cliply.log",
       databasePath: "%APPDATA%\\com.cliply.app\\cliply.db",
+      dataDir: "%APPDATA%\\com.cliply.app",
     };
   }
 

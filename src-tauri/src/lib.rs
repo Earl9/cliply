@@ -71,6 +71,8 @@ pub fn run() {
             logger::info(app.handle(), "clipboard_listener_started", "listener ready");
             app.manage(ClipboardListenerShutdown);
             if let Some(window) = app.get_webview_window("main") {
+                set_main_window_icon(app.handle(), &window);
+
                 let handle = app.handle().clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -99,6 +101,7 @@ fn should_start_minimized() -> bool {
 pub fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         let started_at = Instant::now();
+        set_main_window_icon(app, &window);
         window.show()?;
         window.unminimize()?;
         window.set_focus()?;
@@ -126,6 +129,7 @@ pub fn toggle_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
             window.hide()?;
         } else {
             let started_at = Instant::now();
+            set_main_window_icon(app, &window);
             window.show()?;
             window.unminimize()?;
             window.set_focus()?;
@@ -138,6 +142,34 @@ pub fn toggle_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     }
 
     Ok(())
+}
+
+fn set_main_window_icon(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let Some(icon) = load_window_icon() else {
+        logger::error(
+            app,
+            "window_icon_load_failed",
+            "failed to decode bundled Cliply window icon",
+        );
+        return;
+    };
+
+    if let Err(error) = window.set_icon(icon) {
+        logger::error(app, "window_icon_set_failed", error);
+    }
+}
+
+fn load_window_icon() -> Option<tauri::image::Image<'static>> {
+    let icon = image::load_from_memory(include_bytes!("../icons/128x128@2x.png"))
+        .ok()?
+        .into_rgba8();
+    let (width, height) = icon.dimensions();
+
+    Some(tauri::image::Image::new_owned(
+        icon.into_raw(),
+        width,
+        height,
+    ))
 }
 
 pub fn toggle_main_window_pin(app: &tauri::AppHandle, pinned: bool) -> tauri::Result<()> {

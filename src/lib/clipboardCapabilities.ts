@@ -3,7 +3,7 @@ import type { ClipboardActionKind, ClipboardItem } from "@/lib/clipboardTypes";
 export type ClipboardActionAvailability = Record<ClipboardActionKind, boolean>;
 
 export function hasTextFallback(item: ClipboardItem) {
-  if (item.sensitiveScore >= 50) {
+  if (item.isRedacted) {
     return false;
   }
 
@@ -24,6 +24,10 @@ export function canRunClipboardAction(kind: ClipboardActionKind, item: Clipboard
 
   if (kind === "pastePlain") {
     return item.type !== "image" && hasTextFallback(item);
+  }
+
+  if (item.type === "image") {
+    return true;
   }
 
   return hasTextFallback(item);

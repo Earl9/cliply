@@ -3,6 +3,12 @@ dist/
 dist-ssr/
 target/
 src-tauri/target/
+apps/*/src-tauri/target/
+apps/*/src-tauri/payload/
+apps/*/dist/
+apps/*/node_modules/
+icon-debug/
+tmp_wix_decompile/
 *.log
 .env
 .env.*

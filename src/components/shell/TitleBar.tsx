@@ -1,5 +1,6 @@
-import { ClipboardList, MoreHorizontal, Pin, Settings, X } from "lucide-react";
+import { MoreHorizontal, Pin, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import cliplyLogo from "@/assets/cliply-logo.png";
 import { IconButton } from "@/components/common/IconButton";
 import { hideMainWindow, toggleMainWindowMaximize } from "@/lib/windowAdapter";
 
@@ -52,12 +53,13 @@ export function TitleBar({
       onDoubleClick={() => void toggleMainWindowMaximize()}
     >
       <div className="flex min-w-0 items-center gap-3" data-tauri-drag-region>
-        <div
-          className="grid size-8 place-items-center rounded-[10px] bg-[color:var(--cliply-accent-strong)] text-white shadow-sm"
+        <img
+          src={cliplyLogo}
+          alt="Cliply"
+          className="size-8 rounded-[10px] object-contain shadow-sm"
+          draggable={false}
           data-tauri-drag-region
-        >
-          <ClipboardList className="size-4" />
-        </div>
+        />
         <div className="min-w-0" data-tauri-drag-region>
           <div
             className="truncate text-xl font-semibold tracking-normal text-[color:var(--cliply-text)]"

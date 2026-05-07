@@ -32,7 +32,7 @@ pub fn list_clipboard_items(
         crate::services::search_service::normalize_query(&query.unwrap_or_default());
     let item_type = item_type.unwrap_or_default().to_lowercase();
     let pinned_only = pinned_only.unwrap_or(false);
-    let limit = limit.unwrap_or(50).clamp(1, 200);
+    let limit = limit.unwrap_or(200).clamp(1, 10_000);
     let offset = offset.unwrap_or(0).max(0);
 
     if normalized_query.is_empty() {
@@ -618,7 +618,17 @@ fn load_items(
     let mut statement = connection.prepare(
         "SELECT id, type, COALESCE(title, ''), COALESCE(preview_text, ''),
                 COALESCE(source_app, ''), source_window, copied_at, created_at,
-                COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0)
+                COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0),
+                NOT EXISTS (
+                    SELECT 1
+                    FROM clipboard_formats cf
+                    WHERE cf.item_id = clipboard_items.id
+                      AND cf.data_kind IN ('text', 'html', 'image_file')
+                      AND (
+                        COALESCE(cf.data_text, '') <> ''
+                        OR COALESCE(cf.data_path, '') <> ''
+                      )
+                )
          FROM clipboard_items
          WHERE is_deleted = 0 AND deleted_at IS NULL
            AND (?1 = '' OR type = ?1)
@@ -637,7 +647,17 @@ fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, Clip
     let mut item = connection.query_row(
         "SELECT id, type, COALESCE(title, ''), COALESCE(preview_text, ''),
                 COALESCE(source_app, ''), source_window, copied_at, created_at,
-                COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0)
+                COALESCE(size_bytes, 0), is_pinned, COALESCE(sensitive_score, 0),
+                NOT EXISTS (
+                    SELECT 1
+                    FROM clipboard_formats cf
+                    WHERE cf.item_id = clipboard_items.id
+                      AND cf.data_kind IN ('text', 'html', 'image_file')
+                      AND (
+                        COALESCE(cf.data_text, '') <> ''
+                        OR COALESCE(cf.data_path, '') <> ''
+                      )
+                )
          FROM clipboard_items
          WHERE id = ?1 AND is_deleted = 0 AND deleted_at IS NULL",
         params![id],
@@ -656,6 +676,7 @@ fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, Clip
                 size_bytes: row.get(8)?,
                 is_pinned: row.get::<_, i64>(9)? == 1,
                 sensitive_score: row.get(10)?,
+                is_redacted: row.get::<_, i64>(11)? == 1,
                 tags: Vec::new(),
                 thumbnail_path: None,
             })
@@ -818,7 +839,17 @@ fn search_items(
             "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
                     COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
                     ci.source_window, ci.copied_at, ci.created_at,
-                    COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0)
+                    COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0),
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM clipboard_formats cf
+                        WHERE cf.item_id = ci.id
+                          AND cf.data_kind IN ('text', 'html', 'image_file')
+                          AND (
+                            COALESCE(cf.data_text, '') <> ''
+                            OR COALESCE(cf.data_path, '') <> ''
+                          )
+                    )
              FROM clipboard_items ci
              WHERE ci.is_deleted = 0
                AND ci.deleted_at IS NULL
@@ -858,7 +889,17 @@ fn search_items(
         "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
                 COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
                 ci.source_window, ci.copied_at, ci.created_at,
-                COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0)
+                COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0),
+                NOT EXISTS (
+                    SELECT 1
+                    FROM clipboard_formats cf
+                    WHERE cf.item_id = ci.id
+                      AND cf.data_kind IN ('text', 'html', 'image_file')
+                      AND (
+                        COALESCE(cf.data_text, '') <> ''
+                        OR COALESCE(cf.data_path, '') <> ''
+                      )
+                )
          FROM clipboard_items ci
          WHERE ci.is_deleted = 0
            AND ci.deleted_at IS NULL
@@ -955,6 +996,7 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<ClipboardItemDto> {
         size_bytes: row.get(8)?,
         is_pinned: row.get::<_, i64>(9)? == 1,
         sensitive_score: row.get(10)?,
+        is_redacted: row.get::<_, i64>(11)? == 1,
         thumbnail_path: None,
     })
 }

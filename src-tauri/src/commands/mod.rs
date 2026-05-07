@@ -259,9 +259,19 @@ pub async fn get_debug_info(app: AppHandle) -> Result<serde_json::Value, String>
         .map_err(|error| command_error(&app, "get_debug_info.log_path", error))?;
     let database_path = crate::db::database_path(&app)
         .map_err(|error| command_error(&app, "get_debug_info.database_path", error))?;
+    let data_dir = log_path
+        .parent()
+        .map(|path| path.to_path_buf())
+        .unwrap_or_else(|| {
+            database_path
+                .parent()
+                .unwrap_or(&database_path)
+                .to_path_buf()
+        });
     Ok(serde_json::json!({
         "logPath": log_path.to_string_lossy(),
         "databasePath": database_path.to_string_lossy(),
+        "dataDir": data_dir.to_string_lossy(),
     }))
 }
 

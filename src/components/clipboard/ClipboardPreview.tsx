@@ -4,16 +4,17 @@ import type { ClipboardItem } from "@/lib/clipboardTypes";
 
 type ClipboardPreviewProps = {
   item: ClipboardItem;
+  onOpenImage: (item: ClipboardItem) => void;
 };
 
-export function ClipboardPreview({ item }: ClipboardPreviewProps) {
+export function ClipboardPreview({ item, onOpenImage }: ClipboardPreviewProps) {
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   useEffect(() => {
     setImageLoadFailed(false);
   }, [item.id]);
 
-  if (item.sensitiveScore >= 50) {
+  if (item.isRedacted) {
     return (
       <div className="rounded-[12px] border border-amber-200 bg-amber-50 p-4">
         <div className="mb-2.5 flex items-center gap-2 text-[15px] font-semibold text-amber-800">
@@ -75,6 +76,7 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
 
   if (item.type === "image") {
     const imageUrl = item.imageUrl ?? item.thumbnailUrl;
+    const canOpenImage = Boolean(imageUrl && !imageLoadFailed);
 
     return (
       <div>
@@ -82,12 +84,22 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
           <ImageIcon className="size-4 text-[color:var(--cliply-amber)]" />
           {imageTitle(item)}
         </div>
-        <div className="grid h-[240px] place-items-center overflow-hidden rounded-[12px] border border-[#dfe6ef] bg-[#f8fafc] bg-[linear-gradient(45deg,rgba(148,163,184,0.10)_25%,transparent_25%),linear-gradient(-45deg,rgba(148,163,184,0.10)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,rgba(148,163,184,0.10)_75%),linear-gradient(-45deg,transparent_75%,rgba(148,163,184,0.10)_75%)] bg-[length:14px_14px] bg-[position:0_0,0_7px,7px_-7px,-7px_0] p-3 shadow-[0_6px_16px_rgba(15,23,42,0.035)]">
+        <button
+          type="button"
+          disabled={!canOpenImage}
+          aria-label="查看图片"
+          onClick={() => {
+            if (canOpenImage) {
+              onOpenImage(item);
+            }
+          }}
+          className="grid h-[320px] w-full place-items-center overflow-hidden rounded-[12px] border border-[#dfe6ef] bg-[#f8fafc] bg-[linear-gradient(45deg,rgba(148,163,184,0.10)_25%,transparent_25%),linear-gradient(-45deg,rgba(148,163,184,0.10)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,rgba(148,163,184,0.10)_75%),linear-gradient(-45deg,transparent_75%,rgba(148,163,184,0.10)_75%)] bg-[length:14px_14px] bg-[position:0_0,0_7px,7px_-7px,-7px_0] p-3 text-left shadow-[0_6px_16px_rgba(15,23,42,0.035)] transition hover:border-[color:var(--cliply-primary-border)] hover:shadow-[var(--cliply-shadow-card-hover)] disabled:cursor-default disabled:hover:border-[#dfe6ef] disabled:hover:shadow-[0_6px_16px_rgba(15,23,42,0.035)]"
+        >
           {imageUrl && !imageLoadFailed ? (
             <img
               src={imageUrl}
               alt={item.imageAlt ?? item.title}
-              className="max-h-full max-w-full rounded-lg object-contain"
+              className="max-h-full max-w-full cursor-zoom-in rounded-lg object-contain"
               onError={() => setImageLoadFailed(true)}
             />
           ) : (
@@ -96,7 +108,7 @@ export function ClipboardPreview({ item }: ClipboardPreviewProps) {
               <span>{imageUrl ? "图片加载失败" : "图片文件不可用"}</span>
             </div>
           )}
-        </div>
+        </button>
       </div>
     );
   }

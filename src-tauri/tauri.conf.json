@@ -38,7 +38,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi"],
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -59,6 +59,21 @@
         },
         "bannerPath": "wix/banner.bmp",
         "dialogImagePath": "wix/dialog.bmp"
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "headerImage": "nsis/header.bmp",
+        "sidebarImage": "nsis/sidebar.bmp",
+        "installMode": "perMachine",
+        "languages": ["SimpChinese", "English"],
+        "customLanguageFiles": {
+          "SimpChinese": "nsis/SimpChinese.nsh",
+          "English": "nsis/English.nsh"
+        },
+        "installerHooks": "nsis/installer-hooks.nsh",
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Cliply"
       }
     }
   }

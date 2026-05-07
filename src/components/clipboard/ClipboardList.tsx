@@ -1,6 +1,7 @@
 import { ClipboardListItem } from "@/components/clipboard/ClipboardListItem";
 import { EmptyState } from "@/components/clipboard/EmptyState";
 import type { ClipboardFilter, ClipboardItem } from "@/lib/clipboardTypes";
+import type { MouseEvent } from "react";
 
 type ClipboardListProps = {
   items: ClipboardItem[];
@@ -12,6 +13,7 @@ type ClipboardListProps = {
   errorMessage?: string | null;
   onSelectItem: (id: string) => void;
   onTogglePin: (id: string) => void;
+  onItemContextMenu: (event: MouseEvent<HTMLElement>, item: ClipboardItem) => void;
 };
 
 export function ClipboardList({
@@ -24,6 +26,7 @@ export function ClipboardList({
   errorMessage = null,
   onSelectItem,
   onTogglePin,
+  onItemContextMenu,
 }: ClipboardListProps) {
   const footerText = getFooterText({ query, filter, shownCount: items.length, totalCount });
 
@@ -61,6 +64,7 @@ export function ClipboardList({
                 selected={item.id === selectedId}
                 onSelect={() => onSelectItem(item.id)}
                 onTogglePin={() => onTogglePin(item.id)}
+                onContextMenu={(event) => onItemContextMenu(event, item)}
               />
             ))}
           </div>

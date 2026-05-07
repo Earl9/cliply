@@ -1,7 +1,9 @@
 use crate::error::CliplyError;
 use crate::services::{
     database_service, sync_package_service, sync_service,
-    sync_storage_provider::{LocalFolderSyncProvider, SyncProviderConfig, SyncStorageProvider},
+    sync_storage_provider::{
+        FtpSyncProvider, LocalFolderSyncProvider, SyncProviderConfig, SyncStorageProvider,
+    },
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,8 @@ const CONFIG_KEY: &str = "remote_sync_provider_config";
 const LAST_SYNCED_AT_KEY: &str = "remote_sync_last_synced_at";
 const LAST_STATUS_KEY: &str = "remote_sync_last_status";
 const LAST_ERROR_KEY: &str = "remote_sync_last_error";
+const MANIFEST_EXISTS_KEY: &str = "remote_sync_manifest_exists";
+const SNAPSHOT_COUNT_KEY: &str = "remote_sync_snapshot_count";
 const MANIFEST_PATH: &str = "CliplySync/manifest.json";
 const SNAPSHOTS_PATH: &str = "CliplySync/snapshots";
 const EVENTS_PATH: &str = "CliplySync/events";
@@ -56,21 +60,36 @@ struct RemoteSyncManifest {
 pub fn get_remote_sync_status(app: &AppHandle) -> Result<RemoteSyncStatus, CliplyError> {
     let connection = database_service::connect(app)?;
     let provider = get_provider_config_from_connection(&connection)?;
-    let mut manifest_exists = false;
-    let mut snapshot_count = 0;
+    let mut manifest_exists = get_bool_sync_state_value(&connection, MANIFEST_EXISTS_KEY)?;
+    let mut snapshot_count = get_usize_sync_state_value(&connection, SNAPSHOT_COUNT_KEY)?;
+    let mut current_error = None;
 
-    if let SyncProviderConfig::LocalFolder { path } = &provider {
-        let provider = LocalFolderSyncProvider::new(path);
-        manifest_exists = provider.exists(MANIFEST_PATH)?;
-        snapshot_count = list_snapshot_paths(&provider)?.len();
+    if let SyncProviderConfig::LocalFolder { .. } = provider {
+        match provider_from_config(&provider).and_then(|provider_impl| {
+            let manifest_exists = provider_impl.exists(MANIFEST_PATH)?;
+            let snapshot_count = list_snapshot_paths(provider_impl.as_ref())?.len();
+            Ok((manifest_exists, snapshot_count))
+        }) {
+            Ok((exists, count)) => {
+                manifest_exists = exists;
+                snapshot_count = count;
+            }
+            Err(error) => {
+                current_error = Some(error.to_string());
+            }
+        }
     }
 
     Ok(RemoteSyncStatus {
         provider,
         manifest_exists,
         last_synced_at: get_sync_state_value(&connection, LAST_SYNCED_AT_KEY)?,
-        last_status: get_sync_state_value(&connection, LAST_STATUS_KEY)?,
-        last_error: get_sync_state_value(&connection, LAST_ERROR_KEY)?,
+        last_status: if current_error.is_some() {
+            Some("error".to_string())
+        } else {
+            get_sync_state_value(&connection, LAST_STATUS_KEY)?
+        },
+        last_error: current_error.or(get_sync_state_value(&connection, LAST_ERROR_KEY)?),
         snapshot_count,
     })
 }
@@ -81,21 +100,27 @@ pub fn set_remote_sync_provider(
 ) -> Result<RemoteSyncStatus, CliplyError> {
     if !matches!(
         config,
-        SyncProviderConfig::Disabled | SyncProviderConfig::LocalFolder { .. }
+        SyncProviderConfig::Disabled
+            | SyncProviderConfig::LocalFolder { .. }
+            | SyncProviderConfig::Ftp { .. }
     ) {
         return Err(CliplyError::Sync(
-            "当前版本只支持本地同步文件夹，其他 provider 暂未实现".to_string(),
+            "当前版本只支持本地同步文件夹和 FTP/FTPS provider".to_string(),
         ));
     }
 
     let connection = database_service::connect(app)?;
+    validate_provider_config(&config)?;
     set_json_state_value(&connection, CONFIG_KEY, &config)?;
-    if let SyncProviderConfig::LocalFolder { path } = &config {
-        let provider = LocalFolderSyncProvider::new(path);
-        ensure_local_folder_layout(&provider)?;
-    }
 
-    get_remote_sync_status(app)
+    Ok(RemoteSyncStatus {
+        provider: config,
+        manifest_exists: get_bool_sync_state_value(&connection, MANIFEST_EXISTS_KEY)?,
+        last_synced_at: get_sync_state_value(&connection, LAST_SYNCED_AT_KEY)?,
+        last_status: get_sync_state_value(&connection, LAST_STATUS_KEY)?,
+        last_error: get_sync_state_value(&connection, LAST_ERROR_KEY)?,
+        snapshot_count: get_usize_sync_state_value(&connection, SNAPSHOT_COUNT_KEY)?,
+    })
 }
 
 pub fn export_to_remote_sync_folder(
@@ -103,8 +128,9 @@ pub fn export_to_remote_sync_folder(
     password: String,
 ) -> Result<RemoteSyncResult, CliplyError> {
     let connection = database_service::connect(app)?;
-    let provider = local_provider_from_connection(&connection)?;
-    ensure_local_folder_layout(&provider)?;
+    let provider_config = get_provider_config_from_connection(&connection)?;
+    let provider = provider_from_config(&provider_config)?;
+    ensure_remote_layout(provider.as_ref())?;
 
     let device_id = sync_service::current_device_id(&connection)?;
     let (package_bytes, exported_at) =
@@ -112,11 +138,11 @@ pub fn export_to_remote_sync_folder(
     let file_name = snapshot_file_name(&device_id, &exported_at);
     let snapshot_path = format!("{SNAPSHOTS_PATH}/{file_name}");
     provider.write(&snapshot_path, &package_bytes)?;
-    write_device_marker(&provider, &device_id, &exported_at)?;
-    write_manifest(&provider, &exported_at)?;
+    write_device_marker(provider.as_ref(), &device_id, &exported_at)?;
+    write_manifest(provider.as_ref(), &exported_at)?;
 
-    let snapshot_count = list_snapshot_paths(&provider)?.len();
-    set_remote_success(&connection, &exported_at)?;
+    let snapshot_count = list_snapshot_paths(provider.as_ref())?.len();
+    set_remote_success(&connection, &exported_at, snapshot_count)?;
     Ok(RemoteSyncResult {
         exported_count: 1,
         imported_count: 0,
@@ -134,14 +160,17 @@ pub fn import_from_remote_sync_folder(
     password: String,
 ) -> Result<RemoteSyncResult, CliplyError> {
     let connection = database_service::connect(app)?;
-    let provider = local_provider_from_connection(&connection)?;
-    ensure_local_folder_layout(&provider)?;
+    let provider_config = get_provider_config_from_connection(&connection)?;
+    let provider = provider_from_config(&provider_config)?;
+    ensure_remote_layout(provider.as_ref())?;
 
     if !provider.exists(MANIFEST_PATH)? {
-        return Err(CliplyError::Sync("同步目录缺少 manifest.json".to_string()));
+        return Err(CliplyError::Sync(
+            "同步目录缺少 manifest.json，请先导出一次同步包".to_string(),
+        ));
     }
 
-    let snapshot_paths = list_snapshot_paths(&provider)?;
+    let snapshot_paths = list_snapshot_paths(provider.as_ref())?;
     let mut imported_count = 0;
     let mut updated_count = 0;
     let mut skipped_count = 0;
@@ -159,7 +188,7 @@ pub fn import_from_remote_sync_folder(
     }
 
     let synced_at = current_timestamp()?;
-    set_remote_success(&connection, &synced_at)?;
+    set_remote_success(&connection, &synced_at, snapshot_paths.len())?;
     Ok(RemoteSyncResult {
         exported_count: 0,
         imported_count,
@@ -172,7 +201,7 @@ pub fn import_from_remote_sync_folder(
     })
 }
 
-fn ensure_local_folder_layout(provider: &LocalFolderSyncProvider) -> Result<(), CliplyError> {
+fn ensure_remote_layout(provider: &dyn SyncStorageProvider) -> Result<(), CliplyError> {
     provider.write(&format!("{SNAPSHOTS_PATH}/.keep"), b"")?;
     provider.write(&format!("{EVENTS_PATH}/.keep"), b"")?;
     provider.write(&format!("{DEVICES_PATH}/.keep"), b"")?;
@@ -184,7 +213,7 @@ fn ensure_local_folder_layout(provider: &LocalFolderSyncProvider) -> Result<(), 
     Ok(())
 }
 
-fn write_manifest(provider: &LocalFolderSyncProvider, updated_at: &str) -> Result<(), CliplyError> {
+fn write_manifest(provider: &dyn SyncStorageProvider, updated_at: &str) -> Result<(), CliplyError> {
     let created_at = if provider.exists(MANIFEST_PATH)? {
         read_manifest(provider)?
             .map(|manifest| manifest.created_at)
@@ -208,7 +237,7 @@ fn write_manifest(provider: &LocalFolderSyncProvider, updated_at: &str) -> Resul
 }
 
 fn read_manifest(
-    provider: &LocalFolderSyncProvider,
+    provider: &dyn SyncStorageProvider,
 ) -> Result<Option<RemoteSyncManifest>, CliplyError> {
     if !provider.exists(MANIFEST_PATH)? {
         return Ok(None);
@@ -220,7 +249,7 @@ fn read_manifest(
 }
 
 fn write_device_marker(
-    provider: &LocalFolderSyncProvider,
+    provider: &dyn SyncStorageProvider,
     device_id: &str,
     exported_at: &str,
 ) -> Result<(), CliplyError> {
@@ -233,7 +262,7 @@ fn write_device_marker(
     provider.write(&format!("{DEVICES_PATH}/{device_id}.json"), &bytes)
 }
 
-fn list_snapshot_paths(provider: &LocalFolderSyncProvider) -> Result<Vec<String>, CliplyError> {
+fn list_snapshot_paths(provider: &dyn SyncStorageProvider) -> Result<Vec<String>, CliplyError> {
     let mut paths = provider
         .list(SNAPSHOTS_PATH)?
         .into_iter()
@@ -244,17 +273,57 @@ fn list_snapshot_paths(provider: &LocalFolderSyncProvider) -> Result<Vec<String>
     Ok(paths)
 }
 
-fn local_provider_from_connection(
-    connection: &Connection,
-) -> Result<LocalFolderSyncProvider, CliplyError> {
-    match get_provider_config_from_connection(connection)? {
-        SyncProviderConfig::LocalFolder { path } if !path.trim().is_empty() => {
-            Ok(LocalFolderSyncProvider::new(path))
+fn provider_from_config(
+    config: &SyncProviderConfig,
+) -> Result<Box<dyn SyncStorageProvider>, CliplyError> {
+    validate_provider_config(config)?;
+    match config {
+        SyncProviderConfig::LocalFolder { path } => {
+            Ok(Box::new(LocalFolderSyncProvider::new(path)))
         }
-        SyncProviderConfig::Disabled => Err(CliplyError::Sync("远程同步已关闭".to_string())),
-        _ => Err(CliplyError::Sync(
-            "当前版本只支持本地同步文件夹 provider".to_string(),
+        SyncProviderConfig::Ftp {
+            host,
+            port,
+            username,
+            password,
+            secure,
+            remote_path,
+        } => Ok(Box::new(FtpSyncProvider::new(
+            host.clone(),
+            *port,
+            username.clone(),
+            password.clone(),
+            *secure,
+            remote_path.clone(),
+        ))),
+        _ => Err(CliplyError::Sync("当前 provider 尚未实现".to_string())),
+    }
+}
+
+fn validate_provider_config(config: &SyncProviderConfig) -> Result<(), CliplyError> {
+    match config {
+        SyncProviderConfig::Disabled => Ok(()),
+        SyncProviderConfig::LocalFolder { path } if !path.trim().is_empty() => Ok(()),
+        SyncProviderConfig::LocalFolder { .. } => Err(CliplyError::Sync(
+            "本地同步文件夹需要先选择目录".to_string(),
         )),
+        SyncProviderConfig::Ftp {
+            host,
+            port,
+            username,
+            password,
+            ..
+        } if !host.trim().is_empty()
+            && *port > 0
+            && !username.trim().is_empty()
+            && !password.is_empty() =>
+        {
+            Ok(())
+        }
+        SyncProviderConfig::Ftp { .. } => Err(CliplyError::Sync(
+            "FTP 同步需要填写主机、端口、用户名和密码".to_string(),
+        )),
+        _ => Err(CliplyError::Sync("当前 provider 尚未实现".to_string())),
     }
 }
 
@@ -289,10 +358,29 @@ fn get_sync_state_value(connection: &Connection, key: &str) -> Result<Option<Str
         .optional()?)
 }
 
-fn set_remote_success(connection: &Connection, timestamp: &str) -> Result<(), CliplyError> {
+fn get_bool_sync_state_value(connection: &Connection, key: &str) -> Result<bool, CliplyError> {
+    Ok(matches!(
+        get_sync_state_value(connection, key)?.as_deref(),
+        Some("true") | Some("1")
+    ))
+}
+
+fn get_usize_sync_state_value(connection: &Connection, key: &str) -> Result<usize, CliplyError> {
+    Ok(get_sync_state_value(connection, key)?
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(0))
+}
+
+fn set_remote_success(
+    connection: &Connection,
+    timestamp: &str,
+    snapshot_count: usize,
+) -> Result<(), CliplyError> {
     set_sync_state_value(connection, LAST_SYNCED_AT_KEY, timestamp)?;
     set_sync_state_value(connection, LAST_STATUS_KEY, "success")?;
     set_sync_state_value(connection, LAST_ERROR_KEY, "")?;
+    set_sync_state_value(connection, MANIFEST_EXISTS_KEY, "true")?;
+    set_sync_state_value(connection, SNAPSHOT_COUNT_KEY, &snapshot_count.to_string())?;
     Ok(())
 }
 
@@ -336,8 +424,8 @@ fn current_timestamp() -> Result<String, CliplyError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ensure_local_folder_layout, list_snapshot_paths, snapshot_file_name,
-        LocalFolderSyncProvider, MANIFEST_PATH, SNAPSHOTS_PATH,
+        ensure_remote_layout, list_snapshot_paths, snapshot_file_name, LocalFolderSyncProvider,
+        MANIFEST_PATH, SNAPSHOTS_PATH,
     };
     use crate::services::sync_storage_provider::SyncStorageProvider;
     use std::fs;
@@ -348,7 +436,7 @@ mod tests {
             std::env::temp_dir().join(format!("cliply-remote-sync-test-{}", uuid::Uuid::new_v4()));
         let provider = LocalFolderSyncProvider::new(&root);
 
-        ensure_local_folder_layout(&provider).expect("layout should initialize");
+        ensure_remote_layout(&provider).expect("layout should initialize");
 
         assert!(provider.exists(MANIFEST_PATH).expect("manifest check"));
         assert!(provider.exists(SNAPSHOTS_PATH).expect("snapshots check"));
@@ -361,7 +449,7 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("cliply-remote-sync-test-{}", uuid::Uuid::new_v4()));
         let provider = LocalFolderSyncProvider::new(&root);
-        ensure_local_folder_layout(&provider).expect("layout should initialize");
+        ensure_remote_layout(&provider).expect("layout should initialize");
         provider
             .write("CliplySync/snapshots/a.cliply-sync", b"one")
             .expect("snapshot should write");
