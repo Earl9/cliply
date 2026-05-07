@@ -11,5 +11,7 @@ pub mod settings_service;
 pub mod sync_crypto_service;
 pub mod sync_merge_service;
 pub mod sync_package_service;
+pub mod sync_scheduler_service;
+pub mod sync_secret_service;
 pub mod sync_service;
 pub mod sync_storage_provider;

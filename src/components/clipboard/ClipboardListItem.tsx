@@ -9,6 +9,7 @@ type ClipboardListItemProps = {
   selected?: boolean;
   onSelect: () => void;
   onTogglePin: () => void;
+  onPaste: () => void;
   onContextMenu: (event: MouseEvent<HTMLElement>) => void;
 };
 
@@ -31,6 +32,7 @@ export function ClipboardListItem({
   selected,
   onSelect,
   onTogglePin,
+  onPaste,
   onContextMenu,
 }: ClipboardListItemProps) {
   const sensitive = Boolean(item.isRedacted);
@@ -40,6 +42,10 @@ export function ClipboardListItem({
     <article
       tabIndex={0}
       onClick={onSelect}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        onPaste();
+      }}
       onContextMenu={onContextMenu}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -100,6 +106,10 @@ export function ClipboardListItem({
         onClick={(event) => {
           event.stopPropagation();
           onTogglePin();
+        }}
+        onDoubleClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
         }}
         className={clsx(
           "grid size-6 shrink-0 place-items-center rounded-md text-[#a5afbd] opacity-30 transition hover:bg-white hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-80",

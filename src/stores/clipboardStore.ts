@@ -53,6 +53,19 @@ const storeErrorLabels: Record<StoreErrorKind, string> = {
 
 const initialClipboardItems = isTauri() ? [] : mockClipboardItems;
 
+function isEditableShortcutTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
+function hasSelectedPageText() {
+  const selection = window.getSelection();
+  return Boolean(selection && !selection.isCollapsed && selection.toString().length > 0);
+}
+
 export function useClipboardStore() {
   const [allItems, setAllItems] = useState<ClipboardItem[]>(initialClipboardItems);
   const [visibleItems, setVisibleItems] = useState<ClipboardItem[]>(initialClipboardItems);
@@ -482,11 +495,17 @@ export function useClipboardStore() {
 
   const handleGlobalKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const isTextInput =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target?.isContentEditable;
+      const isEditableTarget = isEditableShortcutTarget(event.target);
+      const isCopyShortcut = event.key.toLowerCase() === "c" && (event.ctrlKey || event.metaKey);
+
+      if (
+        (isCopyShortcut && (isEditableTarget || hasSelectedPageText())) ||
+        dialogs.settings ||
+        dialogs.about ||
+        dialogs.clearHistory
+      ) {
+        return;
+      }
 
       if (event.key === "ArrowDown") {
         event.preventDefault();
@@ -512,7 +531,7 @@ export function useClipboardStore() {
         return;
       }
 
-      if (event.key.toLowerCase() === "c" && event.ctrlKey && !isTextInput) {
+      if (isCopyShortcut) {
         event.preventDefault();
         runClipboardAction("copy");
         return;
@@ -523,7 +542,13 @@ export function useClipboardStore() {
         runClipboardAction(event.shiftKey ? "pastePlain" : "paste");
       }
     },
-    [moveSelection, runClipboardAction],
+    [
+      dialogs.about,
+      dialogs.clearHistory,
+      dialogs.settings,
+      moveSelection,
+      runClipboardAction,
+    ],
   );
 
   const clearHistory = useCallback(() => {

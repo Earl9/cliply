@@ -131,6 +131,55 @@ pub async fn set_remote_sync_provider(
 }
 
 #[tauri::command]
+pub async fn update_auto_sync_config(
+    app: AppHandle,
+    enabled: bool,
+    interval_minutes: u64,
+    password: Option<String>,
+) -> Result<remote_sync_service::RemoteSyncStatus, String> {
+    let status =
+        remote_sync_service::update_auto_sync_config(&app, enabled, interval_minutes, password)
+            .map_err(|error| command_error(&app, "update_auto_sync_config", error))?;
+    let _ = app.emit("remote-sync-status-changed", ());
+    Ok(status)
+}
+
+#[tauri::command]
+pub async fn clear_auto_sync_password(
+    app: AppHandle,
+) -> Result<remote_sync_service::RemoteSyncStatus, String> {
+    let status = remote_sync_service::clear_auto_sync_password(&app)
+        .map_err(|error| command_error(&app, "clear_auto_sync_password", error))?;
+    let _ = app.emit("remote-sync-status-changed", ());
+    Ok(status)
+}
+
+#[tauri::command]
+pub async fn sync_with_remote_now(
+    app: AppHandle,
+    password: Option<String>,
+) -> Result<remote_sync_service::RemoteSyncResult, String> {
+    let result = remote_sync_service::sync_with_remote_now(&app, password)
+        .map_err(|error| command_error(&app, "sync_with_remote_now", error))?;
+    let _ = app.emit("clipboard-items-changed", ());
+    let _ = app.emit("remote-sync-status-changed", ());
+    logger::info(
+        &app,
+        "command.sync_with_remote_now",
+        format!(
+            "exported={} imported={} updated={} deleted={} conflicted={} snapshots={}",
+            result.exported_count,
+            result.imported_count,
+            result.updated_count,
+            result.deleted_count,
+            result.conflicted_count,
+            result.snapshot_count
+        ),
+    );
+    Ok(result)
+}
+
+#[tauri::command]
 pub async fn export_to_remote_sync_folder(
     app: AppHandle,
     password: String,
@@ -245,6 +294,12 @@ pub async fn show_main_window(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn hide_main_window(app: AppHandle) -> Result<(), String> {
     crate::hide_main_window(&app).map_err(|error| command_error(&app, "hide_main_window", error))
+}
+
+#[tauri::command]
+pub async fn minimize_main_window(app: AppHandle) -> Result<(), String> {
+    crate::minimize_main_window(&app)
+        .map_err(|error| command_error(&app, "minimize_main_window", error))
 }
 
 #[tauri::command]

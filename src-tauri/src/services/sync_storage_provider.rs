@@ -1,12 +1,14 @@
 use crate::error::CliplyError;
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::time::Duration;
 use suppaftp::native_tls::TlsConnector;
 use suppaftp::{FtpStream, NativeTlsConnector, NativeTlsFtpStream};
+use url::Url;
 
 pub trait SyncStorageProvider {
     fn list(&self, path: &str) -> Result<Vec<SyncStorageEntry>, CliplyError>;
@@ -159,6 +161,298 @@ impl SyncStorageProvider for LocalFolderSyncProvider {
 
     fn exists(&self, path: &str) -> Result<bool, CliplyError> {
         Ok(self.resolve(path)?.exists())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct WebdavSyncProvider {
+    url: String,
+    username: String,
+    password: String,
+    remote_path: String,
+    timeout: Duration,
+}
+
+impl WebdavSyncProvider {
+    pub fn new(url: String, username: String, password: String, remote_path: String) -> Self {
+        Self {
+            url,
+            username,
+            password,
+            remote_path,
+            timeout: Duration::from_secs(15),
+        }
+    }
+
+    pub fn validate_url(url: &str) -> Result<(), CliplyError> {
+        let parsed = Url::parse(url.trim())
+            .map_err(|_| CliplyError::Sync("WebDAV 地址格式不正确".to_string()))?;
+        if parsed.scheme() != "http" && parsed.scheme() != "https" {
+            return Err(CliplyError::Sync(
+                "WebDAV 地址必须以 http:// 或 https:// 开头".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn agent(&self) -> ureq::Agent {
+        ureq::AgentBuilder::new()
+            .timeout_connect(self.timeout)
+            .timeout_read(self.timeout)
+            .timeout_write(self.timeout)
+            .build()
+    }
+
+    fn parse_base_url(&self) -> Result<Url, CliplyError> {
+        let mut url = Url::parse(self.url.trim())
+            .map_err(|_| CliplyError::Sync("WebDAV 地址格式不正确".to_string()))?;
+        if url.scheme() != "http" && url.scheme() != "https" {
+            return Err(CliplyError::Sync(
+                "WebDAV 地址必须以 http:// 或 https:// 开头".to_string(),
+            ));
+        }
+        url.set_query(None);
+        url.set_fragment(None);
+        Ok(url)
+    }
+
+    fn request(&self, method: &str, relative_path: &str) -> Result<ureq::Request, CliplyError> {
+        let url = self.resolve_url(relative_path, false)?;
+        Ok(self
+            .agent()
+            .request(method, &url)
+            .set("Authorization", &self.basic_auth_header())
+            .set("User-Agent", "Cliply/0.1")
+            .set("Accept", "*/*"))
+    }
+
+    fn basic_auth_header(&self) -> String {
+        let credential = format!("{}:{}", self.username, self.password);
+        format!(
+            "Basic {}",
+            general_purpose::STANDARD.encode(credential.as_bytes())
+        )
+    }
+
+    fn resolve_url(
+        &self,
+        relative_path: &str,
+        trailing_slash: bool,
+    ) -> Result<String, CliplyError> {
+        let mut url = self.parse_base_url()?;
+        let base_parts = url
+            .path_segments()
+            .map(|segments| {
+                segments
+                    .filter(|part| !part.is_empty())
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let remote_parts = safe_path_parts(&self.remote_path)?;
+        let relative_parts = safe_path_parts(relative_path)?;
+
+        url.set_path("");
+        {
+            let mut segments = url
+                .path_segments_mut()
+                .map_err(|_| CliplyError::Sync("WebDAV 地址不能作为目录使用".to_string()))?;
+            for part in base_parts
+                .iter()
+                .chain(remote_parts.iter())
+                .chain(relative_parts.iter())
+            {
+                segments.push(part);
+            }
+            if trailing_slash {
+                segments.push("");
+            }
+        }
+
+        Ok(url.to_string())
+    }
+
+    fn ensure_parent_dirs(&self, path: &str) -> Result<(), CliplyError> {
+        let mut parent_parts = safe_path_parts(path)?;
+        parent_parts.pop();
+
+        let remote_parts = safe_path_parts(&self.remote_path)?;
+        let mut current = Vec::new();
+        for part in remote_parts.iter().chain(parent_parts.iter()) {
+            current.push(part.clone());
+            self.mkcol_for_remote_parts(&current)?;
+        }
+        Ok(())
+    }
+
+    fn mkcol_for_remote_parts(&self, parts: &[String]) -> Result<(), CliplyError> {
+        let url = self.resolve_url_for_remote_parts(parts, true)?;
+        let request = self
+            .agent()
+            .request("MKCOL", &url)
+            .set("Authorization", &self.basic_auth_header())
+            .set("User-Agent", "Cliply/0.1");
+        match request.call() {
+            Ok(_) => Ok(()),
+            Err(ureq::Error::Status(405, _)) => Ok(()),
+            Err(ureq::Error::Status(409, _)) => Err(CliplyError::Sync(
+                "WebDAV 创建目录失败：父目录不存在或无权限".to_string(),
+            )),
+            Err(error) => Err(map_webdav_error("MKCOL", error)),
+        }
+    }
+
+    fn resolve_url_for_remote_parts(
+        &self,
+        remote_relative_parts: &[String],
+        trailing_slash: bool,
+    ) -> Result<String, CliplyError> {
+        let mut url = self.parse_base_url()?;
+        let base_parts = url
+            .path_segments()
+            .map(|segments| {
+                segments
+                    .filter(|part| !part.is_empty())
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        url.set_path("");
+        {
+            let mut segments = url
+                .path_segments_mut()
+                .map_err(|_| CliplyError::Sync("WebDAV 地址不能作为目录使用".to_string()))?;
+            for part in base_parts.iter().chain(remote_relative_parts.iter()) {
+                segments.push(part);
+            }
+            if trailing_slash {
+                segments.push("");
+            }
+        }
+
+        Ok(url.to_string())
+    }
+
+    fn href_path(&self, href: &str) -> Result<String, CliplyError> {
+        if let Ok(url) = Url::parse(href) {
+            return Ok(url.path().to_string());
+        }
+
+        let base_url = self.parse_base_url()?;
+        let joined = base_url
+            .join(href)
+            .map_err(|_| CliplyError::Sync("WebDAV 列表响应路径格式不正确".to_string()))?;
+        Ok(joined.path().to_string())
+    }
+}
+
+impl SyncStorageProvider for WebdavSyncProvider {
+    fn list(&self, path: &str) -> Result<Vec<SyncStorageEntry>, CliplyError> {
+        let url = self.resolve_url(path, true)?;
+        let body = r#"<?xml version="1.0" encoding="utf-8"?>
+<d:propfind xmlns:d="DAV:">
+  <d:prop>
+    <d:displayname />
+    <d:resourcetype />
+    <d:getcontentlength />
+    <d:getlastmodified />
+  </d:prop>
+</d:propfind>"#;
+        let response = self
+            .agent()
+            .request("PROPFIND", &url)
+            .set("Authorization", &self.basic_auth_header())
+            .set("User-Agent", "Cliply/0.1")
+            .set("Depth", "1")
+            .set("Content-Type", "application/xml; charset=utf-8")
+            .send_string(body);
+        let xml = match response {
+            Ok(response) => response
+                .into_string()
+                .map_err(|error| CliplyError::Sync(format!("WebDAV 列表读取失败: {error}")))?,
+            Err(ureq::Error::Status(404, _)) => return Ok(Vec::new()),
+            Err(error) => return Err(map_webdav_error("PROPFIND", error)),
+        };
+
+        let base_path = Url::parse(&url)
+            .map_err(|_| CliplyError::Sync("WebDAV 列表路径格式不正确".to_string()))?
+            .path()
+            .trim_end_matches('/')
+            .to_string()
+            + "/";
+        let self_path = base_path.trim_end_matches('/').to_string();
+        let mut entries = Vec::new();
+
+        for href in extract_webdav_hrefs(&xml) {
+            let href_path = self.href_path(&href)?;
+            if href_path.trim_end_matches('/') == self_path {
+                continue;
+            }
+            if !href_path.starts_with(&base_path) {
+                continue;
+            }
+
+            let remainder = href_path[base_path.len()..].trim_matches('/');
+            if remainder.is_empty() || remainder.contains('/') {
+                continue;
+            }
+
+            let child_path = if path.trim_matches('/').is_empty() {
+                remainder.to_string()
+            } else {
+                format!("{}/{}", path.trim_matches('/'), remainder)
+            };
+            entries.push(SyncStorageEntry {
+                path: child_path,
+                name: remainder.to_string(),
+                is_dir: href_path.ends_with('/'),
+                size_bytes: 0,
+                modified_at: None,
+            });
+        }
+
+        entries.sort_by(|left, right| left.path.cmp(&right.path));
+        entries.dedup_by(|left, right| left.path == right.path);
+        Ok(entries)
+    }
+
+    fn read(&self, path: &str) -> Result<Vec<u8>, CliplyError> {
+        let response = self
+            .request("GET", path)?
+            .call()
+            .map_err(|error| map_webdav_error("GET", error))?;
+        let mut reader = response.into_reader();
+        let mut bytes = Vec::new();
+        reader
+            .read_to_end(&mut bytes)
+            .map_err(|error| CliplyError::Sync(format!("WebDAV 读取失败: {error}")))?;
+        Ok(bytes)
+    }
+
+    fn write(&self, path: &str, data: &[u8]) -> Result<(), CliplyError> {
+        self.ensure_parent_dirs(path)?;
+        self.request("PUT", path)?
+            .set("Content-Type", "application/octet-stream")
+            .send_bytes(data)
+            .map_err(|error| map_webdav_error("PUT", error))?;
+        Ok(())
+    }
+
+    fn delete(&self, path: &str) -> Result<(), CliplyError> {
+        match self.request("DELETE", path)?.call() {
+            Ok(_) | Err(ureq::Error::Status(404, _)) => Ok(()),
+            Err(error) => Err(map_webdav_error("DELETE", error)),
+        }
+    }
+
+    fn exists(&self, path: &str) -> Result<bool, CliplyError> {
+        match self.request("HEAD", path)?.call() {
+            Ok(_) => Ok(true),
+            Err(ureq::Error::Status(404, _)) => Ok(false),
+            Err(ureq::Error::Status(405, _)) => Ok(!self.list(path)?.is_empty()),
+            Err(error) => Err(map_webdav_error("HEAD", error)),
+        }
     }
 }
 
@@ -519,6 +813,66 @@ fn push_safe_path_part(parts: &mut Vec<String>, part: &str) -> Result<(), Cliply
     Ok(())
 }
 
+fn safe_path_parts(path: &str) -> Result<Vec<String>, CliplyError> {
+    let mut parts = Vec::new();
+    for part in path.replace('\\', "/").split('/') {
+        push_safe_path_part(&mut parts, part)?;
+    }
+    Ok(parts)
+}
+
+fn map_webdav_error(method: &str, error: ureq::Error) -> CliplyError {
+    match error {
+        ureq::Error::Status(status, _) => {
+            CliplyError::Sync(format!("WebDAV {method} 失败: HTTP {status}"))
+        }
+        ureq::Error::Transport(error) => {
+            CliplyError::Sync(format!("WebDAV {method} 连接失败: {error}"))
+        }
+    }
+}
+
+fn extract_webdav_hrefs(xml: &str) -> Vec<String> {
+    let lower = xml.to_ascii_lowercase();
+    let mut hrefs = Vec::new();
+    let mut cursor = 0;
+
+    while let Some(open_offset) = lower[cursor..].find('<') {
+        let open = cursor + open_offset;
+        let Some(close_offset) = lower[open..].find('>') else {
+            break;
+        };
+        let close = open + close_offset;
+        let tag = lower[open + 1..close]
+            .trim()
+            .split_whitespace()
+            .next()
+            .unwrap_or("");
+        if !tag.starts_with('/') && (tag == "href" || tag.ends_with(":href")) {
+            let value_start = close + 1;
+            let Some(end_offset) = lower[value_start..].find("</") else {
+                break;
+            };
+            let value_end = value_start + end_offset;
+            hrefs.push(decode_xml_entities(xml[value_start..value_end].trim()));
+            cursor = value_end;
+        } else {
+            cursor = close + 1;
+        }
+    }
+
+    hrefs
+}
+
+fn decode_xml_entities(value: &str) -> String {
+    value
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+}
+
 fn normalize_ftp_remote_root(path: &str) -> String {
     let normalized = path.replace('\\', "/").trim().to_string();
     if let Some(path) = normalized.strip_prefix("mnt/") {
@@ -530,7 +884,8 @@ fn normalize_ftp_remote_root(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        FtpSyncProvider, LocalFolderSyncProvider, SyncProviderConfig, SyncStorageProvider,
+        extract_webdav_hrefs, FtpSyncProvider, LocalFolderSyncProvider, SyncProviderConfig,
+        SyncStorageProvider, WebdavSyncProvider,
     };
     use std::fs;
 
@@ -674,9 +1029,59 @@ mod tests {
     }
 
     #[test]
+    fn webdav_provider_resolves_urls_under_remote_path() {
+        let provider = WebdavSyncProvider::new(
+            "https://dav.example.com/remote.php/dav/files/earl/".to_string(),
+            "earl".to_string(),
+            "secret".to_string(),
+            "cliply".to_string(),
+        );
+
+        assert_eq!(
+            provider
+                .resolve_url("CliplySync/snapshots/test.cliply-sync", false)
+                .expect("path should resolve"),
+            "https://dav.example.com/remote.php/dav/files/earl/cliply/CliplySync/snapshots/test.cliply-sync"
+        );
+    }
+
+    #[test]
+    fn webdav_provider_rejects_parent_traversal() {
+        let provider = WebdavSyncProvider::new(
+            "https://dav.example.com/remote.php/dav/files/earl/".to_string(),
+            "earl".to_string(),
+            "secret".to_string(),
+            "cliply".to_string(),
+        );
+
+        let error = provider
+            .resolve_url("CliplySync/../manifest.json", false)
+            .expect_err("parent traversal should fail");
+        assert!(error.to_string().contains("上级目录"));
+    }
+
+    #[test]
+    fn webdav_href_parser_accepts_namespaced_href_tags() {
+        let xml = r#"
+            <d:multistatus xmlns:d="DAV:">
+              <d:response><d:href>/dav/cliply/CliplySync/snapshots/</d:href></d:response>
+              <d:response><d:href>/dav/cliply/CliplySync/snapshots/a.cliply-sync</d:href></d:response>
+            </d:multistatus>
+        "#;
+
+        assert_eq!(
+            extract_webdav_hrefs(xml),
+            vec![
+                "/dav/cliply/CliplySync/snapshots/",
+                "/dav/cliply/CliplySync/snapshots/a.cliply-sync"
+            ]
+        );
+    }
+
+    #[test]
     fn ftp_provider_config_uses_camel_case_json_and_accepts_legacy_snake_case() {
         let config = SyncProviderConfig::Ftp {
-            host: "10.0.0.9".to_string(),
+            host: "192.0.2.10".to_string(),
             port: 21,
             username: "root".to_string(),
             password: "secret".to_string(),
@@ -691,7 +1096,7 @@ mod tests {
         let parsed: SyncProviderConfig = serde_json::from_str(
             r#"{
                 "type": "ftp",
-                "host": "10.0.0.9",
+                "host": "192.0.2.10",
                 "port": 21,
                 "username": "root",
                 "password": "secret",
@@ -705,7 +1110,7 @@ mod tests {
         let legacy: SyncProviderConfig = serde_json::from_str(
             r#"{
                 "type": "ftp",
-                "host": "10.0.0.9",
+                "host": "192.0.2.10",
                 "port": 21,
                 "username": "root",
                 "password": "secret",

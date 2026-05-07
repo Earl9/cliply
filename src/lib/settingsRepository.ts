@@ -19,25 +19,25 @@ export type SyncProviderConfig =
   | { type: "disabled" }
   | { type: "local-folder"; path: string }
   | { type: "webdav"; url: string; username: string; password: string; remotePath: string }
-  | { type: "sftp"; host: string; port: number; username: string; authType: string; remotePath: string }
-  | { type: "ftp"; host: string; port: number; username: string; password: string; secure: boolean; remotePath: string }
-  | {
-      type: "s3";
-      endpoint: string;
-      bucket: string;
-      accessKeyId: string;
-      secretAccessKey: string;
-      region: string;
-      prefix: string;
-    };
+  | { type: "ftp"; host: string; port: number; username: string; password: string; secure: boolean; remotePath: string };
 
 export type RemoteSyncStatus = {
   provider: SyncProviderConfig;
+  savedProviderConfigs: {
+    localFolder?: Extract<SyncProviderConfig, { type: "local-folder" }> | null;
+    webdav?: Extract<SyncProviderConfig, { type: "webdav" }> | null;
+    ftp?: Extract<SyncProviderConfig, { type: "ftp" }> | null;
+  };
   manifestExists: boolean;
   lastSyncedAt?: string | null;
   lastStatus?: string | null;
   lastError?: string | null;
   snapshotCount: number;
+  autoSyncEnabled: boolean;
+  autoSyncIntervalMinutes: number;
+  syncPasswordSaved: boolean;
+  syncPasswordUpdatedAt?: string | null;
+  lastAutoSyncAt?: string | null;
 };
 
 export type RemoteSyncResult = {
@@ -157,6 +157,77 @@ export async function setRemoteSyncProvider(
   return invoke<RemoteSyncStatus>("set_remote_sync_provider", { config });
 }
 
+export async function updateAutoSyncConfig(
+  enabled: boolean,
+  intervalMinutes: number,
+  password?: string,
+): Promise<RemoteSyncStatus> {
+  if (!isTauri()) {
+    const status = {
+      ...readMockRemoteSyncStatus(),
+      autoSyncEnabled: enabled,
+      autoSyncIntervalMinutes: intervalMinutes,
+      syncPasswordSaved:
+        Boolean(password?.trim()) || readMockRemoteSyncStatus().syncPasswordSaved,
+      syncPasswordUpdatedAt: password?.trim()
+        ? new Date().toISOString()
+        : readMockRemoteSyncStatus().syncPasswordUpdatedAt,
+    };
+    writeMockRemoteSyncStatus(status);
+    return status;
+  }
+
+  return invoke<RemoteSyncStatus>("update_auto_sync_config", {
+    enabled,
+    intervalMinutes,
+    password: password?.trim() ? password : null,
+  });
+}
+
+export async function clearAutoSyncPassword(): Promise<RemoteSyncStatus> {
+  if (!isTauri()) {
+    const status = {
+      ...readMockRemoteSyncStatus(),
+      autoSyncEnabled: false,
+      syncPasswordSaved: false,
+      syncPasswordUpdatedAt: null,
+    };
+    writeMockRemoteSyncStatus(status);
+    return status;
+  }
+
+  return invoke<RemoteSyncStatus>("clear_auto_sync_password");
+}
+
+export async function syncWithRemoteNow(password?: string): Promise<RemoteSyncResult> {
+  if (!isTauri()) {
+    const syncedAt = new Date().toISOString();
+    const status = {
+      ...readMockRemoteSyncStatus(),
+      manifestExists: true,
+      lastSyncedAt: syncedAt,
+      lastAutoSyncAt: syncedAt,
+      lastStatus: "success",
+      snapshotCount: Math.max(1, readMockRemoteSyncStatus().snapshotCount),
+    };
+    writeMockRemoteSyncStatus(status);
+    return {
+      exportedCount: 1,
+      importedCount: 0,
+      updatedCount: 0,
+      skippedCount: 0,
+      deletedCount: 0,
+      conflictedCount: 0,
+      snapshotCount: status.snapshotCount,
+      syncedAt,
+    };
+  }
+
+  return invoke<RemoteSyncResult>("sync_with_remote_now", {
+    password: password?.trim() ? password : null,
+  });
+}
+
 export async function exportToRemoteSyncFolder(password: string): Promise<RemoteSyncResult> {
   if (!isTauri()) {
     const syncedAt = new Date().toISOString();
@@ -242,20 +313,25 @@ function writeMockSyncStatus(status: SyncPackageStatus) {
 }
 
 function readMockRemoteSyncStatus(): RemoteSyncStatus {
+  const defaults: RemoteSyncStatus = {
+    provider: { type: "disabled" },
+    savedProviderConfigs: {},
+    manifestExists: false,
+    snapshotCount: 0,
+    autoSyncEnabled: false,
+    autoSyncIntervalMinutes: 5,
+    syncPasswordSaved: false,
+  };
   try {
     const raw = window.localStorage.getItem("cliply.remoteSync.status");
     if (raw) {
-      return JSON.parse(raw);
+      return { ...defaults, ...JSON.parse(raw) };
     }
   } catch {
     // Fall through to default mock state.
   }
 
-  return {
-    provider: { type: "disabled" },
-    manifestExists: false,
-    snapshotCount: 0,
-  };
+  return defaults;
 }
 
 function writeMockRemoteSyncStatus(status: RemoteSyncStatus) {

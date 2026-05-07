@@ -39,11 +39,25 @@ import { hideMainWindow, toggleAlwaysOnTop } from "@/lib/windowAdapter";
 import {
   DEFAULT_THEME_NAME,
   applyCliplyTheme,
+  getCliplyThemeWithAccent,
   isCliplyThemeName,
   storeCliplyThemeName,
 } from "@/theme/theme";
 import { useClipboardStore } from "@/stores/clipboardStore";
 import { useUiStore } from "@/stores/uiStore";
+
+function shouldAllowNativeContextMenu(target: EventTarget | null) {
+  const selection = window.getSelection();
+  if (selection && !selection.isCollapsed && selection.toString().length > 0) {
+    return true;
+  }
+
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
 
 export function AppWindow() {
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -114,7 +128,13 @@ export function AppWindow() {
   }, [contextMenu, handleGlobalKeyDown, imageViewerItem, setQuery, state.query]);
 
   useEffect(() => {
-    const blockDefaultContextMenu = (event: Event) => event.preventDefault();
+    const blockDefaultContextMenu = (event: Event) => {
+      if (shouldAllowNativeContextMenu(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+    };
     window.addEventListener("contextmenu", blockDefaultContextMenu);
     return () => window.removeEventListener("contextmenu", blockDefaultContextMenu);
   }, []);
@@ -129,9 +149,9 @@ export function AppWindow() {
     const themeName = isCliplyThemeName(settings.themeName)
       ? settings.themeName
       : DEFAULT_THEME_NAME;
-    applyCliplyTheme(themeName);
+    applyCliplyTheme(getCliplyThemeWithAccent(themeName, settings.accentColor));
     storeCliplyThemeName(themeName);
-  }, [settings.themeName]);
+  }, [settings.accentColor, settings.themeName]);
 
   useEffect(() => {
     const removeListeners: Array<() => void> = [];
@@ -291,6 +311,7 @@ export function AppWindow() {
             errorMessage={state.listErrorMessage}
             onSelectItem={selectItem}
             onTogglePin={togglePinItem}
+            onPasteItem={(id) => runMockAction("paste", id)}
             onItemContextMenu={showContextMenu}
           />
           <ClipboardDetailPane

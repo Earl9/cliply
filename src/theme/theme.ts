@@ -371,6 +371,36 @@ export function getCliplyTheme(name: CliplyThemeName): CliplyThemeTokens {
   return CLIPLY_THEMES[name] ?? CLIPLY_THEMES[DEFAULT_THEME_NAME];
 }
 
+export function getCliplyThemeWithAccent(
+  name: CliplyThemeName,
+  accentColor?: string | null,
+): CliplyThemeTokens {
+  const theme = getCliplyTheme(name);
+  const accent = normalizeHexColor(accentColor);
+
+  if (!accent || accent.toLowerCase() === theme.primary.toLowerCase()) {
+    return theme;
+  }
+
+  const rgb = hexToRgb(accent);
+  if (!rgb) {
+    return theme;
+  }
+
+  return {
+    ...theme,
+    primary: accent,
+    primaryHover: mixHex(accent, "#000000", 0.12),
+    primaryActive: mixHex(accent, "#000000", 0.22),
+    primarySoft: mixHex(accent, "#FFFFFF", 0.9),
+    primaryBorder: mixHex(accent, "#FFFFFF", 0.72),
+    primaryText: readableTextForColor(rgb),
+    focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
+    shadowSelected: `0 0 0 1px ${accent}, 0 8px 22px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.13)`,
+    swatch: accent,
+  };
+}
+
 export function getStoredCliplyThemeName(): CliplyThemeName {
   if (typeof window === "undefined") return DEFAULT_THEME_NAME;
 
@@ -491,4 +521,55 @@ export function restoreStoredCliplyTheme(): CliplyThemeTokens {
   const theme = resolveInitialCliplyTheme();
   applyCliplyTheme(theme);
   return theme;
+}
+
+function normalizeHexColor(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  const shortMatch = /^#([0-9a-f]{3})$/i.exec(trimmed);
+  if (shortMatch) {
+    const [r, g, b] = shortMatch[1].split("");
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+
+  return /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed.toUpperCase() : null;
+}
+
+function hexToRgb(hex: string) {
+  const normalized = normalizeHexColor(hex);
+  if (!normalized) {
+    return null;
+  }
+
+  return {
+    r: Number.parseInt(normalized.slice(1, 3), 16),
+    g: Number.parseInt(normalized.slice(3, 5), 16),
+    b: Number.parseInt(normalized.slice(5, 7), 16),
+  };
+}
+
+function mixHex(from: string, to: string, amount: number) {
+  const fromRgb = hexToRgb(from);
+  const toRgb = hexToRgb(to);
+  if (!fromRgb || !toRgb) {
+    return from;
+  }
+
+  const mixChannel = (start: number, end: number) =>
+    Math.round(start + (end - start) * amount)
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${mixChannel(fromRgb.r, toRgb.r)}${mixChannel(fromRgb.g, toRgb.g)}${mixChannel(
+    fromRgb.b,
+    toRgb.b,
+  )}`.toUpperCase();
+}
+
+function readableTextForColor(rgb: { r: number; g: number; b: number }) {
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+  return luminance > 0.72 ? "#1F2937" : "#FFFFFF";
 }

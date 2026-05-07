@@ -28,6 +28,15 @@ export async function toggleMainWindowMaximize() {
   await getCurrentWindow().toggleMaximize();
 }
 
+export async function minimizeMainWindow() {
+  if (!isTauri()) {
+    console.info("[cliply:mock-window] minimize main window");
+    return;
+  }
+
+  await invoke("minimize_main_window");
+}
+
 export async function showMainWindow() {
   if (!isTauri()) {
     console.info("[cliply:mock-window] show main window");

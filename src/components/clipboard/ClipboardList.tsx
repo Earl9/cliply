@@ -13,6 +13,7 @@ type ClipboardListProps = {
   errorMessage?: string | null;
   onSelectItem: (id: string) => void;
   onTogglePin: (id: string) => void;
+  onPasteItem: (id: string) => void;
   onItemContextMenu: (event: MouseEvent<HTMLElement>, item: ClipboardItem) => void;
 };
 
@@ -26,6 +27,7 @@ export function ClipboardList({
   errorMessage = null,
   onSelectItem,
   onTogglePin,
+  onPasteItem,
   onItemContextMenu,
 }: ClipboardListProps) {
   const footerText = getFooterText({ query, filter, shownCount: items.length, totalCount });
@@ -64,6 +66,7 @@ export function ClipboardList({
                 selected={item.id === selectedId}
                 onSelect={() => onSelectItem(item.id)}
                 onTogglePin={() => onTogglePin(item.id)}
+                onPaste={() => onPasteItem(item.id)}
                 onContextMenu={(event) => onItemContextMenu(event, item)}
               />
             ))}

@@ -42,11 +42,12 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
 
   return (
     <div className="absolute inset-0 z-30 grid place-items-center bg-slate-900/18 px-6 backdrop-blur-sm">
+      <div className="absolute inset-0" aria-hidden="true" data-tauri-drag-region />
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="cliply-about-title"
-        className="w-full max-w-[440px] rounded-2xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-5 shadow-2xl"
+        className="relative z-10 w-full max-w-[440px] rounded-2xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-5 shadow-2xl"
       >
         <div className="flex justify-end">
           <IconButton label="关闭关于" onClick={onClose}>
@@ -76,11 +77,11 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <dl className="grid gap-2 text-xs leading-5 text-[color:var(--cliply-muted)]">
               <div>
                 <dt className="font-medium text-[color:var(--cliply-body-text)]">日志文件</dt>
-                <dd className="break-all">{debugInfo?.logPath ?? "正在读取..."}</dd>
+                <dd className="cursor-text select-text break-all">{debugInfo?.logPath ?? "正在读取..."}</dd>
               </div>
               <div>
                 <dt className="font-medium text-[color:var(--cliply-body-text)]">数据库文件</dt>
-                <dd className="break-all">{debugInfo?.databasePath ?? "正在读取..."}</dd>
+                <dd className="cursor-text select-text break-all">{debugInfo?.databasePath ?? "正在读取..."}</dd>
               </div>
             </dl>
           </div>

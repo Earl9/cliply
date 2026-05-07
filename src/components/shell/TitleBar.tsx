@@ -1,8 +1,8 @@
-import { MoreHorizontal, Pin, Settings, X } from "lucide-react";
+import { Minus, MoreHorizontal, Pin, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { clsx } from "clsx";
 import cliplyLogo from "@/assets/cliply-logo.png";
-import { IconButton } from "@/components/common/IconButton";
-import { hideMainWindow, toggleMainWindowMaximize } from "@/lib/windowAdapter";
+import { hideMainWindow, minimizeMainWindow, toggleMainWindowMaximize } from "@/lib/windowAdapter";
 
 type TitleBarProps = {
   windowPinned: boolean;
@@ -71,35 +71,36 @@ export function TitleBar({
       </div>
 
       <div
-        className="flex items-center gap-2"
+        className="flex items-center gap-1 rounded-xl border border-transparent bg-white/35 p-0.5"
         onMouseDown={(event) => event.stopPropagation()}
         onDoubleClick={(event) => event.stopPropagation()}
       >
-        <IconButton
+        <TitleBarButton
           label={windowPinned ? "取消置顶" : "置顶窗口"}
-          variant={windowPinned ? "soft" : "ghost"}
+          active={windowPinned}
           onMouseDown={(event) => event.stopPropagation()}
           onClick={onToggleWindowPin}
         >
           <Pin className="size-4" />
-        </IconButton>
-        <IconButton
+        </TitleBarButton>
+        <TitleBarButton
           label="设置"
           onMouseDown={(event) => event.stopPropagation()}
           onClick={onOpenSettings}
         >
           <Settings className="size-4" />
-        </IconButton>
+        </TitleBarButton>
         <div ref={menuRef} className="relative">
-          <IconButton
+          <TitleBarButton
             label="更多"
+            active={menuOpen}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={() => setMenuOpen((open) => !open)}
           >
             <MoreHorizontal className="size-4" />
-          </IconButton>
+          </TitleBarButton>
           {menuOpen ? (
-            <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-1 shadow-xl">
+            <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-1.5 shadow-[0_18px_44px_rgba(15,23,42,0.16)]">
               <MenuButton onClick={() => runMenuAction(onToggleMonitoring)}>
                 {monitoringPaused ? "恢复监听" : "暂停监听"}
               </MenuButton>
@@ -108,16 +109,61 @@ export function TitleBar({
             </div>
           ) : null}
         </div>
-        <IconButton
+        <TitleBarButton
+          label="最小化"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={() => void minimizeMainWindow()}
+        >
+          <Minus className="size-4" />
+        </TitleBarButton>
+        <TitleBarButton
           label="关闭"
           variant="danger"
           onMouseDown={(event) => event.stopPropagation()}
           onClick={() => void hideMainWindow()}
         >
           <X className="size-4" />
-        </IconButton>
+        </TitleBarButton>
       </div>
     </header>
+  );
+}
+
+function TitleBarButton({
+  label,
+  children,
+  active = false,
+  variant = "ghost",
+  onMouseDown,
+  onClick,
+}: {
+  label: string;
+  children: ReactNode;
+  active?: boolean;
+  variant?: "ghost" | "danger";
+  onMouseDown?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onMouseDown={onMouseDown}
+      onClick={onClick}
+      className={clsx(
+        "grid size-8 place-items-center rounded-[10px] border border-transparent text-[color:var(--cliply-muted)] transition",
+        "hover:border-[color:var(--cliply-border)] hover:bg-white hover:text-[color:var(--cliply-text)] hover:shadow-[0_8px_18px_rgba(15,23,42,0.06)]",
+        "active:scale-95 active:bg-[color:var(--cliply-muted-bg)]",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
+        active &&
+          "border-[color:var(--cliply-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-[0_8px_18px_rgba(15,23,42,0.06)]",
+        variant === "danger" &&
+          "hover:border-transparent hover:bg-[color:var(--cliply-danger-soft)] hover:text-[color:var(--cliply-danger)]",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -132,7 +178,7 @@ function MenuButton({
     <button
       type="button"
       onClick={onClick}
-      className="h-8 w-full rounded-lg px-3 text-left text-[13px] font-medium text-[color:var(--cliply-text)] transition hover:bg-slate-900/[0.06]"
+      className="h-8 w-full rounded-lg px-3 text-left text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)]"
     >
       {children}
     </button>

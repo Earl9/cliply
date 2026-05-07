@@ -37,6 +37,9 @@ pub fn run() {
             commands::get_sync_package_status,
             commands::get_remote_sync_status,
             commands::set_remote_sync_provider,
+            commands::update_auto_sync_config,
+            commands::clear_auto_sync_password,
+            commands::sync_with_remote_now,
             commands::export_to_remote_sync_folder,
             commands::import_from_remote_sync_folder,
             commands::copy_clipboard_item,
@@ -50,6 +53,7 @@ pub fn run() {
             commands::set_monitoring_paused,
             commands::show_main_window,
             commands::hide_main_window,
+            commands::minimize_main_window,
             commands::toggle_main_window_pin
         ])
         .setup(|app| {
@@ -70,6 +74,14 @@ pub fn run() {
             platform::start_clipboard_listener(app.handle().clone())?;
             logger::info(app.handle(), "clipboard_listener_started", "listener ready");
             app.manage(ClipboardListenerShutdown);
+            let auto_sync_shutdown =
+                services::sync_scheduler_service::start_auto_sync_scheduler(app.handle().clone())?;
+            app.manage(auto_sync_shutdown);
+            logger::info(
+                app.handle(),
+                "auto_sync_scheduler_started",
+                "scheduler ready",
+            );
             if let Some(window) = app.get_webview_window("main") {
                 set_main_window_icon(app.handle(), &window);
 
@@ -118,6 +130,15 @@ pub fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 pub fn hide_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         window.hide()?;
+    }
+
+    Ok(())
+}
+
+pub fn minimize_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.minimize()?;
+        logger::info(app, "window_minimize", "main window minimized");
     }
 
     Ok(())
