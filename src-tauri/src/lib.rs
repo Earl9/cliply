@@ -11,11 +11,12 @@ mod tray;
 use std::time::Instant;
 use tauri::{Emitter, Manager};
 
-struct ClipboardListenerShutdown;
+struct ClipboardListenerShutdown(tauri::AppHandle);
 
 impl Drop for ClipboardListenerShutdown {
     fn drop(&mut self) {
         let _ = platform::stop_clipboard_listener();
+        logger::info(&self.0, "app_exit", "clipboard listener stopped");
     }
 }
 
@@ -47,6 +48,8 @@ pub fn run() {
             commands::paste_plain_text,
             commands::initialize_storage,
             commands::get_debug_info,
+            commands::open_log_directory,
+            commands::get_system_theme_colors,
             commands::get_cliply_settings,
             commands::update_cliply_settings,
             commands::check_global_shortcut,
@@ -73,7 +76,7 @@ pub fn run() {
             shortcuts::register_default_shortcuts(app.handle())?;
             platform::start_clipboard_listener(app.handle().clone())?;
             logger::info(app.handle(), "clipboard_listener_started", "listener ready");
-            app.manage(ClipboardListenerShutdown);
+            app.manage(ClipboardListenerShutdown(app.handle().clone()));
             let auto_sync_shutdown =
                 services::sync_scheduler_service::start_auto_sync_scheduler(app.handle().clone())?;
             app.manage(auto_sync_shutdown);
@@ -89,6 +92,7 @@ pub fn run() {
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
+                        logger::info(&handle, "window_close_requested", "hide instead of exit");
                         let _ = hide_main_window(&handle);
                     }
                 });

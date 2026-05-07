@@ -41,7 +41,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
   }
 
   return (
-    <div className="absolute inset-0 z-30 grid place-items-center bg-slate-900/18 px-6 backdrop-blur-sm">
+    <div className="absolute inset-0 z-30 grid place-items-center bg-black/30 px-6 backdrop-blur-sm">
       <div className="absolute inset-0" aria-hidden="true" data-tauri-drag-region />
       <section
         role="dialog"
@@ -72,9 +72,13 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <Badge tone="teal">SQLite</Badge>
             <Badge>Local-first</Badge>
           </div>
-          <div className="mt-5 w-full rounded-xl border border-[color:var(--cliply-border-soft)] bg-[#fbfcfe] p-3 text-left">
+          <div className="mt-5 w-full rounded-xl border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] p-3 text-left">
             <div className="mb-2 text-sm font-semibold text-[color:var(--cliply-text)]">Debug</div>
             <dl className="grid gap-2 text-xs leading-5 text-[color:var(--cliply-muted)]">
+              <div>
+                <dt className="font-medium text-[color:var(--cliply-body-text)]">版本</dt>
+                <dd className="cursor-text select-text break-all">{debugInfo?.appVersion ?? "正在读取..."}</dd>
+              </div>
               <div>
                 <dt className="font-medium text-[color:var(--cliply-body-text)]">日志文件</dt>
                 <dd className="cursor-text select-text break-all">{debugInfo?.logPath ?? "正在读取..."}</dd>
@@ -82,6 +86,10 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
               <div>
                 <dt className="font-medium text-[color:var(--cliply-body-text)]">数据库文件</dt>
                 <dd className="cursor-text select-text break-all">{debugInfo?.databasePath ?? "正在读取..."}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-[color:var(--cliply-body-text)]">历史记录数量</dt>
+                <dd>{debugInfo?.historyCount ?? "正在读取..."}</dd>
               </div>
             </dl>
           </div>

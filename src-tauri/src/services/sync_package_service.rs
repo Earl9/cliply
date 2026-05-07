@@ -43,6 +43,8 @@ pub struct SyncPackagePayload {
     pub exported_at: String,
     pub device: SyncPackageDevice,
     pub items: Vec<SyncPackageItem>,
+    #[serde(default)]
+    pub sync_blobs: Vec<SyncPackageBlob>,
     pub sync_events: Vec<SyncPackageEvent>,
 }
 
@@ -84,6 +86,22 @@ pub struct SyncPackageFormat {
     pub size_bytes: i64,
     pub priority: i64,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SyncPackageBlob {
+    pub id: String,
+    pub item_id: String,
+    pub blob_type: String,
+    pub remote_path: Option<String>,
+    pub size_bytes: i64,
+    pub hash: String,
+    pub encrypted: bool,
+    pub sync_status: Option<String>,
+    pub created_at: String,
+    pub uploaded_at: Option<String>,
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,6 +161,7 @@ pub fn build_sync_package_bytes(
         exported_at: exported_at.clone(),
         device: device.clone(),
         items: load_export_items(&connection)?,
+        sync_blobs: load_export_sync_blobs(&connection)?,
         sync_events: load_export_events(&connection)?,
     };
     let payload_json = serde_json::to_vec(&payload)
@@ -178,7 +197,7 @@ pub fn import_sync_package_bytes(
     password: &str,
 ) -> Result<SyncImportResult, CliplyError> {
     let package_json = std::str::from_utf8(package_bytes)
-        .map_err(|_| CliplyError::Sync("file format is invalid".to_string()))?;
+        .map_err(|_| CliplyError::Sync("文件格式不正确".to_string()))?;
     let envelope: SyncPackageEnvelope = serde_json::from_str(package_json)
         .map_err(|_| CliplyError::Sync("文件格式不正确".to_string()))?;
     validate_envelope(&envelope)?;
@@ -207,10 +226,10 @@ pub fn import_sync_payload(
             set_sync_state_value(&transaction, LAST_IMPORTED_AT_KEY, &imported_at)?;
             Ok(result)
         })
-        .map_err(|error| CliplyError::Sync(format!("import failed and rolled back: {error}")))?;
+        .map_err(|error| CliplyError::Sync(format!("导入失败，已回滚: {error}")))?;
     transaction
         .commit()
-        .map_err(|error| CliplyError::Sync(format!("import failed and rolled back: {error}")))?;
+        .map_err(|error| CliplyError::Sync(format!("导入失败，已回滚: {error}")))?;
     Ok(result)
 }
 
@@ -361,6 +380,42 @@ fn load_export_tags(connection: &Connection, item_id: &str) -> Result<Vec<String
     Ok(tags)
 }
 
+fn load_export_sync_blobs(connection: &Connection) -> Result<Vec<SyncPackageBlob>, CliplyError> {
+    let mut statement = match connection.prepare(
+        "SELECT id, item_id, blob_type, remote_path, COALESCE(size_bytes, 0),
+                hash, COALESCE(encrypted, 0), sync_status, created_at,
+                uploaded_at, deleted_at
+         FROM sync_blobs
+         ORDER BY datetime(created_at) ASC, id ASC
+         LIMIT 10000",
+    ) {
+        Ok(statement) => statement,
+        Err(error) if is_missing_sync_blobs_table(&error) => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    let rows = statement.query_map([], |row| {
+        Ok(SyncPackageBlob {
+            id: row.get(0)?,
+            item_id: row.get(1)?,
+            blob_type: row.get(2)?,
+            remote_path: row.get(3)?,
+            size_bytes: row.get(4)?,
+            hash: row.get(5)?,
+            encrypted: row.get::<_, i64>(6)? == 1,
+            sync_status: row.get(7)?,
+            created_at: row.get(8)?,
+            uploaded_at: row.get(9)?,
+            deleted_at: row.get(10)?,
+        })
+    })?;
+
+    let mut blobs = Vec::new();
+    for row in rows {
+        blobs.push(row?);
+    }
+    Ok(blobs)
+}
+
 fn load_export_events(connection: &Connection) -> Result<Vec<SyncPackageEvent>, CliplyError> {
     let mut statement = connection.prepare(
         "SELECT id, item_id, event_type, payload_json, created_at, synced_at
@@ -384,6 +439,14 @@ fn load_export_events(connection: &Connection) -> Result<Vec<SyncPackageEvent>, 
         events.push(row?);
     }
     Ok(events)
+}
+
+fn is_missing_sync_blobs_table(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(_, Some(message))
+            if message.contains("no such table: sync_blobs")
+    )
 }
 
 fn normalize_package_path(path: &Path) -> PathBuf {

@@ -674,8 +674,13 @@ impl SyncStorageProvider for FtpSyncProvider {
 
     fn delete(&self, path: &str) -> Result<(), CliplyError> {
         let (mut connection, remote_path) = self.connect_with_path(path)?;
-        if connection.rm(&remote_path).is_err() {
+        if connection.is_dir(&remote_path)? {
             let _ = connection.rmdir(&remote_path);
+            connection.quit();
+            return Ok(());
+        }
+        if connection.file_exists(&remote_path) {
+            let _ = connection.rm(&remote_path);
         }
         connection.quit();
         Ok(())
@@ -782,9 +787,17 @@ impl FtpConnection {
     }
 
     fn exists(&mut self, path: &str) -> Result<bool, CliplyError> {
-        if self.size(path).is_ok() {
+        if self.file_exists(path) {
             return Ok(true);
         }
+        self.is_dir(path)
+    }
+
+    fn file_exists(&mut self, path: &str) -> bool {
+        self.size(path).is_ok()
+    }
+
+    fn is_dir(&mut self, path: &str) -> Result<bool, CliplyError> {
         let original_directory = self.pwd().ok();
         if self.cwd(path).is_ok() {
             self.restore_working_dir(original_directory.as_deref());

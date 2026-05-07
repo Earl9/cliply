@@ -23,10 +23,10 @@ export function ClipboardDetailPane({
 }: ClipboardDetailPaneProps) {
   return (
     <section
-      className="grid min-h-0 min-w-0 grid-rows-[50px_1fr_auto] overflow-hidden rounded-[12px] border border-[color:var(--cliply-border)] bg-white shadow-[var(--cliply-shadow-card)] ring-1 ring-white/80"
+      className="grid min-h-0 min-w-0 grid-rows-[50px_1fr_auto] overflow-hidden rounded-[12px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]"
       onContextMenu={(event) => onContextMenu(event, item)}
     >
-      <header className="flex h-[50px] shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] bg-white px-4">
+      <header className="flex h-[50px] shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-4">
         <div>
           <h2 className="text-base font-semibold text-[color:var(--cliply-text)]">
             {item ? `${typeLabel[item.type]} · ${item.sourceApp}` : "内容详情"}
@@ -49,7 +49,7 @@ export function ClipboardDetailPane({
       </header>
       {item ? (
         <>
-          <div className="cliply-scrollbar min-h-0 overflow-y-auto bg-white px-4 pb-3 pt-3">
+          <div className="cliply-scrollbar min-h-0 overflow-y-auto bg-[color:var(--cliply-card)] px-4 pb-3 pt-3">
             <ClipboardPreview item={item} onOpenImage={onOpenImage} />
             <ClipboardMetadata item={item} />
           </div>

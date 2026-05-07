@@ -1,8 +1,13 @@
-import { Minus, MoreHorizontal, Pin, Settings, X } from "lucide-react";
+import { Maximize2, Minimize2, Minus, MoreHorizontal, Pin, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
 import cliplyLogo from "@/assets/cliply-logo.png";
-import { hideMainWindow, minimizeMainWindow, toggleMainWindowMaximize } from "@/lib/windowAdapter";
+import {
+  hideMainWindow,
+  isMainWindowMaximized,
+  minimizeMainWindow,
+  toggleMainWindowMaximize,
+} from "@/lib/windowAdapter";
 
 type TitleBarProps = {
   windowPinned: boolean;
@@ -24,7 +29,28 @@ export function TitleBar({
   onToggleMonitoring,
 }: TitleBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void isMainWindowMaximized()
+      .then((nextMaximized) => {
+        if (!cancelled) {
+          setMaximized(nextMaximized);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMaximized(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -46,11 +72,19 @@ export function TitleBar({
     action();
   };
 
+  const toggleMaximize = async () => {
+    try {
+      setMaximized(await toggleMainWindowMaximize());
+    } catch {
+      setMaximized(await isMainWindowMaximized().catch(() => false));
+    }
+  };
+
   return (
     <header
       className="flex h-12 shrink-0 select-none items-center justify-between px-5"
       data-tauri-drag-region
-      onDoubleClick={() => void toggleMainWindowMaximize()}
+      onDoubleClick={() => void toggleMaximize()}
     >
       <div className="flex min-w-0 items-center gap-3" data-tauri-drag-region>
         <img
@@ -71,7 +105,7 @@ export function TitleBar({
       </div>
 
       <div
-        className="flex items-center gap-1 rounded-xl border border-transparent bg-white/35 p-0.5"
+        className="flex items-center gap-1 rounded-xl border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] p-0.5"
         onMouseDown={(event) => event.stopPropagation()}
         onDoubleClick={(event) => event.stopPropagation()}
       >
@@ -117,6 +151,14 @@ export function TitleBar({
           <Minus className="size-4" />
         </TitleBarButton>
         <TitleBarButton
+          label={maximized ? "还原窗口" : "最大化"}
+          active={maximized}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={() => void toggleMaximize()}
+        >
+          {maximized ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+        </TitleBarButton>
+        <TitleBarButton
           label="关闭"
           variant="danger"
           onMouseDown={(event) => event.stopPropagation()}
@@ -153,7 +195,7 @@ function TitleBarButton({
       onClick={onClick}
       className={clsx(
         "grid size-8 place-items-center rounded-[10px] border border-transparent text-[color:var(--cliply-muted)] transition",
-        "hover:border-[color:var(--cliply-border)] hover:bg-white hover:text-[color:var(--cliply-text)] hover:shadow-[0_8px_18px_rgba(15,23,42,0.06)]",
+        "hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] hover:text-[color:var(--cliply-text)] hover:shadow-[0_8px_18px_rgba(15,23,42,0.08)]",
         "active:scale-95 active:bg-[color:var(--cliply-muted-bg)]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
         active &&

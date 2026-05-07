@@ -26,6 +26,11 @@
   --cliply-faint: #7c8798;
   --cliply-placeholder: #6f7b8d;
   --cliply-disabled: #b6bec9;
+  --cliply-disabled-bg: #f3f5f8;
+  --cliply-disabled-border: #edf1f6;
+  --cliply-checker-color: rgba(148, 163, 184, 0.1);
+  --cliply-checker-size: 14px;
+  --cliply-checker-half: 7px;
   --cliply-accent-50: #eff1ff;
   --cliply-accent-100: #dee2ff;
   --cliply-accent: #5b6cff;
@@ -36,7 +41,9 @@
   --cliply-success: #16a34a;
   --cliply-warning: #f59e0b;
   --cliply-danger: #dc2626;
+  --cliply-danger-soft: #fef2f2;
   --cliply-info: #2563eb;
+  --cliply-info-soft: #eff6ff;
   --cliply-teal: #0f928b;
   --cliply-amber: #b7791f;
   --cliply-shadow: 0 26px 84px rgba(15, 23, 42, 0.14);
@@ -48,20 +55,30 @@
 }
 
 :root[data-theme="dark"] {
-  --cliply-bg: #111723;
-  --cliply-bg-soft: #171f2e;
-  --cliply-panel: #1c2433;
-  --cliply-panel-strong: #202939;
-  --cliply-card: #202939;
-  --cliply-card-solid: #202939;
-  --cliply-border: rgba(176, 190, 211, 0.16);
-  --cliply-border-soft: rgba(176, 190, 211, 0.12);
-  --cliply-border-strong: rgba(176, 190, 211, 0.26);
-  --cliply-text: #f3f7fb;
-  --cliply-body-text: #e5edf7;
-  --cliply-muted: #b7c1d2;
-  --cliply-faint: #8794a8;
-  --cliply-placeholder: #9aa8bb;
+  --cliply-bg: #0b1120;
+  --cliply-bg-soft: #0f172a;
+  --cliply-panel: #0f172a;
+  --cliply-panel-strong: #111c2e;
+  --cliply-card: #152238;
+  --cliply-card-solid: #152238;
+  --cliply-border: rgba(148, 163, 184, 0.18);
+  --cliply-border-soft: rgba(148, 163, 184, 0.12);
+  --cliply-border-strong: rgba(148, 163, 184, 0.28);
+  --cliply-text: #f8fafc;
+  --cliply-body-text: #f8fafc;
+  --cliply-muted: #94a3b8;
+  --cliply-faint: #cbd5e1;
+  --cliply-placeholder: #64748b;
+  --cliply-disabled-text: #64748b;
+  --cliply-disabled-bg: rgba(100, 116, 139, 0.16);
+  --cliply-disabled-border: rgba(148, 163, 184, 0.1);
+  --cliply-checker-color: rgba(148, 163, 184, 0.045);
+  --cliply-checker-size: 24px;
+  --cliply-checker-half: 12px;
+  --cliply-success-soft: rgba(34, 197, 94, 0.14);
+  --cliply-warning-soft: rgba(245, 158, 11, 0.16);
+  --cliply-danger-soft: rgba(239, 68, 68, 0.16);
+  --cliply-info-soft: rgba(37, 99, 235, 0.18);
 }
 
 * {
@@ -162,6 +179,67 @@ button {
 
 .cliply-code-font {
   font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+.cliply-image-checker {
+  background-color: var(--cliply-input-bg);
+  background-image:
+    linear-gradient(45deg, var(--cliply-checker-color) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--cliply-checker-color) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--cliply-checker-color) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--cliply-checker-color) 75%);
+  background-position:
+    0 0,
+    0 var(--cliply-checker-half),
+    var(--cliply-checker-half) calc(-1 * var(--cliply-checker-half)),
+    calc(-1 * var(--cliply-checker-half)) 0;
+  background-size: var(--cliply-checker-size) var(--cliply-checker-size);
+}
+
+@keyframes cliply-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cliply-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.cliply-toast {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.cliply-toast[data-phase="open"] {
+  animation: cliply-toast-in 200ms ease-out both;
+}
+
+.cliply-toast[data-phase="closing"] {
+  animation: cliply-toast-out 180ms ease-in both;
+}
+
+:root[data-theme="dark"] .cliply-toast {
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
 }
 
 @media (prefers-reduced-motion: reduce) {

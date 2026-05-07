@@ -19,6 +19,50 @@ pub struct CliplySettings {
     pub theme: String,
     pub theme_name: String,
     pub accent_color: String,
+    pub auto_theme: CliplyAutoThemeSettings,
+    pub image_sync: CliplyImageSyncSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CliplyAutoThemeSettings {
+    pub enabled: bool,
+    pub source: String,
+    pub intensity: String,
+    pub apply_scope: String,
+}
+
+impl Default for CliplyAutoThemeSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            source: "system-accent".to_string(),
+            intensity: "normal".to_string(),
+            apply_scope: "accent-only".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CliplyImageSyncSettings {
+    pub mode: String,
+    pub max_dimension: u32,
+    pub quality: u8,
+    pub strip_metadata: bool,
+    pub max_image_size_mb: u32,
+}
+
+impl Default for CliplyImageSyncSettings {
+    fn default() -> Self {
+        Self {
+            mode: "metadata-only".to_string(),
+            max_dimension: 1920,
+            quality: 80,
+            strip_metadata: true,
+            max_image_size_mb: 25,
+        }
+    }
 }
 
 impl Default for CliplySettings {
@@ -46,6 +90,8 @@ impl Default for CliplySettings {
             theme: "light".to_string(),
             theme_name: "purple-default".to_string(),
             accent_color: "#6D4CFF".to_string(),
+            auto_theme: CliplyAutoThemeSettings::default(),
+            image_sync: CliplyImageSyncSettings::default(),
         }
     }
 }

@@ -1,4 +1,5 @@
 use crate::error::CliplyError;
+use crate::logger;
 use crate::platform::{self, ClipboardWritePayload};
 use crate::services::{database_service, settings_service};
 use rusqlite::params;
@@ -7,7 +8,9 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 pub fn copy_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyError> {
-    write_item_to_clipboard(app, &id)
+    write_item_to_clipboard(app, &id)?;
+    logger::info(app, "clipboard_copy", format!("item_id={id}"));
+    Ok(())
 }
 
 pub fn paste_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyError> {
@@ -20,7 +23,9 @@ pub fn paste_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyErr
         hide_main_window(app);
     }
     thread::sleep(Duration::from_millis(120));
-    platform::paste_to_foreground()
+    platform::paste_to_foreground()?;
+    logger::info(app, "clipboard_paste", format!("item_id={id} mode=rich"));
+    Ok(())
 }
 
 pub fn paste_plain_text(app: &AppHandle, id: String) -> Result<(), CliplyError> {
@@ -41,7 +46,9 @@ pub fn paste_plain_text(app: &AppHandle, id: String) -> Result<(), CliplyError> 
         hide_main_window(app);
     }
     thread::sleep(Duration::from_millis(120));
-    platform::paste_to_foreground()
+    platform::paste_to_foreground()?;
+    logger::info(app, "clipboard_paste", format!("item_id={id} mode=plain"));
+    Ok(())
 }
 
 fn write_item_to_clipboard(app: &AppHandle, id: &str) -> Result<(), CliplyError> {

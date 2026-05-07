@@ -1,6 +1,7 @@
 pub mod linux;
 pub mod macos;
 pub mod secure_storage;
+pub mod theme_adapter;
 pub mod windows;
 
 use crate::error::CliplyError;

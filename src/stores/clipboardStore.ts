@@ -579,7 +579,12 @@ export function useClipboardStore() {
     });
   }, []);
 
+  const clearActionStatus = useCallback(() => {
+    setActionStatus(null);
+  }, []);
+
   const openSettings = useCallback(() => {
+    setActionStatus(null);
     setDialogs({
       settings: true,
       about: false,
@@ -608,32 +613,20 @@ export function useClipboardStore() {
     clearHistory();
   }, [clearHistory, closeDialogs]);
 
-  const setSettings = useCallback((nextSettings: CliplySettings) => {
+  const setSettings = useCallback(async (nextSettings: CliplySettings) => {
     const previousSettings = settings;
     setSettingsState(nextSettings);
-    closeDialogs();
-    void updateCliplySettings(nextSettings)
-      .then((savedSettings) => {
-        setSettingsState(savedSettings);
-        setMonitoringErrorMessage(null);
-        setActionStatus({
-          label: "设置已保存",
-          itemTitle: "本地配置已更新",
-          at: Date.now(),
-        });
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : storeErrorLabels.settings;
-        setSettingsState(previousSettings);
-        setMonitoringErrorMessage(message || "设置保存失败，请检查本地权限");
-        setActionStatus({
-          label: "设置保存失败",
-          itemTitle: "本地配置未保存",
-          at: Date.now(),
-          tone: "error",
-        });
-      });
-  }, [closeDialogs, settings]);
+    try {
+      const savedSettings = await updateCliplySettings(nextSettings);
+      setSettingsState(savedSettings);
+      setMonitoringErrorMessage(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : storeErrorLabels.settings;
+      setSettingsState(previousSettings);
+      setMonitoringErrorMessage(message || "设置保存失败，请检查本地权限");
+      throw new Error(message || storeErrorLabels.settings);
+    }
+  }, [settings]);
 
   const toggleMonitoring = useCallback(() => {
     const paused = !settings.pauseMonitoring;
@@ -688,6 +681,7 @@ export function useClipboardStore() {
     openSettings,
     openAbout,
     closeDialogs,
+    clearActionStatus,
     toggleMonitoring,
     handleGlobalKeyDown,
   };

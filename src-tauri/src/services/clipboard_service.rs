@@ -6,8 +6,7 @@ use crate::models::clipboard_item::{
 use crate::models::settings::CliplySettings;
 use crate::platform::{self, ClipboardSnapshot};
 use crate::services::{
-    blob_service, database_service, hash_service, sensitive_detector, settings_service,
-    sync_service,
+    blob_service, database_service, hash_service, settings_service, sync_blob_service, sync_service,
 };
 use rusqlite::{params, Connection, Row};
 use tauri::AppHandle;
@@ -97,7 +96,13 @@ pub fn toggle_pin_clipboard_item(
     }
 
     sync_service::mark_item_updated(&connection, &id, &now)?;
-    load_item(&connection, &id)
+    let item = load_item(&connection, &id)?;
+    logger::info(
+        app,
+        "clipboard_pin_toggled",
+        format!("item_id={id} is_pinned={}", item.is_pinned),
+    );
+    Ok(item)
 }
 
 pub fn delete_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyError> {
@@ -129,8 +134,10 @@ pub fn delete_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyEr
     )?;
 
     sync_service::mark_item_deleted(&transaction, &id, &now)?;
+    sync_blob_service::mark_item_blobs_deleted(&transaction, &id, &now)?;
 
     transaction.commit()?;
+    logger::info(app, "clipboard_deleted", format!("item_id={id}"));
     Ok(())
 }
 
@@ -170,15 +177,25 @@ pub fn clear_clipboard_history(app: &AppHandle, include_pinned: bool) -> Result<
         params![include_pinned_flag, now],
     )?;
 
+    let affected_items = item_ids.len();
     for item_id in item_ids {
         transaction.execute(
             "DELETE FROM clipboard_items_fts WHERE item_id = ?1",
             params![item_id],
         )?;
         sync_service::mark_item_deleted(&transaction, &item_id, &now)?;
+        sync_blob_service::mark_item_blobs_deleted(&transaction, &item_id, &now)?;
     }
 
     transaction.commit()?;
+    logger::info(
+        app,
+        "clipboard_history_cleared",
+        format!(
+            "include_pinned={include_pinned} affected_items={}",
+            affected_items
+        ),
+    );
     Ok(())
 }
 
@@ -217,10 +234,6 @@ pub fn ingest_clipboard_snapshot(
         .unwrap_or_else(|_| settings_service::default_settings());
     let source_app = source_app_from_snapshot(&snapshot);
 
-    if is_ignored_source_app(&source_app, &settings.ignore_apps) {
-        return Ok(None);
-    }
-
     let has_text = snapshot
         .text
         .as_deref()
@@ -234,31 +247,16 @@ pub fn ingest_clipboard_snapshot(
         _ => return Ok(None),
     };
 
-    let sensitivity = sensitive_detector::analyze(text);
-    if !settings.save_sensitive && sensitivity.risk == sensitive_detector::SensitivityRisk::High {
-        return Ok(None);
-    }
-    let redact_sensitive_text =
-        !settings.save_sensitive && sensitivity.risk == sensitive_detector::SensitivityRisk::Medium;
-
     let mut connection = database_service::connect(app)?;
-    let normalized_text = if redact_sensitive_text {
-        String::new()
-    } else {
-        hash_service::normalize_text_for_hash(text)
-    };
-    let hash = if redact_sensitive_text {
-        format!("redacted-{}", Uuid::new_v4())
-    } else {
-        hash_service::stable_text_hash(text)
-    };
+    let normalized_text = hash_service::normalize_text_for_hash(text);
+    let hash = hash_service::stable_text_hash(text);
     let item_type = item_type_as_str(&snapshot.primary_type);
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
     let device_id = sync_service::current_device_id(&connection)?;
 
-    if !redact_sensitive_text && settings.ignore_duplicate {
+    if settings.ignore_duplicate {
         if let Some(existing_id) = find_existing_item_id(&connection, &hash)? {
             connection.execute(
                 "UPDATE clipboard_items
@@ -282,17 +280,10 @@ pub fn ingest_clipboard_snapshot(
 
     let id = Uuid::new_v4().to_string();
     let sync_id = Uuid::new_v4().to_string();
-    let (title, preview_text) = if redact_sensitive_text {
-        (
-            "已隐藏敏感内容".to_string(),
-            "已隐藏疑似验证码等敏感内容".to_string(),
-        )
-    } else {
-        (title_from_text(text), preview_from_text(text))
-    };
+    let (title, preview_text) = (title_from_text(text), preview_from_text(text));
     let source_window = snapshot.source_window;
     let size_bytes = text.len() as i64;
-    let sensitive_score = i64::from(sensitivity.score);
+    let sensitive_score = 0_i64;
 
     connection.execute(
         "INSERT INTO clipboard_items (
@@ -318,23 +309,14 @@ pub fn ingest_clipboard_snapshot(
         ],
     )?;
 
-    if !redact_sensitive_text {
-        connection.execute(
-            "INSERT INTO clipboard_formats (
-                id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
-            ) VALUES (?1, ?2, 'text/plain', 'text/plain', 'text', ?3, ?4, 100, ?5)",
-            params![format!("{id}-format-text"), id, text, size_bytes, now],
-        )?;
-    }
+    connection.execute(
+        "INSERT INTO clipboard_formats (
+            id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
+        ) VALUES (?1, ?2, 'text/plain', 'text/plain', 'text', ?3, ?4, 100, ?5)",
+        params![format!("{id}-format-text"), id, text, size_bytes, now],
+    )?;
 
     for (index, format) in snapshot.formats.iter().enumerate() {
-        let data_kind =
-            if redact_sensitive_text && matches!(format.data_kind.as_str(), "text" | "html") {
-                "external_ref"
-            } else {
-                format.data_kind.as_str()
-            };
-
         connection.execute(
             "INSERT OR IGNORE INTO clipboard_formats (
                 id, item_id, format_name, mime_type, data_kind, data_text, size_bytes, priority, created_at
@@ -344,7 +326,7 @@ pub fn ingest_clipboard_snapshot(
                 id,
                 format.format_name,
                 format.mime_type,
-                data_kind,
+                format.data_kind,
                 50 - index as i64,
                 now
             ],
@@ -501,6 +483,30 @@ fn ingest_image_snapshot(
 
     upsert_fts(&connection, &id, &title, &preview_text, "", &source_app)?;
     sync_service::mark_item_created(&connection, &id, "image", &sync_id, &device_id, &now)?;
+    match blob_service::prepare_image_sync_blobs(
+        app,
+        &id,
+        &stored_blob.image_path,
+        stored_blob.size_bytes,
+        &settings.image_sync,
+    )
+    .and_then(|blobs| sync_blob_service::insert_image_sync_blobs(&connection, &id, &blobs, &now))
+    {
+        Ok(count) if count > 0 => logger::info(
+            app,
+            "image_sync_blobs_prepared",
+            format!(
+                "item_id={id} count={count} mode={}",
+                settings.image_sync.mode
+            ),
+        ),
+        Ok(_) => {}
+        Err(error) => logger::error(
+            app,
+            "image_sync_blob_prepare_failed",
+            format!("item_id={id} error={error}"),
+        ),
+    }
 
     let item = load_item(&connection, &id)?;
     enforce_history_retention_for_connection(&mut connection, settings)?;
@@ -595,6 +601,7 @@ fn apply_history_retention_policy(
                 params![item_id],
             )?;
             sync_service::mark_item_deleted(&transaction, &item_id, &policy.updated_at)?;
+            sync_blob_service::mark_item_blobs_deleted(&transaction, &item_id, &policy.updated_at)?;
         }
     }
 
@@ -684,6 +691,7 @@ fn load_item(connection: &Connection, id: &str) -> Result<ClipboardItemDto, Clip
     )?;
     item.tags = load_tags(connection, &item.id)?;
     item.thumbnail_path = load_image_path(connection, &item.id, true)?;
+    hydrate_image_display_size(connection, &mut item)?;
     Ok(item)
 }
 
@@ -715,6 +723,22 @@ fn load_formats(
     Ok(formats)
 }
 
+fn hydrate_image_display_size(
+    connection: &Connection,
+    item: &mut ClipboardItemDto,
+) -> Result<(), CliplyError> {
+    if item.item_type != ClipboardItemType::Image {
+        return Ok(());
+    }
+
+    if let Some(size_bytes) = sync_blob_service::available_image_display_size(connection, &item.id)?
+    {
+        item.size_bytes = size_bytes;
+    }
+
+    Ok(())
+}
+
 fn load_full_text(connection: &Connection, item_id: &str) -> Result<Option<String>, CliplyError> {
     let mut statement = connection.prepare(
         "SELECT data_text
@@ -737,8 +761,9 @@ fn load_image_path(
     item_id: &str,
     thumbnail: bool,
 ) -> Result<Option<String>, CliplyError> {
-    let result = if thumbnail {
-        connection.query_row(
+    let primary_result = if thumbnail {
+        query_image_path(
+            connection,
             "SELECT data_path
              FROM clipboard_formats
              WHERE item_id = ?1
@@ -747,11 +772,11 @@ fn load_image_path(
                AND data_path IS NOT NULL
              ORDER BY priority DESC, created_at ASC
              LIMIT 1",
-            params![item_id],
-            |row| row.get::<_, String>(0),
+            item_id,
         )
     } else {
-        connection.query_row(
+        query_image_path(
+            connection,
             "SELECT data_path
              FROM clipboard_formats
              WHERE item_id = ?1
@@ -760,16 +785,71 @@ fn load_image_path(
                AND data_path IS NOT NULL
              ORDER BY priority DESC, created_at ASC
              LIMIT 1",
-            params![item_id],
-            |row| row.get::<_, String>(0),
+            item_id,
         )
     };
 
-    match result {
+    match primary_result? {
+        Some(value) if std::path::Path::new(&value).exists() => Ok(Some(value)),
+        Some(_) | None => load_sync_blob_image_path(connection, item_id, thumbnail),
+    }
+}
+
+fn query_image_path(
+    connection: &Connection,
+    sql: &str,
+    item_id: &str,
+) -> Result<Option<String>, CliplyError> {
+    match connection.query_row(sql, params![item_id], |row| row.get::<_, String>(0)) {
         Ok(value) => Ok(Some(value)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(error) => Err(error.into()),
     }
+}
+
+fn load_sync_blob_image_path(
+    connection: &Connection,
+    item_id: &str,
+    thumbnail: bool,
+) -> Result<Option<String>, CliplyError> {
+    let blob_types = if thumbnail {
+        ["preview", "compressed", "original"]
+    } else {
+        ["original", "compressed", "preview"]
+    };
+    let result = connection.query_row(
+        "SELECT local_path
+         FROM sync_blobs
+         WHERE item_id = ?1
+           AND blob_type IN (?2, ?3, ?4)
+           AND local_path IS NOT NULL
+           AND deleted_at IS NULL
+         ORDER BY CASE blob_type
+           WHEN ?2 THEN 0
+           WHEN ?3 THEN 1
+           ELSE 2
+         END,
+         created_at DESC
+         LIMIT 1",
+        params![item_id, blob_types[0], blob_types[1], blob_types[2]],
+        |row| row.get::<_, String>(0),
+    );
+
+    match result {
+        Ok(value) if std::path::Path::new(&value).exists() => Ok(Some(value)),
+        Ok(_) => Ok(None),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(error) if is_missing_sync_blobs_table(&error) => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn is_missing_sync_blobs_table(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(_, Some(message))
+            if message.contains("no such table: sync_blobs")
+    )
 }
 
 fn image_dimensions_from_preview(preview_text: &str) -> (Option<u32>, Option<u32>) {
@@ -939,6 +1019,7 @@ where
         let mut item = row?;
         item.tags = load_tags(connection, &item.id)?;
         item.thumbnail_path = load_image_path(connection, &item.id, true)?;
+        hydrate_image_display_size(connection, &mut item)?;
         items.push(item);
     }
 
@@ -953,30 +1034,6 @@ fn source_app_from_snapshot(snapshot: &ClipboardSnapshot) -> String {
         .filter(|source_app| !source_app.is_empty())
         .unwrap_or("Windows Clipboard")
         .to_string()
-}
-
-fn is_ignored_source_app(source_app: &str, ignore_apps: &[String]) -> bool {
-    let normalized_source = normalize_app_name(source_app);
-
-    ignore_apps
-        .iter()
-        .map(|app| normalize_app_name(app))
-        .any(|ignored_app| {
-            !ignored_app.is_empty()
-                && (normalized_source == ignored_app
-                    || normalized_source.contains(&ignored_app)
-                    || ignored_app.contains(&normalized_source))
-        })
-}
-
-fn normalize_app_name(value: &str) -> String {
-    value
-        .trim()
-        .trim_end_matches(".exe")
-        .to_lowercase()
-        .chars()
-        .filter(|character| !character.is_whitespace() && *character != '-' && *character != '_')
-        .collect()
 }
 
 fn map_item_row(row: &Row<'_>) -> rusqlite::Result<ClipboardItemDto> {
@@ -1096,30 +1153,10 @@ fn format_timestamp(value: OffsetDateTime) -> Result<String, CliplyError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_history_retention_policy, find_existing_item_id, is_ignored_source_app, load_items,
-        normalize_app_name, search_items, HistoryRetentionPolicy,
+        apply_history_retention_policy, find_existing_item_id, load_items, search_items,
+        HistoryRetentionPolicy,
     };
     use rusqlite::{params, Connection};
-
-    #[test]
-    fn matches_ignored_apps_case_and_exe_insensitively() {
-        let ignored = vec!["KeePassXC".to_string(), "1Password".to_string()];
-
-        assert!(is_ignored_source_app("keepassxc.exe", &ignored));
-        assert!(is_ignored_source_app("1password", &ignored));
-    }
-
-    #[test]
-    fn does_not_match_unrelated_apps() {
-        let ignored = vec!["Bitwarden".to_string()];
-
-        assert!(!is_ignored_source_app("Visual Studio Code", &ignored));
-    }
-
-    #[test]
-    fn normalizes_app_names_for_matching() {
-        assert_eq!(normalize_app_name("KeePass-XC.exe"), "keepassxc");
-    }
 
     #[test]
     fn retention_preserves_pinned_items() {

@@ -1,3 +1,8 @@
+import {
+  DEFAULT_AUTO_THEME_SETTINGS,
+  type CliplyAutoThemeSettings,
+} from "@/theme/theme";
+
 export type CliplySettings = {
   maxHistoryItems: number;
   autoDeleteDays: number;
@@ -12,9 +17,25 @@ export type CliplySettings = {
   saveSensitive: boolean;
   ignoreApps: string[];
   globalShortcut: string;
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "system";
   themeName: string;
   accentColor: string;
+  autoTheme: CliplyAutoThemeSettings;
+  imageSync: CliplyImageSyncSettings;
+};
+
+export type ImageSyncMode =
+  | "metadata-only"
+  | "compressed"
+  | "original"
+  | "original-with-preview";
+
+export type CliplyImageSyncSettings = {
+  mode: ImageSyncMode;
+  maxDimension: number;
+  quality: number;
+  stripMetadata: boolean;
+  maxImageSizeMB: number;
 };
 
 export type SettingsState = CliplySettings;
@@ -36,4 +57,12 @@ export const defaultSettingsState: CliplySettings = {
   theme: "light",
   themeName: "purple-default",
   accentColor: "#6D4CFF",
+  autoTheme: DEFAULT_AUTO_THEME_SETTINGS,
+  imageSync: {
+    mode: "metadata-only",
+    maxDimension: 1920,
+    quality: 80,
+    stripMetadata: true,
+    maxImageSizeMB: 25,
+  },
 };

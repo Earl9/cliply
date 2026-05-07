@@ -10,7 +10,7 @@ export function EmptyState({
   description = "复制一段文字、链接或图片后，它会出现在这里。",
 }: EmptyStateProps) {
   return (
-    <div className="grid min-h-48 place-items-center rounded-xl border border-dashed border-[color:var(--cliply-border)] bg-white/50 p-6 text-center">
+    <div className="grid min-h-48 place-items-center rounded-xl border border-dashed border-[color:var(--cliply-border)] bg-[color:var(--cliply-muted-bg)] p-6 text-center">
       <div>
         <Clipboard className="mx-auto mb-3 size-8 text-[color:var(--cliply-faint)]" />
         <p className="text-sm font-semibold text-[color:var(--cliply-text)]">{title}</p>

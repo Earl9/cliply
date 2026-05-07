@@ -7,18 +7,28 @@ use tauri::AppHandle;
 const INIT_MIGRATION: &str = include_str!("../db/migrations/001_init.sql");
 const FTS_MIGRATION: &str = include_str!("../db/migrations/002_fts.sql");
 const SYNC_MIGRATION: &str = include_str!("../db/migrations/003_sync.sql");
+const SYNC_BLOBS_MIGRATION: &str = include_str!("../db/migrations/004_sync_blobs.sql");
 
 pub fn initialize(app: &AppHandle) -> Result<(), CliplyError> {
     let connection = connect(app)?;
     connection.execute_batch(INIT_MIGRATION)?;
     connection.execute_batch(FTS_MIGRATION)?;
     apply_sync_migration(&connection)?;
+    apply_sync_blobs_migration(&connection)?;
     let device = sync_service::initialize_device(&connection)?;
     logger::info(
         app,
         "sync_device_initialized",
         format!("device_id={}", device.id),
     );
+    let removed_legacy_items = hide_legacy_privacy_placeholder_items(&connection)?;
+    if removed_legacy_items > 0 {
+        logger::info(
+            app,
+            "legacy_privacy_placeholders_hidden",
+            format!("count={removed_legacy_items}"),
+        );
+    }
     seed_mock_data(&connection)?;
     Ok(())
 }
@@ -213,6 +223,54 @@ fn apply_sync_migration(connection: &Connection) -> Result<(), CliplyError> {
     Ok(())
 }
 
+fn apply_sync_blobs_migration(connection: &Connection) -> Result<(), CliplyError> {
+    connection.execute_batch(SYNC_BLOBS_MIGRATION)?;
+    Ok(())
+}
+
+fn hide_legacy_privacy_placeholder_items(connection: &Connection) -> Result<usize, CliplyError> {
+    let changed = connection.execute(
+        "UPDATE clipboard_items
+         SET is_deleted = 1,
+             deleted_at = COALESCE(deleted_at, datetime('now')),
+             sync_status = CASE
+               WHEN sync_status IS NULL OR sync_status = 'synced' THEN 'pending'
+               ELSE sync_status
+             END
+         WHERE is_deleted = 0
+           AND deleted_at IS NULL
+           AND (
+             COALESCE(title, '') LIKE '已隐藏敏感内容%'
+             OR COALESCE(preview_text, '') LIKE '已隐藏敏感内容%'
+             OR COALESCE(preview_text, '') LIKE '已隐藏疑似验证码%'
+             OR COALESCE(source_app, '') = 'Privacy'
+             OR COALESCE(source_app, '') = '隐私'
+           )",
+        [],
+    )?;
+
+    if changed > 0 {
+        let _ = connection.execute(
+            "DELETE FROM clipboard_items_fts
+             WHERE item_id IN (
+               SELECT id
+               FROM clipboard_items
+               WHERE is_deleted = 1
+                 AND (
+                   COALESCE(title, '') LIKE '已隐藏敏感内容%'
+                   OR COALESCE(preview_text, '') LIKE '已隐藏敏感内容%'
+                   OR COALESCE(preview_text, '') LIKE '已隐藏疑似验证码%'
+                   OR COALESCE(source_app, '') = 'Privacy'
+                   OR COALESCE(source_app, '') = '隐私'
+                 )
+             )",
+            [],
+        );
+    }
+
+    Ok(changed)
+}
+
 fn add_column_if_missing(
     connection: &Connection,
     table_name: &str,
@@ -253,7 +311,10 @@ struct SeedItem<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_sync_migration, sync_service};
+    use super::{
+        apply_sync_blobs_migration, apply_sync_migration, hide_legacy_privacy_placeholder_items,
+        sync_service,
+    };
     use rusqlite::{params, Connection};
 
     #[test]
@@ -320,6 +381,72 @@ mod tests {
         assert_eq!(device_count, 1);
     }
 
+    #[test]
+    fn sync_blobs_migration_creates_image_blob_table() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(
+                "
+                CREATE TABLE clipboard_items (
+                  id TEXT PRIMARY KEY,
+                  type TEXT NOT NULL,
+                  hash TEXT NOT NULL,
+                  copied_at TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL
+                );
+                ",
+            )
+            .expect("base schema should initialize");
+
+        apply_sync_blobs_migration(&connection).expect("sync blob migration should apply");
+
+        assert!(has_column(&connection, "sync_blobs", "blob_type"));
+        assert!(has_column(&connection, "sync_blobs", "local_path"));
+        assert!(has_column(&connection, "sync_blobs", "uploaded_at"));
+    }
+
+    #[test]
+    fn startup_hides_legacy_privacy_placeholder_items() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(
+                "
+                CREATE TABLE clipboard_items (
+                  id TEXT PRIMARY KEY,
+                  type TEXT NOT NULL,
+                  title TEXT,
+                  preview_text TEXT,
+                  source_app TEXT,
+                  is_deleted INTEGER DEFAULT 0,
+                  deleted_at TEXT NULL,
+                  sync_status TEXT DEFAULT 'synced'
+                );
+
+                CREATE TABLE clipboard_items_fts (
+                  item_id TEXT PRIMARY KEY
+                );
+
+                INSERT INTO clipboard_items (
+                  id, type, title, preview_text, source_app
+                ) VALUES
+                  ('legacy-private', 'text', '已隐藏敏感内容', '已隐藏疑似验证码等敏感内容', 'cliply'),
+                  ('normal', 'text', 'hello', 'hello', 'cliply');
+
+                INSERT INTO clipboard_items_fts (item_id) VALUES ('legacy-private'), ('normal');
+                ",
+            )
+            .expect("schema should initialize");
+
+        let changed = hide_legacy_privacy_placeholder_items(&connection)
+            .expect("legacy privacy cleanup should run");
+
+        assert_eq!(changed, 1);
+        assert_eq!(is_deleted(&connection, "legacy-private"), 1);
+        assert_eq!(is_deleted(&connection, "normal"), 0);
+        assert_eq!(fts_count(&connection, "legacy-private"), 0);
+    }
+
     fn has_column(connection: &Connection, table_name: &str, column_name: &str) -> bool {
         connection
             .prepare(&format!("PRAGMA table_info({table_name})"))
@@ -330,5 +457,25 @@ mod tests {
             .expect("pragma rows should collect")
             .iter()
             .any(|column| column == column_name)
+    }
+
+    fn is_deleted(connection: &Connection, item_id: &str) -> i64 {
+        connection
+            .query_row(
+                "SELECT is_deleted FROM clipboard_items WHERE id = ?1",
+                params![item_id],
+                |row| row.get(0),
+            )
+            .expect("item should exist")
+    }
+
+    fn fts_count(connection: &Connection, item_id: &str) -> i64 {
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM clipboard_items_fts WHERE item_id = ?1",
+                params![item_id],
+                |row| row.get(0),
+            )
+            .expect("fts count should load")
     }
 }

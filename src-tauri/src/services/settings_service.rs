@@ -21,6 +21,8 @@ const KEY_GLOBAL_SHORTCUT: &str = "global_shortcut";
 const KEY_THEME: &str = "theme";
 const KEY_THEME_NAME: &str = "theme_name";
 const KEY_ACCENT_COLOR: &str = "accent_color";
+const KEY_AUTO_THEME: &str = "auto_theme";
+const KEY_IMAGE_SYNC: &str = "image_sync";
 
 pub fn default_settings() -> CliplySettings {
     CliplySettings::default()
@@ -103,6 +105,8 @@ fn load_settings(connection: &Connection) -> Result<CliplySettings, CliplyError>
         theme: get_value(connection, KEY_THEME)?.unwrap_or(default.theme),
         theme_name: get_value(connection, KEY_THEME_NAME)?.unwrap_or(default.theme_name),
         accent_color: get_value(connection, KEY_ACCENT_COLOR)?.unwrap_or(default.accent_color),
+        auto_theme: get_value(connection, KEY_AUTO_THEME)?.unwrap_or(default.auto_theme),
+        image_sync: get_value(connection, KEY_IMAGE_SYNC)?.unwrap_or(default.image_sync),
     })
 }
 
@@ -139,6 +143,8 @@ fn save_settings(connection: &Connection, settings: &CliplySettings) -> Result<(
     set_value(connection, KEY_THEME, &settings.theme)?;
     set_value(connection, KEY_THEME_NAME, &settings.theme_name)?;
     set_value(connection, KEY_ACCENT_COLOR, &settings.accent_color)?;
+    set_value(connection, KEY_AUTO_THEME, &settings.auto_theme)?;
+    set_value(connection, KEY_IMAGE_SYNC, &settings.image_sync)?;
     Ok(())
 }
 

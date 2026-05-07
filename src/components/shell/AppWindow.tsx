@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
-import { clsx } from "clsx";
 import {
   Clipboard,
   ClipboardList as ClipboardListIcon,
@@ -28,6 +27,7 @@ import { ClipboardSearchBar } from "@/components/clipboard/ClipboardSearchBar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ContextMenu, type ContextMenuSection, type ContextMenuState } from "@/components/common/ContextMenu";
 import { ImageViewer } from "@/components/common/ImageViewer";
+import { GlobalToast, type ToastMessage } from "@/components/common/Toast";
 import { AboutDialog } from "@/components/settings/AboutDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { FooterShortcuts } from "@/components/shell/FooterShortcuts";
@@ -37,10 +37,8 @@ import { getClipboardActionAvailability } from "@/lib/clipboardCapabilities";
 import type { ClipboardFilter, ClipboardItem } from "@/lib/clipboardTypes";
 import { hideMainWindow, toggleAlwaysOnTop } from "@/lib/windowAdapter";
 import {
-  DEFAULT_THEME_NAME,
   applyCliplyTheme,
-  getCliplyThemeWithAccent,
-  isCliplyThemeName,
+  resolveCliplyThemeFromSettings,
   storeCliplyThemeName,
 } from "@/theme/theme";
 import { useClipboardStore } from "@/stores/clipboardStore";
@@ -81,12 +79,14 @@ export function AppWindow() {
     openSettings,
     openAbout,
     closeDialogs,
+    clearActionStatus,
     toggleMonitoring,
     handleGlobalKeyDown,
   } = useClipboardStore();
   const { windowPinned, setWindowPinned } = useUiStore();
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [imageViewerItem, setImageViewerItem] = useState<ClipboardItem | null>(null);
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => getSystemPrefersDark());
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -146,12 +146,26 @@ export function AppWindow() {
   }, [settings.focusSearchOnOpen]);
 
   useEffect(() => {
-    const themeName = isCliplyThemeName(settings.themeName)
-      ? settings.themeName
-      : DEFAULT_THEME_NAME;
-    applyCliplyTheme(getCliplyThemeWithAccent(themeName, settings.accentColor));
-    storeCliplyThemeName(themeName);
-  }, [settings.accentColor, settings.themeName]);
+    const theme = resolveCliplyThemeFromSettings({
+      ...settings,
+      autoTheme: { ...settings.autoTheme, enabled: false },
+      systemPrefersDark,
+    });
+    applyCliplyTheme(theme);
+    storeCliplyThemeName(theme.name);
+  }, [settings, systemPrefersDark]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!mediaQuery) {
+      return;
+    }
+
+    const updateSystemMode = () => setSystemPrefersDark(mediaQuery.matches);
+    updateSystemMode();
+    mediaQuery.addEventListener("change", updateSystemMode);
+    return () => mediaQuery.removeEventListener("change", updateSystemMode);
+  }, []);
 
   useEffect(() => {
     const removeListeners: Array<() => void> = [];
@@ -322,23 +336,10 @@ export function AppWindow() {
           />
         </div>
         <FooterShortcuts monitoringPaused={settings.pauseMonitoring} />
-        {actionStatus ? (
-          <div
-            className={clsx(
-              "pointer-events-none absolute bottom-[150px] left-1/2 grid w-[min(520px,calc(100%-48px))] -translate-x-1/2 gap-0.5 rounded-xl border px-4 py-2.5 text-sm shadow-lg",
-              actionStatus.tone === "error"
-                ? "border-rose-200 bg-rose-50 text-rose-700"
-                : actionStatus.tone === "warning"
-                  ? "border-amber-200 bg-amber-50 text-amber-800"
-                : "border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] text-[color:var(--cliply-text)]",
-            )}
-          >
-            <span className="truncate font-semibold">{actionStatus.label}</span>
-            <span className="max-h-10 overflow-hidden break-all text-xs leading-5 text-[color:var(--cliply-muted)]">
-              {actionStatus.itemTitle}
-            </span>
-          </div>
-        ) : null}
+        <GlobalToast
+          toast={!dialogs.settings && actionStatus ? actionStatusToToast(actionStatus) : null}
+          onClose={clearActionStatus}
+        />
         <SettingsDialog
           open={dialogs.settings}
           settings={settings}
@@ -615,3 +616,17 @@ const typeLabel = {
   link: "链接",
   text: "文本",
 } satisfies Record<ClipboardItem["type"], string>;
+
+function getSystemPrefersDark() {
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+}
+
+function actionStatusToToast(actionStatus: NonNullable<ReturnType<typeof useClipboardStore>["actionStatus"]>): ToastMessage {
+  return {
+    id: String(actionStatus.at),
+    title: actionStatus.label,
+    description: actionStatus.itemTitle,
+    tone: actionStatus.tone ?? "success",
+    at: actionStatus.at,
+  };
+}

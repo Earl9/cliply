@@ -27,7 +27,7 @@ export function ConfirmDialog({
   }
 
   return (
-    <div className="absolute inset-0 z-40 grid place-items-center bg-slate-900/18 px-6 backdrop-blur-sm">
+    <div className="absolute inset-0 z-40 grid place-items-center bg-black/30 px-6 backdrop-blur-sm">
       <section
         role="dialog"
         aria-modal="true"
@@ -36,7 +36,7 @@ export function ConfirmDialog({
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color:var(--cliply-warning-soft)] text-[color:var(--cliply-warning)]">
               <AlertTriangle className="size-5" />
             </span>
             <div className="min-w-0">
@@ -54,7 +54,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onClose}
-            className="h-10 rounded-xl border border-[color:var(--cliply-border)] bg-white px-4 text-sm font-semibold text-[color:var(--cliply-text)] transition hover:bg-[#fafafb]"
+            className="h-10 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-4 text-sm font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)]"
           >
             {cancelLabel}
           </button>
@@ -64,7 +64,7 @@ export function ConfirmDialog({
             className={
               danger
                 ? "h-10 rounded-xl bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-700"
-                : "h-10 rounded-xl bg-[color:var(--cliply-accent-strong)] px-4 text-sm font-semibold text-white transition hover:bg-[#4932af]"
+                : "h-10 rounded-xl bg-[color:var(--cliply-accent-strong)] px-4 text-sm font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
             }
           >
             {confirmLabel}

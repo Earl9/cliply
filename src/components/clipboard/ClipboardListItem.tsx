@@ -1,4 +1,4 @@
-import { Code2, FileText, Image, Link2, Pin, Shield } from "lucide-react";
+import { Code2, FileText, Image, Link2, Pin } from "lucide-react";
 import type { MouseEvent } from "react";
 import { clsx } from "clsx";
 import type { ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
@@ -35,8 +35,7 @@ export function ClipboardListItem({
   onPaste,
   onContextMenu,
 }: ClipboardListItemProps) {
-  const sensitive = Boolean(item.isRedacted);
-  const Icon = sensitive ? Shield : iconByType[item.type] ?? FileText;
+  const Icon = iconByType[item.type] ?? FileText;
 
   return (
     <article
@@ -57,21 +56,20 @@ export function ClipboardListItem({
         "group grid h-[78px] w-full cursor-pointer grid-cols-[44px_minmax(0,1fr)_24px] items-center gap-3 rounded-[12px] border px-3 py-2.5 text-left transition duration-150 active:scale-[0.995]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
         selected
-          ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] shadow-[var(--cliply-shadow-selected)]"
-          : "border-[#e3e9f1] bg-white shadow-none hover:-translate-y-px hover:border-[#d5deea] hover:shadow-[var(--cliply-shadow-card-hover)]",
+          ? "border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] shadow-[var(--cliply-shadow-selected)]"
+          : "border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-none hover:-translate-y-px hover:border-[color:var(--cliply-border-strong)] hover:shadow-[var(--cliply-shadow-card-hover)]",
       )}
     >
       <span
         className={clsx(
-          "grid size-[42px] shrink-0 place-items-center overflow-hidden rounded-[10px] border border-[#e3e9f1] bg-white",
-          item.type === "code" && "bg-indigo-50 text-indigo-700",
-          item.type === "link" && "bg-teal-50 text-teal-700",
-          item.type === "text" && "bg-slate-100 text-slate-600",
-          item.type === "image" && "bg-amber-50 text-amber-700",
-          sensitive && "bg-amber-50 text-amber-700",
+          "grid size-[42px] shrink-0 place-items-center overflow-hidden rounded-[10px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-muted-bg)]",
+          item.type === "code" && "bg-[color:var(--cliply-accent-soft)] text-[color:var(--cliply-accent-strong)]",
+          item.type === "link" && "bg-[color:var(--cliply-info-soft)] text-[color:var(--cliply-info)]",
+          item.type === "text" && "text-[color:var(--cliply-muted)]",
+          item.type === "image" && "bg-[color:var(--cliply-warning-soft)] text-[color:var(--cliply-warning)]",
         )}
       >
-        {item.type === "image" && item.thumbnailUrl && !sensitive ? (
+        {item.type === "image" && item.thumbnailUrl ? (
           <img
             src={item.thumbnailUrl}
             alt={item.imageAlt ?? item.title}
@@ -83,10 +81,10 @@ export function ClipboardListItem({
       </span>
       <span className="min-w-0">
         <span className="block truncate text-xs font-medium leading-4 text-[color:var(--cliply-faint)]">
-          {sensitive ? "隐私" : typeLabel[item.type]} · {item.sourceApp}
+          {typeLabel[item.type]} · {item.sourceApp}
         </span>
         <span className="mt-0.5 block truncate text-[15px] font-semibold leading-5 text-[color:var(--cliply-text)]">
-          {sensitive ? "已隐藏敏感内容" : item.previewText}
+          {item.previewText}
         </span>
         <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-4 text-[color:var(--cliply-faint)]">
           <span>{formatCopiedTime(item.copiedAt)}</span>
@@ -112,7 +110,7 @@ export function ClipboardListItem({
           event.stopPropagation();
         }}
         className={clsx(
-          "grid size-6 shrink-0 place-items-center rounded-md text-[#a5afbd] opacity-30 transition hover:bg-white hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-80",
+          "grid size-6 shrink-0 place-items-center rounded-md text-[color:var(--cliply-muted)] opacity-30 transition hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-80",
           item.isPinned && "text-[color:var(--cliply-accent-strong)] opacity-100",
         )}
       >

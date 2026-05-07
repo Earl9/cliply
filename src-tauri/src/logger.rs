@@ -41,13 +41,61 @@ fn write(app: &AppHandle, level: &str, event: &str, message: &str) {
 }
 
 fn sanitize_message(message: &str) -> String {
-    message
+    let compact = message
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
+        .join(" ");
+
+    let compact = if contains_sensitive_field(&compact) {
+        "[redacted sensitive fields]".to_string()
+    } else {
+        redact_large_secret_like_tokens(&compact)
+    };
+
+    compact.chars().take(600).collect()
+}
+
+fn contains_sensitive_field(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    [
+        "authorization",
+        "bearer ",
+        "password",
+        "passwd",
+        "private key",
+        "private_key",
+        "privatekey",
+        "secret_access_key",
+        "secretaccesskey",
+        "access_token",
+        "refresh_token",
+        "\"data_text\"",
+        "\"normalized_text\"",
+        "encrypted_payload",
+    ]
+    .iter()
+    .any(|marker| lower.contains(marker))
+}
+
+fn redact_large_secret_like_tokens(message: &str) -> String {
+    message
+        .split_whitespace()
+        .map(|token| {
+            if is_probable_secret_blob(token) {
+                "[redacted-large-token]"
+            } else {
+                token
+            }
+        })
+        .collect::<Vec<_>>()
         .join(" ")
-        .chars()
-        .take(600)
-        .collect()
+}
+
+fn is_probable_secret_blob(token: &str) -> bool {
+    token.len() >= 96
+        && token.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '+' | '/' | '=' | '-' | '_')
+        })
 }

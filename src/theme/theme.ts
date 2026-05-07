@@ -65,9 +65,38 @@ export type CliplyThemeTokens = {
   swatch: string;
 };
 
+export type CliplyThemeMode = "light" | "dark" | "system";
+export type CliplyResolvedThemeMode = "light" | "dark";
+export type CliplyAutoThemeSource = "system-accent" | "wallpaper";
+export type CliplyAutoThemeIntensity = "soft" | "normal" | "vivid";
+export type CliplyAutoThemeApplyScope = "accent-only" | "full-theme";
+
+export type CliplyAutoThemeSettings = {
+  enabled: boolean;
+  source: CliplyAutoThemeSource;
+  intensity: CliplyAutoThemeIntensity;
+  applyScope: CliplyAutoThemeApplyScope;
+};
+
+export type CliplyAutoThemeColorSources = {
+  systemAccent?: string | null;
+};
+
 export const DEFAULT_THEME_NAME: CliplyThemeName = "purple-default";
 
 export const CLIPLY_THEME_STORAGE_KEY = "cliply.theme.name";
+
+export const DEFAULT_AUTO_THEME_SETTINGS: CliplyAutoThemeSettings = {
+  enabled: false,
+  source: "system-accent",
+  intensity: "normal",
+  applyScope: "accent-only",
+};
+
+const AUTO_THEME_FALLBACK_COLORS: Record<CliplyAutoThemeSource, string> = {
+  "system-accent": "#6D4CFF",
+  wallpaper: "#3B82F6",
+};
 
 export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
   "purple-default": {
@@ -214,7 +243,7 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
   "teal-fresh": {
     name: "teal-fresh",
     label: "清爽青",
-    description: "比绿色更科技、更稳，适合安全、隐私和工具场景。",
+    description: "比绿色更科技、更稳，适合安全和工具场景。",
 
     primary: "#14B8A6",
     primaryHover: "#0FA595",
@@ -374,8 +403,9 @@ export function getCliplyTheme(name: CliplyThemeName): CliplyThemeTokens {
 export function getCliplyThemeWithAccent(
   name: CliplyThemeName,
   accentColor?: string | null,
+  mode: CliplyResolvedThemeMode = "light",
 ): CliplyThemeTokens {
-  const theme = getCliplyTheme(name);
+  const theme = getCliplyThemeForMode(name, mode);
   const accent = normalizeHexColor(accentColor);
 
   if (!accent || accent.toLowerCase() === theme.primary.toLowerCase()) {
@@ -399,6 +429,126 @@ export function getCliplyThemeWithAccent(
     shadowSelected: `0 0 0 1px ${accent}, 0 8px 22px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.13)`,
     swatch: accent,
   };
+}
+
+export function getAutoThemeColor(
+  autoTheme?: Partial<CliplyAutoThemeSettings> | null,
+  colorSources?: CliplyAutoThemeColorSources | null,
+): string {
+  const settings = normalizeAutoThemeSettings(autoTheme);
+  const sourceColor = readAutoThemeSourceColor(settings.source, colorSources);
+  return adjustAutoThemeColor(sourceColor, settings.intensity);
+}
+
+export function getCliplyThemeWithAutoTheme(
+  name: CliplyThemeName,
+  autoTheme?: Partial<CliplyAutoThemeSettings> | null,
+  colorSources?: CliplyAutoThemeColorSources | null,
+  mode: CliplyResolvedThemeMode = "light",
+): CliplyThemeTokens {
+  const settings = normalizeAutoThemeSettings(autoTheme);
+  if (!settings.enabled) {
+    return getCliplyThemeForMode(name, mode);
+  }
+
+  const accent = getAutoThemeColor(settings, colorSources);
+  if (settings.applyScope === "accent-only") {
+    return getCliplyThemeWithAccent(name, accent, mode);
+  }
+
+  const accentTheme = getCliplyThemeWithAccent(name, accent, mode);
+  if (mode === "dark") {
+    return {
+      ...accentTheme,
+      appBg: mixHex(accent, "#0B1120", 0.94),
+      windowBg: mixHex(accent, "#0F172A", 0.95),
+      panelBg: mixHex(accent, "#111C2E", 0.95),
+      cardBg: mixHex(accent, "#152238", 0.94),
+      mutedBg: mixHex(accent, "#111D31", 0.9),
+      border: mixHex(accent, "#334155", 0.86),
+      borderStrong: mixHex(accent, "#475569", 0.8),
+      divider: mixHex(accent, "#1E293B", 0.88),
+    };
+  }
+
+  return {
+    ...accentTheme,
+    appBg: mixHex(accent, "#FFFFFF", 0.96),
+    windowBg: mixHex(accent, "#FFFFFF", 0.975),
+    mutedBg: mixHex(accent, "#FFFFFF", 0.93),
+    border: mixHex(accent, "#E7EAF1", 0.88),
+    borderStrong: mixHex(accent, "#D8DEE8", 0.82),
+    divider: mixHex(accent, "#EEF1F5", 0.9),
+  };
+}
+
+export function resolveCliplyThemeFromSettings(settings: {
+  theme?: string | null;
+  themeName?: string | null;
+  accentColor?: string | null;
+  autoTheme?: Partial<CliplyAutoThemeSettings> | null;
+  autoThemeColorSources?: CliplyAutoThemeColorSources | null;
+  systemPrefersDark?: boolean | null;
+}): CliplyThemeTokens {
+  const themeName = isCliplyThemeName(settings.themeName)
+    ? settings.themeName
+    : DEFAULT_THEME_NAME;
+  const autoTheme = normalizeAutoThemeSettings(settings.autoTheme);
+  const mode = resolveThemeMode(settings.theme, settings.systemPrefersDark);
+
+  if (autoTheme.enabled) {
+    return getCliplyThemeWithAutoTheme(
+      themeName,
+      autoTheme,
+      settings.autoThemeColorSources,
+      mode,
+    );
+  }
+
+  return getCliplyThemeWithAccent(themeName, settings.accentColor, mode);
+}
+
+export function normalizeAutoThemeSettings(
+  value?: Partial<CliplyAutoThemeSettings> | null,
+): CliplyAutoThemeSettings {
+  return {
+    enabled: Boolean(value?.enabled),
+    source:
+      value?.source === "system-accent" || value?.source === "wallpaper"
+        ? value.source
+        : DEFAULT_AUTO_THEME_SETTINGS.source,
+    intensity:
+      value?.intensity === "soft" ||
+      value?.intensity === "normal" ||
+      value?.intensity === "vivid"
+        ? value.intensity
+        : DEFAULT_AUTO_THEME_SETTINGS.intensity,
+    applyScope:
+      value?.applyScope === "full-theme" || value?.applyScope === "accent-only"
+        ? value.applyScope
+        : DEFAULT_AUTO_THEME_SETTINGS.applyScope,
+  };
+}
+
+export function resolveThemeMode(
+  mode?: string | null,
+  systemPrefersDark?: boolean | null,
+): CliplyResolvedThemeMode {
+  if (mode === "dark") {
+    return "dark";
+  }
+  if (mode === "system") {
+    return systemPrefersDark ? "dark" : "light";
+  }
+  return "light";
+}
+
+export function getCliplyThemeForMode(
+  name: CliplyThemeName,
+  mode: CliplyResolvedThemeMode = "light",
+): CliplyThemeTokens {
+  const theme = getCliplyTheme(name);
+  return mode === "dark" ? createDarkThemeTokens(theme) : theme;
 }
 
 export function getStoredCliplyThemeName(): CliplyThemeName {
@@ -494,6 +644,8 @@ export function applyCliplyTheme(nameOrTheme: CliplyThemeName | CliplyThemeToken
   }
 
   root.dataset.cliplyTheme = theme.name;
+  root.dataset.theme = isDarkTheme(theme) ? "dark" : "light";
+  root.style.colorScheme = isDarkTheme(theme) ? "dark" : "light";
 }
 
 export function setCliplyTheme(name: CliplyThemeName): CliplyThemeTokens {
@@ -538,6 +690,117 @@ function normalizeHexColor(value?: string | null) {
   return /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed.toUpperCase() : null;
 }
 
+function readAutoThemeSourceColor(
+  source: CliplyAutoThemeSource,
+  colorSources?: CliplyAutoThemeColorSources | null,
+) {
+  const sourceColor =
+    source === "system-accent" ? normalizeHexColor(colorSources?.systemAccent) : null;
+  if (sourceColor) {
+    return sourceColor;
+  }
+
+  if (typeof window !== "undefined") {
+    const key = "cliply.autoTheme.mockSystemAccentColor";
+    const mockColor = normalizeHexColor(window.localStorage.getItem(key));
+    if (mockColor) {
+      return mockColor;
+    }
+  }
+
+  return AUTO_THEME_FALLBACK_COLORS[source];
+}
+
+function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
+  const rgb = { r: 59, g: 130, b: 246 };
+  return {
+    ...theme,
+    primary: "#3B82F6",
+    primaryHover: "#2563EB",
+    primaryActive: "#1D4ED8",
+    primarySoft: "rgba(59, 130, 246, 0.16)",
+    primaryBorder: "rgba(96, 165, 250, 0.55)",
+    primaryText: "#FFFFFF",
+    swatch: "#3B82F6",
+    appBg: "#0B1120",
+    windowBg: "#0F172A",
+    panelBg: "#111C2E",
+    cardBg: "#152238",
+    inputBg: "#101A2D",
+    mutedBg: "#111D31",
+    border: "rgba(148, 163, 184, 0.18)",
+    borderStrong: "rgba(148, 163, 184, 0.28)",
+    divider: "rgba(148, 163, 184, 0.12)",
+    text: "#F8FAFC",
+    textSecondary: "#CBD5E1",
+    muted: "#94A3B8",
+    placeholder: "#64748B",
+    disabledText: "#64748B",
+    focusRing: "rgba(59, 130, 246, 0.24)",
+    successSoft: "rgba(34, 197, 94, 0.14)",
+    warningSoft: "rgba(245, 158, 11, 0.16)",
+    dangerSoft: "rgba(239, 68, 68, 0.16)",
+    infoSoft: "rgba(37, 99, 235, 0.18)",
+    shadowWindow: "0 24px 80px rgba(0, 0, 0, 0.48)",
+    shadowPanel: "0 14px 36px rgba(0, 0, 0, 0.28)",
+    shadowCardHover: "0 12px 28px rgba(0, 0, 0, 0.32)",
+    shadowSelected: `0 0 0 1px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.42), 0 10px 24px rgba(2, 6, 23, 0.22)`,
+  };
+}
+
+function isDarkTheme(theme: CliplyThemeTokens) {
+  const rgb = hexToRgb(theme.windowBg);
+  if (!rgb) {
+    return false;
+  }
+  return relativeLuminance(rgb) < 0.24;
+}
+
+function adjustAutoThemeColor(
+  color: string,
+  intensity: CliplyAutoThemeIntensity,
+) {
+  const safeColor = clampAccentLuminance(color);
+  if (intensity === "soft") {
+    return mixHex(safeColor, "#FFFFFF", 0.18);
+  }
+  if (intensity === "vivid") {
+    return saturateHex(mixHex(safeColor, "#000000", 0.04), 0.18);
+  }
+  return safeColor;
+}
+
+function clampAccentLuminance(hex: string) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return AUTO_THEME_FALLBACK_COLORS["system-accent"];
+  }
+
+  const luminance = relativeLuminance(rgb);
+  if (luminance < 0.18) {
+    return mixHex(hex, "#FFFFFF", 0.26);
+  }
+  if (luminance > 0.78) {
+    return mixHex(hex, "#000000", 0.28);
+  }
+  return normalizeHexColor(hex) ?? AUTO_THEME_FALLBACK_COLORS["system-accent"];
+}
+
+function saturateHex(hex: string, amount: number) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return hex;
+  }
+
+  const average = (rgb.r + rgb.g + rgb.b) / 3;
+  const channel = (value: number) =>
+    clampChannel(Math.round(value + (value - average) * amount))
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${channel(rgb.r)}${channel(rgb.g)}${channel(rgb.b)}`.toUpperCase();
+}
+
 function hexToRgb(hex: string) {
   const normalized = normalizeHexColor(hex);
   if (!normalized) {
@@ -570,6 +833,14 @@ function mixHex(from: string, to: string, amount: number) {
 }
 
 function readableTextForColor(rgb: { r: number; g: number; b: number }) {
-  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+  const luminance = relativeLuminance(rgb);
   return luminance > 0.72 ? "#1F2937" : "#FFFFFF";
+}
+
+function relativeLuminance(rgb: { r: number; g: number; b: number }) {
+  return (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+}
+
+function clampChannel(value: number) {
+  return Math.min(255, Math.max(0, value));
 }

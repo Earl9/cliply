@@ -13,7 +13,7 @@ type FooterShortcutsProps = {
 
 export function FooterShortcuts({ monitoringPaused = false }: FooterShortcutsProps) {
   return (
-    <footer className="flex h-10 shrink-0 items-center justify-between gap-3 border-t border-[color:var(--cliply-border)] bg-[#f8fafc]/95 px-5">
+    <footer className="flex h-10 shrink-0 items-center justify-between gap-3 border-t border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-panel-strong)] px-5">
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
         {shortcuts.map((shortcut) => (
           <span
@@ -25,7 +25,7 @@ export function FooterShortcuts({ monitoringPaused = false }: FooterShortcutsPro
           </span>
         ))}
       </div>
-      <div className="hidden shrink-0 items-center gap-1.5 text-xs font-medium text-[#4b5563] sm:flex">
+      <div className="hidden shrink-0 items-center gap-1.5 text-xs font-medium text-[color:var(--cliply-muted)] sm:flex">
         <Circle
           className={
             monitoringPaused

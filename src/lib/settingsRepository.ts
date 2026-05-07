@@ -285,7 +285,19 @@ function readMockSettings(): CliplySettings {
       return defaultSettingsState;
     }
 
-    return { ...defaultSettingsState, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Partial<CliplySettings>;
+    return {
+      ...defaultSettingsState,
+      ...parsed,
+      autoTheme: {
+        ...defaultSettingsState.autoTheme,
+        ...parsed.autoTheme,
+      },
+      imageSync: {
+        ...defaultSettingsState.imageSync,
+        ...parsed.imageSync,
+      },
+    };
   } catch {
     return defaultSettingsState;
   }

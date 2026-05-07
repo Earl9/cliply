@@ -1,6 +1,7 @@
 use crate::error::CliplyError;
+use crate::logger;
 use crate::services::{
-    database_service, sync_package_service, sync_secret_service, sync_service,
+    database_service, sync_blob_service, sync_package_service, sync_secret_service, sync_service,
     sync_storage_provider::{
         FtpSyncProvider, LocalFolderSyncProvider, SyncProviderConfig, SyncStorageProvider,
         WebdavSyncProvider,
@@ -33,6 +34,7 @@ const MANIFEST_PATH: &str = "CliplySync/manifest.json";
 const SNAPSHOTS_PATH: &str = "CliplySync/snapshots";
 const EVENTS_PATH: &str = "CliplySync/events";
 const DEVICES_PATH: &str = "CliplySync/devices";
+const BLOBS_PATH: &str = "CliplySync/blobs";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -82,6 +84,8 @@ struct RemoteSyncManifest {
     snapshots_path: String,
     events_path: String,
     devices_path: String,
+    #[serde(default = "default_manifest_blobs_path")]
+    blobs_path: String,
 }
 
 pub fn get_remote_sync_status(app: &AppHandle) -> Result<RemoteSyncStatus, CliplyError> {
@@ -287,6 +291,7 @@ fn export_remote_snapshot(
     ensure_remote_layout(provider.as_ref())?;
 
     let device_id = sync_service::current_device_id(&connection)?;
+    let _ = upload_pending_image_blobs(app, provider.as_ref(), &connection, password)?;
     let (package_bytes, exported_at) =
         sync_package_service::build_sync_package_bytes(app, password)?;
     let file_name = snapshot_file_name(&device_id, &exported_at);
@@ -346,6 +351,7 @@ fn import_remote_snapshots(
         skipped_count += result.skipped_count;
         deleted_count += result.deleted_count;
         conflicted_count += result.conflicted_count;
+        let _ = download_missing_image_blobs(app, provider.as_ref(), &connection, password)?;
     }
 
     let synced_at = current_timestamp()?;
@@ -363,13 +369,35 @@ fn import_remote_snapshots(
 }
 
 fn ensure_remote_layout(provider: &dyn SyncStorageProvider) -> Result<(), CliplyError> {
-    provider.write(&format!("{SNAPSHOTS_PATH}/.keep"), b"")?;
-    provider.write(&format!("{EVENTS_PATH}/.keep"), b"")?;
-    provider.write(&format!("{DEVICES_PATH}/.keep"), b"")?;
-    provider.delete(&format!("{SNAPSHOTS_PATH}/.tmp"))?;
+    ensure_keep_file(provider, &format!("{SNAPSHOTS_PATH}/.keep"))?;
+    ensure_keep_file(provider, &format!("{EVENTS_PATH}/.keep"))?;
+    ensure_keep_file(provider, &format!("{DEVICES_PATH}/.keep"))?;
+    ensure_keep_file(provider, &format!("{BLOBS_PATH}/.keep"))?;
+    remove_legacy_tmp_file_if_present(provider)?;
     if !provider.exists(MANIFEST_PATH)? {
         let now = current_timestamp()?;
         write_manifest(provider, &now)?;
+    }
+    Ok(())
+}
+
+fn ensure_keep_file(provider: &dyn SyncStorageProvider, path: &str) -> Result<(), CliplyError> {
+    if !provider.exists(path)? {
+        provider.write(path, b"")?;
+    }
+    Ok(())
+}
+
+fn remove_legacy_tmp_file_if_present(
+    provider: &dyn SyncStorageProvider,
+) -> Result<(), CliplyError> {
+    let tmp_path = format!("{SNAPSHOTS_PATH}/.tmp");
+    let exists = provider
+        .list(SNAPSHOTS_PATH)?
+        .iter()
+        .any(|entry| entry.path == tmp_path || entry.name == ".tmp");
+    if exists {
+        provider.delete(&tmp_path)?;
     }
     Ok(())
 }
@@ -390,6 +418,7 @@ fn write_manifest(provider: &dyn SyncStorageProvider, updated_at: &str) -> Resul
         snapshots_path: "snapshots/".to_string(),
         events_path: "events/".to_string(),
         devices_path: "devices/".to_string(),
+        blobs_path: "blobs/".to_string(),
     };
     let bytes = serde_json::to_vec_pretty(&manifest)
         .map_err(|error| CliplyError::Sync(format!("同步 manifest 序列化失败: {error}")))?;
@@ -421,6 +450,77 @@ fn write_device_marker(
     let bytes = serde_json::to_vec_pretty(&payload)
         .map_err(|error| CliplyError::Sync(format!("设备同步状态序列化失败: {error}")))?;
     provider.write(&format!("{DEVICES_PATH}/{device_id}.json"), &bytes)
+}
+
+fn upload_pending_image_blobs(
+    app: &AppHandle,
+    provider: &dyn SyncStorageProvider,
+    connection: &Connection,
+    password: &str,
+) -> Result<usize, CliplyError> {
+    let blobs = sync_blob_service::load_uploadable_blobs(connection)?;
+    let uploaded_at = current_timestamp()?;
+    let mut uploaded = 0;
+
+    for blob in blobs {
+        let remote_path = sync_blob_service::remote_blob_path(&blob);
+        let bytes = sync_blob_service::build_remote_blob_envelope(&blob, password)?;
+        if !provider.exists(&remote_path)? {
+            provider.write(&remote_path, &bytes)?;
+        }
+        sync_blob_service::mark_blob_uploaded(connection, &blob.id, &remote_path, &uploaded_at)?;
+        uploaded += 1;
+    }
+
+    if uploaded > 0 {
+        logger::info(
+            app,
+            "image_sync_blobs_uploaded",
+            format!("count={uploaded}"),
+        );
+    }
+
+    Ok(uploaded)
+}
+
+fn download_missing_image_blobs(
+    app: &AppHandle,
+    provider: &dyn SyncStorageProvider,
+    connection: &Connection,
+    password: &str,
+) -> Result<usize, CliplyError> {
+    let blobs = sync_blob_service::load_missing_local_blobs(connection)?;
+    let mut downloaded = 0;
+
+    for blob in blobs {
+        let Some(remote_path) = blob.remote_path.as_deref() else {
+            continue;
+        };
+        if !provider.exists(remote_path)? {
+            logger::error(
+                app,
+                "image_sync_blob_missing_remote",
+                format!("blob_id={} remote_path={remote_path}", blob.id),
+            );
+            continue;
+        }
+
+        let bytes = provider.read(remote_path)?;
+        let (envelope, plaintext) =
+            sync_blob_service::decrypt_remote_blob_envelope(&bytes, password)?;
+        sync_blob_service::write_downloaded_blob(app, connection, &blob, &envelope, &plaintext)?;
+        downloaded += 1;
+    }
+
+    if downloaded > 0 {
+        logger::info(
+            app,
+            "image_sync_blobs_downloaded",
+            format!("count={downloaded}"),
+        );
+    }
+
+    Ok(downloaded)
 }
 
 fn list_snapshot_paths(provider: &dyn SyncStorageProvider) -> Result<Vec<String>, CliplyError> {
@@ -490,7 +590,8 @@ fn pending_sync_change_count(connection: &Connection) -> Result<i64, CliplyError
         [],
         |row| row.get(0),
     )?;
-    Ok(item_count + event_count)
+    let blob_count = sync_blob_service::pending_blob_change_count(connection)?;
+    Ok(item_count + event_count + blob_count)
 }
 
 fn mark_sync_exported(connection: &Connection, exported_at: &str) -> Result<(), CliplyError> {
@@ -507,6 +608,7 @@ fn mark_sync_exported(connection: &Connection, exported_at: &str) -> Result<(), 
          WHERE synced_at IS NULL",
         params![exported_at],
     )?;
+    sync_blob_service::mark_pending_blob_tombstones_exported(connection, exported_at)?;
     Ok(())
 }
 
@@ -592,7 +694,11 @@ fn get_saved_provider_configs(
 ) -> Result<SavedSyncProviderConfigs, CliplyError> {
     let active = get_provider_config_from_connection(connection)?;
     let mut configs = SavedSyncProviderConfigs {
-        local_folder: get_cached_provider_config(connection, LOCAL_FOLDER_CONFIG_KEY, "local-folder")?,
+        local_folder: get_cached_provider_config(
+            connection,
+            LOCAL_FOLDER_CONFIG_KEY,
+            "local-folder",
+        )?,
         webdav: get_cached_provider_config(connection, WEBDAV_CONFIG_KEY, "webdav")?,
         ftp: get_cached_provider_config(connection, FTP_CONFIG_KEY, "ftp")?,
     };
@@ -789,6 +895,10 @@ fn snapshot_file_name(device_id: &str, exported_at: &str) -> String {
         })
         .collect::<String>();
     format!("{safe_time}-{device_id}.cliply-sync")
+}
+
+fn default_manifest_blobs_path() -> String {
+    "blobs/".to_string()
 }
 
 fn current_timestamp() -> Result<String, CliplyError> {

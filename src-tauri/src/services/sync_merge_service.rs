@@ -1,6 +1,6 @@
 use crate::error::CliplyError;
 use crate::services::sync_package_service::{
-    SyncImportResult, SyncPackageEvent, SyncPackageItem, SyncPackagePayload,
+    SyncImportResult, SyncPackageBlob, SyncPackageEvent, SyncPackageItem, SyncPackagePayload,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
@@ -24,6 +24,10 @@ pub fn merge_sync_payload(
     let mut result = SyncImportResult::default();
     for remote_item in &payload.items {
         merge_item(connection, remote_item, &mut result)?;
+    }
+
+    for blob in &payload.sync_blobs {
+        upsert_sync_blob_metadata(connection, blob)?;
     }
 
     for event in &payload.sync_events {
@@ -393,6 +397,69 @@ fn upsert_sync_event(connection: &Connection, event: &SyncPackageEvent) -> Resul
     Ok(())
 }
 
+fn upsert_sync_blob_metadata(
+    connection: &Connection,
+    blob: &SyncPackageBlob,
+) -> Result<(), CliplyError> {
+    if !clipboard_item_exists(connection, &blob.item_id)? {
+        return Ok(());
+    }
+
+    match connection.execute(
+        "INSERT INTO sync_blobs (
+            id, item_id, blob_type, local_path, remote_path, size_bytes, hash,
+            encrypted, sync_status, created_at, uploaded_at, deleted_at
+         ) VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+         ON CONFLICT(id) DO UPDATE SET
+           remote_path = excluded.remote_path,
+           size_bytes = excluded.size_bytes,
+           hash = excluded.hash,
+           encrypted = excluded.encrypted,
+           sync_status = CASE
+             WHEN sync_blobs.local_path IS NOT NULL
+                  AND COALESCE(sync_blobs.local_path, '') <> ''
+             THEN sync_blobs.sync_status
+             ELSE excluded.sync_status
+           END,
+           uploaded_at = excluded.uploaded_at,
+           deleted_at = excluded.deleted_at",
+        params![
+            blob.id,
+            blob.item_id,
+            blob.blob_type,
+            blob.remote_path,
+            blob.size_bytes,
+            blob.hash,
+            if blob.encrypted { 1 } else { 0 },
+            blob.sync_status.as_deref().unwrap_or("pending"),
+            blob.created_at,
+            blob.uploaded_at,
+            blob.deleted_at,
+        ],
+    ) {
+        Ok(_) => Ok(()),
+        Err(error) if is_missing_sync_blobs_table(&error) => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn clipboard_item_exists(connection: &Connection, item_id: &str) -> Result<bool, CliplyError> {
+    let count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM clipboard_items WHERE id = ?1",
+        params![item_id],
+        |row| row.get(0),
+    )?;
+    Ok(count > 0)
+}
+
+fn is_missing_sync_blobs_table(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(_, Some(message))
+            if message.contains("no such table: sync_blobs")
+    )
+}
+
 fn find_local_item_by_sync_id(
     connection: &Connection,
     sync_id: &str,
@@ -650,6 +717,7 @@ mod tests {
                 last_seen_at: Some("2026-05-06T12:00:00Z".to_string()),
             },
             items,
+            sync_blobs: Vec::new(),
             sync_events: Vec::new(),
         }
     }

@@ -21,8 +21,8 @@ export function IconButton({
       title={label}
       className={clsx(
         "grid size-8 place-items-center rounded-lg border border-transparent text-[color:var(--cliply-muted)] transition",
-        "hover:bg-slate-900/[0.06] hover:text-[color:var(--cliply-text)] active:bg-slate-900/[0.10]",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(124,92,255,0.45)]",
+        "hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)] active:bg-[color:var(--cliply-card)]",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]",
         variant === "soft" && "bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)]",
         variant === "danger" && "hover:bg-[rgba(220,38,38,0.08)] hover:text-[color:var(--cliply-danger)]",
         className,

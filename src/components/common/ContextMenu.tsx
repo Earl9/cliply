@@ -107,7 +107,7 @@ export function ContextMenu({ menu, onClose }: ContextMenuProps) {
     >
       <div
         ref={menuRef}
-        className="cliply-scrollbar absolute w-[250px] overflow-auto rounded-[12px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[0_18px_48px_rgba(15,23,42,0.20)] ring-1 ring-white/75"
+        className="cliply-scrollbar absolute w-[250px] overflow-auto rounded-[12px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[0_18px_48px_rgba(15,23,42,0.28)] ring-1 ring-[color:var(--cliply-border-soft)]"
         style={{
           left,
           top,
@@ -171,8 +171,8 @@ function ContextMenuButton({
         "grid h-[34px] w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2 px-2.5 text-left text-[13px] font-medium transition",
         "disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled)]",
         item.danger
-          ? "text-[#364152] hover:bg-[#fff5f5] hover:text-[color:var(--cliply-danger)]"
-          : "text-[color:var(--cliply-text)] hover:bg-slate-900/[0.055]",
+          ? "text-[color:var(--cliply-text)] hover:bg-[color:var(--cliply-danger-soft)] hover:text-[color:var(--cliply-danger)]"
+          : "text-[color:var(--cliply-text)] hover:bg-[color:var(--cliply-muted-bg)]",
       )}
     >
       <span className="grid size-6 place-items-center text-[color:var(--cliply-muted)]">
@@ -180,7 +180,7 @@ function ContextMenuButton({
       </span>
       <span className="min-w-0 truncate">{item.label}</span>
       {item.shortcut ? (
-        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-[color:var(--cliply-faint)]">
+        <span className="rounded-md bg-[color:var(--cliply-muted-bg)] px-1.5 py-0.5 text-[11px] font-medium text-[color:var(--cliply-faint)]">
           {item.shortcut}
         </span>
       ) : null}

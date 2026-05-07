@@ -12,7 +12,7 @@ export function ShortcutKey({ keys, compact, tone = "default" }: ShortcutKeyProp
       {keys.map((key, index) => (
         <span key={`${key}-${index}`} className="inline-flex items-center gap-1">
           {index > 0 ? (
-            <span className={clsx("text-xs", tone === "onPrimary" ? "text-white/65" : "text-[#a0a8b5]")}>+</span>
+            <span className={clsx("text-xs", tone === "onPrimary" ? "text-white/65" : "text-[color:var(--cliply-faint)]")}>+</span>
           ) : null}
           <kbd
             className={clsx(
@@ -20,7 +20,7 @@ export function ShortcutKey({ keys, compact, tone = "default" }: ShortcutKeyProp
               compact ? "h-[18px] text-[11px]" : "h-6 text-xs",
               tone === "onPrimary"
                 ? "border border-transparent bg-white/18 text-white"
-                : "border border-[#e4e8ef] bg-[#f3f5f8] text-[color:var(--cliply-muted)]",
+                : "border border-[color:var(--cliply-border)] bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-muted)]",
             )}
           >
             {key}
