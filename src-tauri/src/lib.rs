@@ -115,6 +115,8 @@ fn should_start_minimized() -> bool {
 }
 
 pub fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    platform::remember_paste_target(main_window_handle(app));
+
     if let Some(window) = app.get_webview_window("main") {
         let started_at = Instant::now();
         set_main_window_icon(app, &window);
@@ -153,6 +155,7 @@ pub fn toggle_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         if window.is_visible()? {
             window.hide()?;
         } else {
+            platform::remember_paste_target(main_window_handle(app));
             let started_at = Instant::now();
             set_main_window_icon(app, &window);
             window.show()?;
@@ -167,6 +170,22 @@ pub fn toggle_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     }
 
     Ok(())
+}
+
+fn main_window_handle(app: &tauri::AppHandle) -> Option<isize> {
+    #[cfg(target_os = "windows")]
+    {
+        return app
+            .get_webview_window("main")
+            .and_then(|window| window.hwnd().ok())
+            .map(|hwnd| hwnd.0 as isize);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        None
+    }
 }
 
 fn set_main_window_icon(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {

@@ -181,6 +181,29 @@ button {
   font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
 }
 
+.cliply-detail-pane {
+  container-type: inline-size;
+}
+
+@container (max-width: 540px) {
+  .cliply-detail-pane .cliply-action-bar {
+    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-inline: 12px;
+  }
+
+  .cliply-detail-pane .cliply-action-button {
+    height: 44px;
+    flex-direction: row;
+    gap: 6px;
+    padding-inline: 6px;
+  }
+
+  .cliply-detail-pane .cliply-action-shortcut {
+    display: none;
+  }
+}
+
 .cliply-image-checker {
   background-color: var(--cliply-input-bg);
   background-image:

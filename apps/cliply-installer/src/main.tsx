@@ -8,7 +8,7 @@ import {
   ChevronRight,
   FolderOpen,
   Loader2,
-  Minimize2,
+  Minus,
   MonitorUp,
   Sparkles,
   Trash2,
@@ -181,7 +181,7 @@ function App() {
             aria-label="最小化"
             onClick={() => void getCurrentWindow().minimize()}
           >
-            <Minimize2 size={15} />
+            <Minus size={15} />
           </button>
           <button
             type="button"

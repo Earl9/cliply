@@ -16,13 +16,7 @@ pub fn copy_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyErro
 pub fn paste_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyError> {
     write_item_to_clipboard(app, &id)?;
     increment_used_count(app, &id)?;
-    if settings_service::get_settings(app)
-        .map(|settings| settings.close_after_paste)
-        .unwrap_or(true)
-    {
-        hide_main_window(app);
-    }
-    thread::sleep(Duration::from_millis(120));
+    prepare_paste_target(app);
     platform::paste_to_foreground()?;
     logger::info(app, "clipboard_paste", format!("item_id={id} mode=rich"));
     Ok(())
@@ -39,16 +33,34 @@ pub fn paste_plain_text(app: &AppHandle, id: String) -> Result<(), CliplyError> 
         main_window_handle(app),
     )?;
     increment_used_count(app, &id)?;
-    if settings_service::get_settings(app)
-        .map(|settings| settings.close_after_paste)
-        .unwrap_or(true)
-    {
-        hide_main_window(app);
-    }
-    thread::sleep(Duration::from_millis(120));
+    prepare_paste_target(app);
     platform::paste_to_foreground()?;
     logger::info(app, "clipboard_paste", format!("item_id={id} mode=plain"));
     Ok(())
+}
+
+fn prepare_paste_target(app: &AppHandle) {
+    let close_after_paste = settings_service::get_settings(app)
+        .map(|settings| settings.close_after_paste)
+        .unwrap_or(true);
+
+    if close_after_paste {
+        hide_main_window(app);
+    }
+
+    thread::sleep(Duration::from_millis(80));
+
+    let restored = platform::restore_paste_target();
+    logger::info(
+        app,
+        "paste_target_restore",
+        format!("restored={restored} close_after_paste={close_after_paste}"),
+    );
+    if restored {
+        thread::sleep(Duration::from_millis(80));
+    } else if close_after_paste {
+        thread::sleep(Duration::from_millis(80));
+    }
 }
 
 fn write_item_to_clipboard(app: &AppHandle, id: &str) -> Result<(), CliplyError> {

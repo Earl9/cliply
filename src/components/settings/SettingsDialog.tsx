@@ -109,7 +109,7 @@ const SETTINGS_TABS: Array<{
   { id: "about", label: "关于", description: "版本、数据目录和调试信息。", icon: CircleHelp },
 ];
 
-const CLIPLY_VERSION = "0.1.0";
+const CLIPLY_VERSION = "0.4.0-beta.1";
 const ACCENT_PRESET_COLORS = [
   "#6D4CFF",
   "#3B82F6",
@@ -199,15 +199,23 @@ export function SettingsDialog({
 
   useEffect(() => {
     if (open) {
-      setDraft(settings);
       setCapturingShortcut(false);
       setShortcutCheck(null);
       setSyncPassword(sessionSyncPassword);
       setSyncMessage(null);
       setSyncError(null);
       setSavingSettings(false);
+      setSettingsFeedback(null);
       void refreshDebugInfo();
       void refreshSyncStatus();
+    } else {
+      setSettingsFeedback(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setDraft(settings);
     }
   }, [open, settings]);
 
@@ -349,6 +357,7 @@ export function SettingsDialog({
       }),
     );
     setCapturingShortcut(false);
+    setSettingsFeedback(null);
     onClose();
   };
 
@@ -515,7 +524,8 @@ export function SettingsDialog({
 
   const handleSaveWebdavProvider = async () => {
     const nextConfig = normalizeWebdavConfig(webdavDraft);
-    if (!nextConfig.url.trim() || !nextConfig.username.trim() || !nextConfig.password) {
+    const hasSavedPassword = syncProviderConfigSaved("webdav", remoteSyncStatus);
+    if (!nextConfig.url.trim() || !nextConfig.username.trim() || (!nextConfig.password && !hasSavedPassword)) {
       setSyncMessage(null);
       setSyncError("请填写 WebDAV 地址、用户名和密码");
       return;
@@ -548,7 +558,8 @@ export function SettingsDialog({
 
   const handleSaveFtpProvider = async () => {
     const nextConfig = normalizeFtpConfig(ftpDraft);
-    if (!nextConfig.host.trim() || !nextConfig.username.trim() || !nextConfig.password) {
+    const hasSavedPassword = syncProviderConfigSaved("ftp", remoteSyncStatus);
+    if (!nextConfig.host.trim() || !nextConfig.username.trim() || (!nextConfig.password && !hasSavedPassword)) {
       setSyncMessage(null);
       setSyncError("请填写 FTP 主机、用户名和密码");
       return;
@@ -627,9 +638,21 @@ export function SettingsDialog({
   };
 
   const handleSaveAutoSync = async () => {
-    if (autoSyncEnabled && selectedSyncProviderType === "disabled") {
+    if (autoSyncEnabled && selectedSyncProviderType !== remoteSyncStatus.provider.type) {
       setSyncMessage(null);
-      setSyncError("请先选择本地文件夹、WebDAV 或 FTP/FTPS");
+      setSyncError(
+        `正在编辑 ${syncProviderLabel(selectedSyncProviderType)}。请先保存该同步方式，或切回当前启用的 ${syncProviderLabel(remoteSyncStatus.provider.type)}。`,
+      );
+      return;
+    }
+
+    if (
+      autoSyncEnabled &&
+      (remoteSyncStatus.provider.type === "disabled" ||
+        !canUseRemoteProvider(remoteSyncStatus.provider))
+    ) {
+      setSyncMessage(null);
+      setSyncError("请先保存并启用本地文件夹、WebDAV 或 FTP/FTPS");
       return;
     }
 
@@ -1496,16 +1519,86 @@ function SyncSettingsTab({
   onExportToRemote: () => void | Promise<void>;
   onImportFromRemote: () => void | Promise<void>;
 }) {
+  const activeProvider = remoteSyncStatus.provider;
+  const activeProviderUsable = canUseRemoteProvider(activeProvider);
+  const editingProvider = selectedSyncProviderType !== activeProvider.type;
+  const selectedProviderLabel = syncProviderLabel(selectedSyncProviderType);
+  const autoSyncReady =
+    activeProvider.type !== "disabled" &&
+    activeProviderUsable &&
+    remoteSyncStatus.syncPasswordSaved;
+  const autoSyncActive = autoSyncReady && remoteSyncStatus.autoSyncEnabled;
+  const autoSyncLabel = autoSyncActive
+    ? `自动 ${remoteSyncStatus.autoSyncIntervalMinutes || 5} 分钟`
+    : remoteSyncStatus.autoSyncEnabled && !autoSyncReady
+      ? "自动同步待配置"
+      : "自动同步关闭";
+
   return (
     <div className="grid gap-4">
-      <SettingSection icon={RefreshCw} title="同步状态">
-        <p className="rounded-lg bg-[color:var(--cliply-accent-50)] px-3 py-2 text-xs leading-5 text-[color:var(--cliply-text-secondary)]">
+      <SettingSection icon={RefreshCw} title="同步总览">
+        <div
+          className={clsx(
+            "rounded-xl border px-3 py-3",
+            activeProvider.type === "disabled"
+              ? "border-[color:var(--cliply-border)] bg-[color:var(--cliply-muted-bg)]"
+              : activeProviderUsable
+                ? "border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)]"
+                : "border-[color:var(--cliply-warning)] bg-[color:var(--cliply-warning-soft)]",
+          )}
+        >
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-[color:var(--cliply-text)]">
+                  当前启用：{syncProviderLabel(activeProvider.type)}
+                </span>
+                <Badge
+                  tone={
+                    activeProvider.type === "disabled"
+                      ? "neutral"
+                      : activeProviderUsable
+                        ? "teal"
+                        : "amber"
+                  }
+                >
+                  {activeProvider.type === "disabled"
+                    ? "未启用"
+                    : activeProviderUsable
+                      ? "可用"
+                      : "配置不完整"}
+                </Badge>
+              </div>
+              <div className="cliply-code-font mt-1 break-all text-[12px] font-semibold text-[color:var(--cliply-muted)]">
+                {syncProviderDescription(activeProvider)}
+              </div>
+            </div>
+            <Badge
+              tone={
+                autoSyncActive
+                  ? "accent"
+                  : remoteSyncStatus.autoSyncEnabled && !autoSyncReady
+                    ? "amber"
+                    : "neutral"
+              }
+              className="shrink-0"
+            >
+              {autoSyncLabel}
+            </Badge>
+          </div>
+        </div>
+        {editingProvider ? (
+          <p className="rounded-lg bg-[color:var(--cliply-info-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-info)]">
+            正在编辑 {selectedProviderLabel}，保存后才会成为当前启用的同步方式。
+          </p>
+        ) : null}
+        <p className="rounded-lg bg-[color:var(--cliply-accent-50)] px-3 py-2 text-xs leading-5 text-[color:var(--cliply-muted)]">
           同步包已加密，请妥善保存同步密码。Cliply 不会把明文剪贴板内容写入远程目录。
         </p>
         <div className="grid grid-cols-3 gap-2 text-xs font-medium text-[color:var(--cliply-muted)]">
           <SyncStat label="Manifest" value={remoteSyncStatus.manifestExists ? "已检测" : "未检测"} />
           <SyncStat label="快照" value={String(remoteSyncStatus.snapshotCount)} />
-          <SyncStat label="状态" value={remoteSyncStatus.lastStatus || "暂无"} />
+          <SyncStat label="状态" value={syncStatusLabel(remoteSyncStatus.lastStatus)} />
         </div>
       </SettingSection>
 
@@ -1513,19 +1606,40 @@ function SyncSettingsTab({
         <div className="grid grid-cols-4 gap-2">
           {SYNC_PROVIDER_OPTIONS.map((option) => {
             const selected = selectedSyncProviderType === option.type;
+            const enabled = activeProvider.type === option.type;
+            const stateLabel = syncProviderOptionStateLabel(
+              option.type,
+              selectedSyncProviderType,
+              remoteSyncStatus,
+            );
             return (
               <button
                 key={option.type}
                 type="button"
                 onClick={() => void onProviderChange(option.type)}
                 className={clsx(
-                  "flex h-10 items-center justify-center rounded-lg border px-2 text-center text-[13px] font-semibold transition",
-                  selected
+                  "flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-2 text-center transition",
+                  enabled
                     ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)]"
+                    : selected
+                      ? "border-[color:var(--cliply-border-strong)] bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-text)]"
                     : "border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] text-[color:var(--cliply-text)] hover:border-[color:var(--cliply-border-strong)]",
                 )}
               >
-                {option.label}
+                <span className="truncate text-[13px] font-semibold">{option.label}</span>
+                <span
+                  className={clsx(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                    enabled &&
+                      "bg-[color:var(--cliply-accent-soft)] text-[color:var(--cliply-accent-strong)]",
+                    !enabled && selected && "bg-[color:var(--cliply-info-soft)] text-[color:var(--cliply-info)]",
+                    !enabled &&
+                      !selected &&
+                      "bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-muted)]",
+                  )}
+                >
+                  {stateLabel}
+                </span>
               </button>
             );
           })}
@@ -1574,7 +1688,11 @@ function SyncSettingsTab({
               label="密码"
               type="password"
               value={webdavDraft.password}
-              placeholder="webdav password"
+              placeholder={
+                syncProviderConfigSaved("webdav", remoteSyncStatus)
+                  ? "留空则继续使用已保存密码"
+                  : "webdav password"
+              }
               onChange={(value) => setWebdavDraft((current) => ({ ...current, password: value }))}
             />
           </div>
@@ -1628,7 +1746,11 @@ function SyncSettingsTab({
               label="密码"
               type="password"
               value={ftpDraft.password}
-              placeholder="ftp password"
+              placeholder={
+                syncProviderConfigSaved("ftp", remoteSyncStatus)
+                  ? "留空则继续使用已保存密码"
+                  : "ftp password"
+              }
               onChange={(value) => setFtpDraft((current) => ({ ...current, password: value }))}
             />
           </div>
@@ -2424,10 +2546,10 @@ function canUseRemoteProvider(provider: SyncProviderConfig) {
     return Boolean(provider.path.trim());
   }
   if (provider.type === "webdav") {
-    return Boolean(provider.url.trim() && provider.username.trim() && provider.password);
+    return Boolean(provider.url.trim() && provider.username.trim());
   }
   if (provider.type === "ftp") {
-    return Boolean(provider.host.trim() && provider.username.trim() && provider.password);
+    return Boolean(provider.host.trim() && provider.username.trim() && provider.port > 0);
   }
   return false;
 }
@@ -2450,6 +2572,75 @@ function remoteSyncProviderLabel(type: SyncProviderConfig["type"]) {
     return "FTP/FTPS";
   }
   return "远程同步";
+}
+
+function syncProviderLabel(type: SyncProviderConfig["type"]) {
+  if (type === "disabled") {
+    return "关闭同步";
+  }
+  if (type === "local-folder") {
+    return "本地文件夹";
+  }
+  if (type === "webdav") {
+    return "WebDAV";
+  }
+  return "FTP/FTPS";
+}
+
+function syncProviderDescription(provider: SyncProviderConfig) {
+  if (provider.type === "disabled") {
+    return "未启用远程目录同步；仍可手动导出或导入加密同步包。";
+  }
+  if (provider.type === "local-folder") {
+    return provider.path.trim() || "尚未选择同步文件夹";
+  }
+  if (provider.type === "webdav") {
+    const remotePath = provider.remotePath.trim() || "根目录";
+    return provider.url.trim()
+      ? `${provider.url.trim()} · ${remotePath}`
+      : `WebDAV 地址未填写 · ${remotePath}`;
+  }
+
+  const scheme = provider.secure ? "FTPS" : "FTP";
+  const remotePath = provider.remotePath.trim() || "根目录";
+  return provider.host.trim()
+    ? `${scheme} ${provider.host.trim()}:${provider.port || 21} · ${remotePath}`
+    : `${scheme} 主机未填写 · ${remotePath}`;
+}
+
+function syncProviderOptionStateLabel(
+  type: SyncProviderConfig["type"],
+  selectedType: SyncProviderConfig["type"],
+  status: RemoteSyncStatus,
+) {
+  if (status.provider.type === type) {
+    return type === "disabled" ? "当前状态" : "已启用";
+  }
+  if (selectedType === type) {
+    return "正在编辑";
+  }
+  if (type === "disabled") {
+    return "可选择";
+  }
+  return syncProviderConfigSaved(type, status) ? "已配置" : "未配置";
+}
+
+function syncProviderConfigSaved(
+  type: SyncProviderConfig["type"],
+  status: RemoteSyncStatus,
+) {
+  if (type === "local-folder") {
+    return Boolean(status.savedProviderConfigs.localFolder?.path.trim());
+  }
+  if (type === "webdav") {
+    const config = status.savedProviderConfigs.webdav;
+    return Boolean(config?.url.trim() && config.username.trim());
+  }
+  if (type === "ftp") {
+    const config = status.savedProviderConfigs.ftp;
+    return Boolean(config?.host.trim() && config.username.trim());
+  }
+  return false;
 }
 
 function directoryOf(path?: string | null) {

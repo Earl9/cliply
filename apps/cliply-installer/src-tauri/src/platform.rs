@@ -164,7 +164,7 @@ mod windows_impl {
             .set_value("DisplayName", &product_name)
             .map_err(|error| PlatformError::Registry(error.to_string()))?;
         uninstall
-            .set_value("DisplayVersion", &"0.1.0")
+            .set_value("DisplayVersion", &env!("CARGO_PKG_VERSION"))
             .map_err(|error| PlatformError::Registry(error.to_string()))?;
         uninstall
             .set_value("Publisher", &"Cliply")

@@ -623,6 +623,25 @@ mod tests {
         assert_eq!(sync_status(&connection, "local-1"), "conflicted");
     }
 
+    #[test]
+    fn transaction_rolls_back_merge_when_later_import_step_fails() {
+        let mut connection = setup_connection();
+        let payload =
+            payload_with_items(vec![item("remote-1", "sync-1", "hash-1", 1, false, None)]);
+
+        let transaction = connection.transaction().expect("transaction should open");
+        merge_sync_payload(&transaction, &payload).expect("payload should merge");
+        let later_import_step = transaction.execute(
+            "INSERT INTO sync_state (key, value, updated_at) VALUES ('last_imported_at', NULL, '2026-05-06T12:00:00Z')",
+            [],
+        );
+
+        assert!(later_import_step.is_err());
+        drop(transaction);
+        assert_eq!(item_count(&connection), 0);
+        assert_eq!(device_count(&connection), 0);
+    }
+
     fn setup_connection() -> Connection {
         let connection = Connection::open_in_memory().expect("sqlite should open");
         connection
@@ -794,6 +813,12 @@ mod tests {
         connection
             .query_row("SELECT COUNT(*) FROM clipboard_items", [], |row| row.get(0))
             .expect("item count should load")
+    }
+
+    fn device_count(connection: &Connection) -> i64 {
+        connection
+            .query_row("SELECT COUNT(*) FROM devices", [], |row| row.get(0))
+            .expect("device count should load")
     }
 
     fn visible_count(connection: &Connection) -> i64 {

@@ -137,6 +137,30 @@ pub fn paste_to_foreground() -> Result<(), CliplyError> {
     }
 }
 
+pub fn remember_paste_target(excluded_window: Option<isize>) {
+    #[cfg(target_os = "windows")]
+    {
+        windows::foreground_window::remember_paste_target(excluded_window);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = excluded_window;
+    }
+}
+
+pub fn restore_paste_target() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::foreground_window::restore_paste_target();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
 pub fn set_launch_at_startup(enabled: bool, start_minimized: bool) -> Result<(), CliplyError> {
     #[cfg(target_os = "windows")]
     {

@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS clipboard_formats (
   FOREIGN KEY (item_id) REFERENCES clipboard_items(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_clipboard_formats_item_id ON clipboard_formats(item_id);
+CREATE INDEX IF NOT EXISTS idx_clipboard_formats_item_kind_priority
+  ON clipboard_formats(item_id, data_kind, priority DESC, created_at ASC);
+
 CREATE TABLE IF NOT EXISTS clipboard_tags (
   item_id TEXT NOT NULL,
   tag TEXT NOT NULL,

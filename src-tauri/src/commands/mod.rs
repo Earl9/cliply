@@ -390,7 +390,7 @@ pub async fn get_debug_info(app: AppHandle) -> Result<serde_json::Value, String>
         "historyCount": diagnostics.history_count,
         "lastSyncedAt": diagnostics.last_synced_at,
         "lastSyncStatus": diagnostics.last_sync_status,
-        "lastSyncError": diagnostics.last_sync_error,
+        "lastSyncError": diagnostics.last_sync_error.as_deref().map(redact_diagnostic_message),
         "recentError": recent_error,
     }))
 }
@@ -483,7 +483,14 @@ fn read_recent_error(log_path: &Path) -> Option<String> {
         .lines()
         .rev()
         .find(|line| line.contains(" ERROR "))
-        .map(|line| line.chars().take(500).collect())
+        .map(redact_diagnostic_message)
+}
+
+fn redact_diagnostic_message(message: &str) -> String {
+    logger::sanitize_diagnostic_message(message)
+        .chars()
+        .take(500)
+        .collect()
 }
 
 fn data_dir_from_paths(log_path: &Path, database_path: &Path) -> PathBuf {

@@ -5,6 +5,8 @@ $tauriDir = Join-Path $repoRoot "src-tauri"
 $bundleDir = Join-Path $tauriDir "target\release\bundle\custom"
 $scriptPath = Join-Path $tauriDir "installer\cliply-installer.nsi"
 $compiledScriptPath = Join-Path $tauriDir "target\release\custom-installer.nsi"
+$package = Get-Content -Path (Join-Path $repoRoot "package.json") -Raw | ConvertFrom-Json
+$version = $package.version
 
 $makensisCandidates = @(
   (Join-Path $env:LOCALAPPDATA "tauri\NSIS\makensis.exe"),
@@ -42,5 +44,5 @@ try {
   Pop-Location
 }
 
-$outFile = Join-Path $bundleDir "Cliply_0.1.0_x64-modern-setup.exe"
+$outFile = Join-Path $bundleDir "Cliply_${version}_x64-modern-setup.exe"
 Get-Item $outFile | Select-Object FullName, LastWriteTime, Length

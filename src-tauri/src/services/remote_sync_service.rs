@@ -138,6 +138,7 @@ pub fn set_remote_sync_provider(
     }
 
     let connection = database_service::connect(app)?;
+    let config = merge_saved_provider_password(&connection, config)?;
     validate_provider_config(&config)?;
     set_json_state_value(&connection, CONFIG_KEY, &config)?;
     cache_provider_config(&connection, &config)?;
@@ -549,7 +550,7 @@ fn build_remote_sync_status(
         get_sync_state_value(connection, LAST_STATUS_KEY)?
     };
 
-    Ok(RemoteSyncStatus {
+    Ok(redact_remote_sync_status(RemoteSyncStatus {
         provider,
         saved_provider_configs: get_saved_provider_configs(connection)?,
         manifest_exists,
@@ -562,7 +563,56 @@ fn build_remote_sync_status(
         sync_password_saved: password_status.saved,
         sync_password_updated_at: password_status.updated_at,
         last_auto_sync_at: get_sync_state_value(connection, LAST_AUTO_SYNC_AT_KEY)?,
-    })
+    }))
+}
+
+fn redact_remote_sync_status(mut status: RemoteSyncStatus) -> RemoteSyncStatus {
+    status.provider = redact_provider_password(status.provider);
+    status.saved_provider_configs.local_folder = status
+        .saved_provider_configs
+        .local_folder
+        .map(redact_provider_password);
+    status.saved_provider_configs.webdav = status
+        .saved_provider_configs
+        .webdav
+        .map(redact_provider_password);
+    status.saved_provider_configs.ftp = status
+        .saved_provider_configs
+        .ftp
+        .map(redact_provider_password);
+    status
+}
+
+fn redact_provider_password(config: SyncProviderConfig) -> SyncProviderConfig {
+    match config {
+        SyncProviderConfig::Webdav {
+            url,
+            username,
+            remote_path,
+            ..
+        } => SyncProviderConfig::Webdav {
+            url,
+            username,
+            password: String::new(),
+            remote_path,
+        },
+        SyncProviderConfig::Ftp {
+            host,
+            port,
+            username,
+            secure,
+            remote_path,
+            ..
+        } => SyncProviderConfig::Ftp {
+            host,
+            port,
+            username,
+            password: String::new(),
+            secure,
+            remote_path,
+        },
+        config => config,
+    }
 }
 
 fn resolve_sync_password(app: &AppHandle, password: Option<String>) -> Result<String, CliplyError> {
@@ -711,6 +761,81 @@ fn get_saved_provider_configs(
     }
 
     Ok(configs)
+}
+
+fn merge_saved_provider_password(
+    connection: &Connection,
+    config: SyncProviderConfig,
+) -> Result<SyncProviderConfig, CliplyError> {
+    match config {
+        SyncProviderConfig::Webdav {
+            url,
+            username,
+            password,
+            remote_path,
+        } if password.is_empty() => Ok(SyncProviderConfig::Webdav {
+            url,
+            username,
+            password: saved_provider_password(connection, "webdav")?.unwrap_or_default(),
+            remote_path,
+        }),
+        SyncProviderConfig::Ftp {
+            host,
+            port,
+            username,
+            password,
+            secure,
+            remote_path,
+        } if password.is_empty() => Ok(SyncProviderConfig::Ftp {
+            host,
+            port,
+            username,
+            password: saved_provider_password(connection, "ftp")?.unwrap_or_default(),
+            secure,
+            remote_path,
+        }),
+        config => Ok(config),
+    }
+}
+
+fn saved_provider_password(
+    connection: &Connection,
+    expected_type: &str,
+) -> Result<Option<String>, CliplyError> {
+    let active = get_provider_config_from_connection(connection)?;
+    if provider_type_matches(&active, expected_type) {
+        if let Some(password) = provider_password(&active).filter(|value| !value.is_empty()) {
+            return Ok(Some(password.to_string()));
+        }
+    }
+
+    let key = match expected_type {
+        "webdav" => WEBDAV_CONFIG_KEY,
+        "ftp" => FTP_CONFIG_KEY,
+        _ => return Ok(None),
+    };
+    let cached = get_cached_provider_config(connection, key, expected_type)?;
+    Ok(cached
+        .as_ref()
+        .and_then(provider_password)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string))
+}
+
+fn provider_type_matches(config: &SyncProviderConfig, expected_type: &str) -> bool {
+    matches!(
+        (config, expected_type),
+        (SyncProviderConfig::Webdav { .. }, "webdav") | (SyncProviderConfig::Ftp { .. }, "ftp")
+    )
+}
+
+fn provider_password(config: &SyncProviderConfig) -> Option<&str> {
+    match config {
+        SyncProviderConfig::Webdav { password, .. } | SyncProviderConfig::Ftp { password, .. } => {
+            Some(password)
+        }
+        _ => None,
+    }
 }
 
 fn get_cached_provider_config(
@@ -910,8 +1035,9 @@ fn current_timestamp() -> Result<String, CliplyError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ensure_remote_layout, list_snapshot_paths, snapshot_file_name, LocalFolderSyncProvider,
-        MANIFEST_PATH, SNAPSHOTS_PATH,
+        ensure_remote_layout, list_snapshot_paths, redact_provider_password,
+        redact_remote_sync_status, snapshot_file_name, LocalFolderSyncProvider, RemoteSyncStatus,
+        SavedSyncProviderConfigs, SyncProviderConfig, MANIFEST_PATH, SNAPSHOTS_PATH,
     };
     use crate::services::sync_storage_provider::SyncStorageProvider;
     use std::fs;
@@ -954,5 +1080,103 @@ mod tests {
         let name = snapshot_file_name("device-1", "2026-05-06T12:34:56+08:00");
         assert!(name.ends_with("-device-1.cliply-sync"));
         assert!(!name.contains(':'));
+    }
+
+    #[test]
+    fn provider_status_redacts_remote_passwords() {
+        let status = RemoteSyncStatus {
+            provider: SyncProviderConfig::Webdav {
+                url: "https://dav.example.com".to_string(),
+                username: "earl".to_string(),
+                password: "secret-webdav".to_string(),
+                remote_path: "cliply".to_string(),
+            },
+            saved_provider_configs: SavedSyncProviderConfigs {
+                local_folder: None,
+                webdav: Some(SyncProviderConfig::Webdav {
+                    url: "https://dav.example.com".to_string(),
+                    username: "earl".to_string(),
+                    password: "secret-webdav".to_string(),
+                    remote_path: "cliply".to_string(),
+                }),
+                ftp: Some(SyncProviderConfig::Ftp {
+                    host: "ftp.example.com".to_string(),
+                    port: 21,
+                    username: "earl".to_string(),
+                    password: "secret-ftp".to_string(),
+                    secure: false,
+                    remote_path: "cliply".to_string(),
+                }),
+            },
+            manifest_exists: false,
+            last_synced_at: None,
+            last_status: None,
+            last_error: None,
+            snapshot_count: 0,
+            auto_sync_enabled: false,
+            auto_sync_interval_minutes: 5,
+            sync_password_saved: false,
+            sync_password_updated_at: None,
+            last_auto_sync_at: None,
+        };
+
+        let status = redact_remote_sync_status(status);
+
+        assert_eq!(remote_password(&status.provider), Some(""));
+        assert_eq!(
+            status
+                .saved_provider_configs
+                .webdav
+                .as_ref()
+                .and_then(remote_password),
+            Some("")
+        );
+        assert_eq!(
+            status
+                .saved_provider_configs
+                .ftp
+                .as_ref()
+                .and_then(remote_password),
+            Some("")
+        );
+    }
+
+    #[test]
+    fn provider_password_redaction_preserves_connection_fields() {
+        let redacted = redact_provider_password(SyncProviderConfig::Ftp {
+            host: "ftp.example.com".to_string(),
+            port: 990,
+            username: "earl".to_string(),
+            password: "secret".to_string(),
+            secure: true,
+            remote_path: "/cliply".to_string(),
+        });
+
+        assert_eq!(remote_password(&redacted), Some(""));
+        match redacted {
+            SyncProviderConfig::Ftp {
+                host,
+                port,
+                username,
+                secure,
+                remote_path,
+                ..
+            } => {
+                assert_eq!(host, "ftp.example.com");
+                assert_eq!(port, 990);
+                assert_eq!(username, "earl");
+                assert!(secure);
+                assert_eq!(remote_path, "/cliply");
+            }
+            _ => panic!("expected ftp provider"),
+        }
+    }
+
+    fn remote_password(config: &SyncProviderConfig) -> Option<&str> {
+        match config {
+            SyncProviderConfig::Webdav { password, .. }
+            | SyncProviderConfig::Ftp { password, .. } => Some(password.as_str()),
+            _ => None,
+        }
     }
 }

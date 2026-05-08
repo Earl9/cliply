@@ -23,7 +23,7 @@ export function ClipboardDetailPane({
 }: ClipboardDetailPaneProps) {
   return (
     <section
-      className="grid min-h-0 min-w-0 grid-rows-[50px_1fr_auto] overflow-hidden rounded-[12px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]"
+      className="cliply-detail-pane grid min-h-0 min-w-0 grid-rows-[50px_1fr_auto] overflow-hidden rounded-[12px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]"
       onContextMenu={(event) => onContextMenu(event, item)}
     >
       <header className="flex h-[50px] shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-4">

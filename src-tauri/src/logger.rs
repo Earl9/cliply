@@ -24,6 +24,10 @@ pub fn error(app: &AppHandle, event: &str, error: impl std::fmt::Display) {
     write(app, "ERROR", event, &error.to_string());
 }
 
+pub(crate) fn sanitize_diagnostic_message(message: &str) -> String {
+    sanitize_message(message)
+}
+
 fn write(app: &AppHandle, level: &str, event: &str, message: &str) {
     let Ok(path) = log_path(app) else {
         return;
@@ -71,8 +75,10 @@ fn contains_sensitive_field(message: &str) -> bool {
         "secretaccesskey",
         "access_token",
         "refresh_token",
-        "\"data_text\"",
-        "\"normalized_text\"",
+        "data_text",
+        "preview_text",
+        "normalized_text",
+        "payload_json",
         "encrypted_payload",
     ]
     .iter()
@@ -98,4 +104,45 @@ fn is_probable_secret_blob(token: &str) -> bool {
         && token.chars().all(|character| {
             character.is_ascii_alphanumeric() || matches!(character, '+' | '/' | '=' | '-' | '_')
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_diagnostic_message;
+
+    #[test]
+    fn redacts_sensitive_field_messages() {
+        for message in [
+            "password=hunter2",
+            "Authorization: Bearer secret-token",
+            r#"{"data_text":"clipboard body"}"#,
+            r#"{"preview_text":"clipboard preview"}"#,
+            r#"{"normalized_text":"clipboard body"}"#,
+            r#"{"payload_json":"event body"}"#,
+            r#"{"encrypted_payload":"ciphertext"}"#,
+            "-----BEGIN PRIVATE KEY-----",
+        ] {
+            assert_eq!(
+                sanitize_diagnostic_message(message),
+                "[redacted sensitive fields]"
+            );
+        }
+    }
+
+    #[test]
+    fn redacts_large_secret_like_tokens() {
+        let token = "A".repeat(120);
+        assert_eq!(
+            sanitize_diagnostic_message(&format!("upload failed token={token}")),
+            "upload failed [redacted-large-token]"
+        );
+    }
+
+    #[test]
+    fn keeps_operational_messages() {
+        assert_eq!(
+            sanitize_diagnostic_message("exported=1 imported=2 skipped=0"),
+            "exported=1 imported=2 skipped=0"
+        );
+    }
 }
