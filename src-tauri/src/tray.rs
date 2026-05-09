@@ -105,7 +105,7 @@ fn tray_tooltip(app: &AppHandle) -> String {
 }
 
 fn load_tray_icon() -> Image<'static> {
-    let icon = image::load_from_memory(include_bytes!("../icons/32x32.png"))
+    let icon = image::load_from_memory(include_bytes!("../icons/tray-32.png"))
         .expect("valid Cliply tray icon")
         .into_rgba8();
     let (width, height) = icon.dimensions();
