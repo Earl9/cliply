@@ -6,11 +6,6 @@ Cliply is a local-first clipboard manager for Windows. It keeps clipboard
 history fast, searchable, and under your control without requiring an account
 or sending clipboard contents to a Cliply-hosted cloud service.
 
-> Status: `v0.4.0-beta.1` is in beta stabilization. Core workflows are
-> implemented and the project is being prepared for public beta validation.
-> See the [release checklist](docs/release-checklist.md) for the current
-> pre-release verification plan.
-
 ## Screenshots
 
 | Main Window (Light) | Main Window (Dark) |
@@ -68,11 +63,6 @@ upgrade/uninstall flows.
 Please do not paste production secrets into public issues. If you discover a
 security or privacy issue, follow [SECURITY.md](SECURITY.md).
 
-## Current Release Readiness
-
-Cliply is currently in `v0.4.0-beta.1` stabilization. The detailed pre-release
-validation plan lives in [docs/release-checklist.md](docs/release-checklist.md).
-
 ## Development
 
 Clone the repository:
@@ -104,7 +94,6 @@ Run backend checks:
 
 ```powershell
 cargo check --manifest-path .\src-tauri\Cargo.toml
-cargo test --manifest-path .\src-tauri\Cargo.toml
 ```
 
 Build the modern installer:
@@ -113,34 +102,12 @@ Build the modern installer:
 npm run build:modern-installer
 ```
 
-## Testing
-
-Common verification commands:
-
-```powershell
-npm run lint
-npm run typecheck
-npm run build
-cargo check --manifest-path .\src-tauri\Cargo.toml
-cargo test --manifest-path .\src-tauri\Cargo.toml
-```
-
-Manual release validation is tracked in
-[docs/release-checklist.md](docs/release-checklist.md). Sync provider details
-are documented in [docs/provider-testing.md](docs/provider-testing.md) and
-[docs/sync-design.md](docs/sync-design.md).
-
 ## Documentation
 
 - [Privacy Policy](PRIVACY.md)
 - [Security Policy](SECURITY.md)
-- [Contributing Guide](CONTRIBUTING.md)
-- [Roadmap](ROADMAP.md)
 - [Changelog](CHANGELOG.md)
-- [Manual Test Checklist](docs/manual-test-checklist.md)
-- [Release Checklist](docs/release-checklist.md)
 - [Sync Design](docs/sync-design.md)
-- [Provider Testing](docs/provider-testing.md)
 - [Installer Notes](docs/installer.md)
 - [Privacy And Logs](docs/privacy-and-logs.md)
 
@@ -152,12 +119,6 @@ are documented in [docs/provider-testing.md](docs/provider-testing.md) and
 - Storage: SQLite via `rusqlite`
 - Sync crypto: AES-GCM with Argon2 key derivation
 - Installer: Tauri app-based modern installer plus NSIS fallback
-
-## Contributing
-
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
-before opening a pull request, keep changes focused, and avoid committing
-generated build outputs or local runtime data.
 
 ## License
 
