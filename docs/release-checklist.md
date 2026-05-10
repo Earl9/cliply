@@ -45,6 +45,8 @@ npm run build:modern-installer
 - [ ] Download progress displays normally.
 - [ ] Installed update state offers immediate relaunch.
 - [ ] Release contains `latest.json` and updater signature `.sig` artifacts.
+- [ ] Release contains `Cliply_*_x64-modern-installer.exe` for manual installation.
+- [ ] Release notes tell users to download the modern installer and treat NSIS setup as an updater asset.
 - [ ] Release is not marked as a GitHub Pre-release while the updater endpoint uses `/releases/latest/download/latest.json`.
 - [ ] Update flow never forces updates, silently installs in the background, uses a custom update server, accepts unsigned updates, or manually replaces the exe.
 - [ ] Installer matrix passes.
@@ -57,6 +59,7 @@ Expected local artifacts:
 
 ```text
 apps\cliply-installer\src-tauri\target\release\cliply-modern-installer.exe
+release-assets\Cliply_0.4.1-beta.1_x64-modern-installer.exe
 src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.1_x64-setup.exe
 ```
 

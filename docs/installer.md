@@ -8,9 +8,10 @@ Modern installer:
 
 ```text
 apps\cliply-installer\src-tauri\target\release\cliply-modern-installer.exe
+GitHub Release: Cliply_0.4.1-beta.1_x64-modern-installer.exe
 ```
 
-Fallback NSIS installer:
+Signed updater NSIS asset:
 
 ```text
 src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.1_x64-setup.exe
@@ -41,6 +42,10 @@ The modern installer:
 - Can create or remove a startup entry.
 - Attempts to stop a running Cliply process before replacing files.
 - Preserves user data during install and update.
+
+The GitHub Release also includes the Tauri-generated NSIS setup, `.sig`, and
+`latest.json` files. Those assets are for the signed in-app updater; users
+should download the `modern-installer.exe` asset for manual installation.
 
 ## Uninstall Behavior
 
