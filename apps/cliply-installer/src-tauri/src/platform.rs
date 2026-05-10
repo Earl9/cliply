@@ -56,6 +56,7 @@ mod windows_impl {
     const CLIPLY_SHORTCUT_NAME: &str = "Cliply.lnk";
     const UNINSTALL_SHORTCUT_NAME: &str = "卸载 Cliply.lnk";
     const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+    const START_ON_LOGIN_ARG: &str = "--minimized";
     const MAX_PATH_LEN: usize = 260;
 
     pub fn read_install_dir_from_registry() -> Option<String> {
@@ -242,6 +243,18 @@ mod windows_impl {
         )
     }
 
+    pub fn refresh_desktop_shortcut_if_exists(
+        exe_path: &Path,
+        icon_path: &Path,
+    ) -> PlatformResult<()> {
+        let desktop = known_folder_path(&FOLDERID_Desktop)?;
+        let shortcut = desktop.join(CLIPLY_SHORTCUT_NAME);
+        if shortcut.exists() {
+            create_shortcut(&shortcut, exe_path, None, icon_path, "Cliply")?;
+        }
+        Ok(())
+    }
+
     pub fn remove_desktop_shortcut() -> PlatformResult<()> {
         let desktop = known_folder_path(&FOLDERID_Desktop)?;
         let shortcut = desktop.join(CLIPLY_SHORTCUT_NAME);
@@ -283,7 +296,7 @@ mod windows_impl {
             .map_err(|error| PlatformError::Registry(error.to_string()))?;
 
         if enabled {
-            let command = format!("\"{}\" --minimized", exe_path.to_string_lossy());
+            let command = start_on_login_command(exe_path);
             run_key
                 .set_value(product_name, &command)
                 .map_err(|error| PlatformError::Registry(error.to_string()))?;
@@ -291,6 +304,22 @@ mod windows_impl {
             let _ = run_key.delete_value(product_name);
         }
 
+        Ok(())
+    }
+
+    pub fn refresh_start_on_login_if_enabled(
+        product_name: &str,
+        exe_path: &Path,
+    ) -> PlatformResult<()> {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let (run_key, _) = hkcu
+            .create_subkey_with_flags(RUN_KEY, KEY_READ | KEY_WRITE)
+            .map_err(|error| PlatformError::Registry(error.to_string()))?;
+        if run_key.get_value::<String, _>(product_name).is_ok() {
+            run_key
+                .set_value(product_name, &start_on_login_command(exe_path))
+                .map_err(|error| PlatformError::Registry(error.to_string()))?;
+        }
         Ok(())
     }
 
@@ -407,6 +436,10 @@ mod windows_impl {
         }
     }
 
+    fn start_on_login_command(exe_path: &Path) -> String {
+        format!("\"{}\" {START_ON_LOGIN_ARG}", exe_path.to_string_lossy())
+    }
+
     fn delete_registry_tree(root: &RegKey, path: &str, flags: u32) -> PlatformResult<()> {
         match root.delete_subkey_with_flags(path, flags) {
             Ok(()) => Ok(()),
@@ -464,7 +497,8 @@ mod windows_impl {
 #[cfg(windows)]
 pub use windows_impl::{
     browse_install_dir, create_desktop_shortcut, create_start_menu_shortcuts,
-    read_install_dir_from_registry, remove_desktop_shortcut, remove_install_registry,
+    read_install_dir_from_registry, refresh_desktop_shortcut_if_exists,
+    refresh_start_on_login_if_enabled, remove_desktop_shortcut, remove_install_registry,
     remove_start_menu_shortcuts, set_start_on_login, write_install_registry,
 };
 
@@ -508,6 +542,14 @@ pub fn remove_desktop_shortcut() -> PlatformResult<()> {
 }
 
 #[cfg(not(windows))]
+pub fn refresh_desktop_shortcut_if_exists(
+    _exe_path: &Path,
+    _icon_path: &Path,
+) -> PlatformResult<()> {
+    Ok(())
+}
+
+#[cfg(not(windows))]
 pub fn remove_start_menu_shortcuts(_folder_name: &str) -> PlatformResult<()> {
     Ok(())
 }
@@ -519,6 +561,14 @@ pub fn set_start_on_login(
     _enabled: bool,
 ) -> PlatformResult<()> {
     Err(PlatformError::UnsupportedPlatform)
+}
+
+#[cfg(not(windows))]
+pub fn refresh_start_on_login_if_enabled(
+    _product_name: &str,
+    _exe_path: &Path,
+) -> PlatformResult<()> {
+    Ok(())
 }
 
 #[cfg(not(windows))]

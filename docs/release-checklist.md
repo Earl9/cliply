@@ -37,18 +37,26 @@ npm run build:modern-installer
 - [ ] FTP pass/fail paths pass.
 - [ ] FTPS pass/fail paths pass.
 - [ ] About > Update shows current version, channel, last checked time, and manual check status.
-- [ ] Current version lower than GitHub latest signed updater metadata discovers an update.
-- [ ] Current version equal to latest signed updater metadata shows "already up to date".
+- [ ] Current version lower than GitHub `latest.json` discovers an update.
+- [ ] Current version equal to GitHub `latest.json` shows "already up to date".
 - [ ] Network failure shows an inline update error.
 - [ ] Update available state shows version, published time, and release notes.
 - [ ] Installing an update warns that Cliply may temporarily close.
+- [ ] `latest.json` contains `modernInstaller.version`, `modernInstaller.notes`, `modernInstaller.published_at`, `modernInstaller.url`, and `modernInstaller.sha256`.
+- [ ] Update downloads `Cliply_*_x64-modern-installer.exe` to the temp update directory.
 - [ ] Download progress displays normally.
-- [ ] Installed update state offers immediate relaunch.
-- [ ] Release contains `latest.json` and updater signature `.sig` artifacts.
-- [ ] Release contains `Cliply_*_x64-modern-installer.exe` for manual installation.
-- [ ] Release notes tell users to download the modern installer and treat NSIS setup as an updater asset.
+- [ ] Download completion verifies SHA256 before enabling installation.
+- [ ] SHA256 mismatch deletes the temporary installer and shows "更新包校验失败".
+- [ ] After checksum success, Cliply launches Modern Installer with `--mode update`, `--install-dir`, `--source-version`, `--target-version`, `--preserve-user-data`, `--launch-after-install`, and `--parent-pid`.
+- [ ] Cliply exits after launching Modern Installer.
+- [ ] Modern Installer update mode shows "正在更新 Cliply".
+- [ ] Modern Installer closes the running Cliply process, preserves user data, overwrites program files, updates shortcuts, and relaunches Cliply.
+- [ ] Modern Installer failure shows an error and offers log directory / Release page actions.
+- [ ] Automatic install failure in Cliply shows the GitHub Release fallback and logs `update_install_failed`.
+- [ ] Release contains `latest.json`, updater signature `.sig` artifacts, and `Cliply_*_x64-modern-installer.exe`.
+- [ ] Release notes tell users to download the modern installer and treat NSIS setup as fallback.
 - [ ] Release is not marked as a GitHub Pre-release while the updater endpoint uses `/releases/latest/download/latest.json`.
-- [ ] Update flow never forces updates, silently installs in the background, uses a custom update server, accepts unsigned updates, or manually replaces the exe.
+- [ ] Update flow never forces updates, silently installs in the background, uses a custom update server, skips SHA256 verification, accepts unsigned updates, or lets Cliply directly replace the exe.
 - [ ] Installer matrix passes.
 - [ ] Logs and diagnostics are redacted.
 - [ ] DPI and multi-monitor smoke tests pass.

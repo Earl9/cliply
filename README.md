@@ -6,15 +6,22 @@ Cliply is a local-first clipboard manager for Windows. It keeps clipboard
 history fast, searchable, and under your control without requiring an account
 or sending clipboard contents to a Cliply-hosted cloud service.
 
+Status: Beta. Cliply is Windows-first and currently focused on stabilization,
+installer validation, and sync reliability.
+
 ## Screenshots
 
-| Main Window (Light) | Main Window (Dark) |
-| --- | --- |
-| ![Cliply main window in light mode](docs/assets/screenshots/main-light.png) | ![Cliply main window in dark mode](docs/assets/screenshots/main-dark.png) |
+### Main Window
 
-| Sync Settings | Installer |
-| --- | --- |
-| ![Cliply sync settings](docs/assets/screenshots/settings-sync.png) | ![Cliply installer](docs/assets/screenshots/installer.png) |
+![Cliply main window](docs/assets/screenshots/main-light.png)
+
+### Dark Mode
+
+![Cliply dark mode](docs/assets/screenshots/main-dark.png)
+
+### Settings
+
+![Cliply settings](docs/assets/screenshots/settings-sync.png)
 
 ## Features
 
@@ -29,7 +36,7 @@ or sending clipboard contents to a Cliply-hosted cloud service.
 - Sync through user-controlled storage: Local Folder, WebDAV, FTP, and FTPS
 - Auto sync with configurable intervals and image sync modes
 - Windows installer with install, update, uninstall, startup, and data-retention controls
-- Signed update checks from the About tab using the official Tauri updater
+- Signed update checks from the About tab with a Modern Installer update flow
 
 ## Privacy
 
@@ -42,7 +49,7 @@ Cliply is local-first by design:
   provider you configure.
 - Remote sync providers receive encrypted sync packages, not plaintext
   clipboard history.
-- Update checks contact GitHub Releases for signed updater metadata and do
+- Update checks contact GitHub Releases for update metadata and do
   not include clipboard history, sync passwords, or local database content.
 - Logs and diagnostics must not contain clipboard body text, sync passwords,
   provider passwords, tokens, Authorization headers, private keys, or image
@@ -68,9 +75,15 @@ security or privacy issue, follow [SECURITY.md](SECURITY.md).
 
 ## Updates
 
-Cliply checks GitHub Releases for signed Tauri updater metadata. Updates are
-verified before installation, and Cliply asks before installing because the app
-may temporarily close during the Windows update flow.
+Cliply checks GitHub Releases for `latest.json`. The manifest points to the
+Modern Installer asset and includes a SHA256 checksum. The About tab shows
+update availability and download progress, then Cliply verifies the installer
+before launching Modern Installer in update mode.
+
+During installation, Cliply temporarily closes while Modern Installer replaces
+program files, preserves user data, updates shortcuts, and starts Cliply again.
+If automatic installation fails, download the full
+`Cliply_*_x64-modern-installer.exe` from GitHub Releases and run it manually.
 
 ## Development
 

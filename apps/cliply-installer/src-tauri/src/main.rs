@@ -13,7 +13,9 @@ fn main() {
             commands::browse_install_dir,
             commands::run_install,
             commands::run_uninstall,
-            commands::launch_cliply
+            commands::launch_cliply,
+            commands::open_installer_log_directory,
+            commands::open_release_page
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Cliply modern installer");

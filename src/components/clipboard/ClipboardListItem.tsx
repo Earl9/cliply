@@ -56,7 +56,7 @@ export function ClipboardListItem({
         "group grid h-[78px] w-full cursor-pointer grid-cols-[44px_minmax(0,1fr)_24px] items-center gap-3 rounded-[12px] border px-3 py-2.5 text-left transition duration-150 active:scale-[0.995]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
         selected
-          ? "border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] shadow-[var(--cliply-shadow-selected)]"
+          ? "cliply-list-item-selected border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] shadow-[var(--cliply-shadow-selected)]"
           : "border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-none hover:-translate-y-px hover:border-[color:var(--cliply-border-strong)] hover:shadow-[var(--cliply-shadow-card-hover)]",
       )}
     >

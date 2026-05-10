@@ -58,8 +58,9 @@ import {
 } from "@/lib/settingsRepository";
 import {
   checkCliplyUpdate,
-  downloadAndInstallCliplyUpdate,
-  relaunchCliply,
+  downloadCliplyUpdate,
+  launchModernUpdateInstaller,
+  openCliplyReleasePage,
   type CliplyUpdateInfo,
 } from "@/lib/updateService";
 import {
@@ -898,7 +899,7 @@ export function SettingsDialog({
               className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]"
               data-tauri-drag-region
             >
-              本地优先，Windows MVP
+              本地数据、同步和外观设置
             </p>
           </div>
           <IconButton label="关闭设置" onClick={cancelSettings}>
@@ -2180,7 +2181,8 @@ type UpdatePanelStatus =
   | "current"
   | "available"
   | "downloading"
-  | "installed"
+  | "ready"
+  | "installing"
   | "failed";
 
 function UpdatePanel({
@@ -2219,18 +2221,30 @@ function UpdatePanel({
     }
   };
 
-  const installUpdate = async () => {
+  const downloadUpdate = async () => {
     setStatus("downloading");
     setError(null);
     setConfirmInstall(false);
     setDownloadProgress(0);
     try {
-      await downloadAndInstallCliplyUpdate(setDownloadProgress);
-      setStatus("installed");
+      await downloadCliplyUpdate(setDownloadProgress);
+      setStatus("ready");
       setDownloadProgress(1);
     } catch (updateError) {
       setStatus("failed");
-      setError(errorMessage(updateError, "下载或安装更新失败"));
+      setError(errorMessage(updateError, "下载更新失败"));
+    }
+  };
+
+  const installUpdate = async () => {
+    setStatus("installing");
+    setError(null);
+    setConfirmInstall(false);
+    try {
+      await launchModernUpdateInstaller();
+    } catch (updateError) {
+      setStatus("failed");
+      setError(errorMessage(updateError, "安装更新失败，请下载完整安装器手动更新。"));
     }
   };
 
@@ -2239,8 +2253,9 @@ function UpdatePanel({
     checking: "正在检查更新",
     current: "已是最新版本",
     available: "发现新版本",
-    downloading: "正在下载并安装",
-    installed: "安装完成",
+    downloading: "正在下载更新",
+    ready: "准备安装",
+    installing: "正在启动安装器",
     failed: "更新失败",
   }[status];
   const updateChannelLabel = draft.update.channel === "stable" ? "Stable" : "Beta";
@@ -2303,7 +2318,7 @@ function UpdatePanel({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={status === "checking" || status === "downloading"}
+            disabled={status === "checking" || status === "downloading" || status === "installing"}
             onClick={() => void runUpdateCheck()}
             className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
@@ -2313,19 +2328,29 @@ function UpdatePanel({
           {status === "available" && updateInfo ? (
             <button
               type="button"
+              onClick={() => void downloadUpdate()}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
+            >
+              下载更新
+            </button>
+          ) : null}
+          {status === "ready" ? (
+            <button
+              type="button"
               onClick={() => setConfirmInstall(true)}
               className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
             >
-              下载并安装
+              安装更新
             </button>
           ) : null}
-          {status === "installed" ? (
+          {status === "failed" ? (
             <button
               type="button"
-              onClick={() => void relaunchCliply()}
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
+              onClick={() => void openCliplyReleasePage()}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
             >
-              立即重启
+              <ExternalLink className="size-4" />
+              打开 Release 页面
             </button>
           ) : null}
         </div>
@@ -2333,10 +2358,10 @@ function UpdatePanel({
         {confirmInstall ? (
           <div className="grid gap-2 rounded-xl border border-[color:var(--cliply-warning)] bg-[color:var(--cliply-warning-soft)] px-3 py-3">
             <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
-              安装更新时 Cliply 会暂时关闭。
+              Modern Installer 将接管更新。
             </div>
             <p className="text-xs leading-5 text-[color:var(--cliply-muted)]">
-              更新包会先完成签名校验，然后由 Tauri 官方 updater 安装。Cliply 不会静默替换 exe。
+              更新包已下载并通过 SHA256 校验。继续后会打开 Modern Installer，Cliply 会暂时退出，安装器会覆盖程序文件并在完成后重新启动。
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -2366,6 +2391,13 @@ function UpdatePanel({
         {status === "failed" ? (
           <p className="rounded-lg bg-[color:var(--cliply-danger-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-danger)]">
             {error || "更新失败"}
+          </p>
+        ) : null}
+
+        {status === "failed" ? (
+          <p className="rounded-lg bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-xs font-medium leading-5 text-[color:var(--cliply-muted)]">
+            如果自动安装失败，请在 Release 页面下载
+            `Cliply_*_x64-modern-installer.exe` 完整安装器手动更新。
           </p>
         ) : null}
 
@@ -2406,14 +2438,20 @@ function UpdatePanel({
           </div>
         ) : null}
 
-        {status === "installed" ? (
-          <p className="rounded-lg bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-success)]">
-            更新已安装完成，点击“立即重启”后 Cliply 会重新打开。
+        {status === "ready" ? (
+          <p className="rounded-lg bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[color:var(--cliply-success)]">
+              更新包已下载。安装时 Cliply 会暂时关闭，完成后可重新启动。Modern Installer 会保留用户数据并接管后续更新步骤。
+          </p>
+        ) : null}
+
+        {status === "installing" ? (
+          <p className="rounded-lg bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-muted)]">
+            正在启动 Modern Installer，Cliply 将暂时退出。
           </p>
         ) : null}
 
         <div className="text-xs leading-5 text-[color:var(--cliply-muted)]">
-          Cliply 使用 Tauri 官方签名 updater。不会强制更新、静默后台安装或使用自建更新服务器。
+          Cliply 会下载 GitHub Release 中的 Modern Installer 并校验 SHA256，再启动安装器的 update mode。不会强制更新、跳过校验或静默替换 exe。
         </div>
       </div>
     </SettingSection>

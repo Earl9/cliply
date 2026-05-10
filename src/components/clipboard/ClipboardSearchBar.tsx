@@ -11,7 +11,7 @@ export const ClipboardSearchBar = forwardRef<HTMLInputElement, ClipboardSearchBa
   function ClipboardSearchBar({ query, onQueryChange }, ref) {
     return (
       <div className="px-5 pt-2">
-        <div className="flex h-11 items-center gap-3 rounded-[12px] border border-[color:var(--cliply-border-strong)] bg-[color:var(--cliply-input-bg)] px-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] transition focus-within:border-[color:var(--cliply-accent)] focus-within:shadow-[0_0_0_3px_var(--cliply-focus-ring),0_4px_12px_rgba(15,23,42,0.05)]">
+        <div className="cliply-search-shell flex h-11 items-center gap-3 rounded-[12px] border border-[color:var(--cliply-border-strong)] bg-[color:var(--cliply-input-bg)] px-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] transition focus-within:border-[color:var(--cliply-accent)] focus-within:shadow-[0_0_0_3px_var(--cliply-focus-ring),0_4px_12px_rgba(15,23,42,0.05)]">
         <Search className="size-4 shrink-0 text-[color:var(--cliply-muted)]" />
         <input
           ref={ref}

@@ -8,10 +8,17 @@ use crate::services::{
 };
 use crate::{platform, shortcuts, tray};
 use rusqlite::{params, OptionalExtension};
-use std::fs;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::fs::{self, File};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
+
+const CLIPLY_RELEASE_PAGE_URL: &str = "https://github.com/Earl9/cliply/releases/latest";
+const MODERN_INSTALLER_FILE_NAME: &str = "cliply-modern-installer.exe";
 
 #[tauri::command]
 pub async fn initialize_storage(app: AppHandle) -> Result<(), String> {
@@ -417,6 +424,155 @@ pub async fn open_log_directory(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn get_current_install_dir(app: AppHandle) -> Result<String, String> {
+    if let Some(install_dir) = platform::read_install_dir_from_registry() {
+        logger::info(&app, "command.get_current_install_dir", "source=registry");
+        return Ok(install_dir);
+    }
+
+    let current_exe = std::env::current_exe()
+        .map_err(|error| command_error(&app, "get_current_install_dir.current_exe", error))?;
+    let install_dir = current_exe
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| command_error(&app, "get_current_install_dir.parent", "安装目录不可用"))?;
+    logger::info(
+        &app,
+        "command.get_current_install_dir",
+        "source=current_exe",
+    );
+    Ok(install_dir.to_string_lossy().to_string())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModernUpdateDownloadRequest {
+    pub url: String,
+    pub sha256: String,
+    pub file_name: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModernUpdateDownloadResult {
+    pub path: String,
+    pub sha256: String,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ModernUpdateDownloadProgress {
+    pub downloaded_bytes: u64,
+    pub total_bytes: Option<u64>,
+}
+
+#[tauri::command]
+pub async fn download_modern_update_installer(
+    app: AppHandle,
+    request: ModernUpdateDownloadRequest,
+) -> Result<ModernUpdateDownloadResult, String> {
+    logger::info(
+        &app,
+        "update_modern_installer_download_started",
+        "asset=modern-installer",
+    );
+    let result = download_modern_update_installer_inner(&app, request)
+        .map_err(|error| command_error(&app, "download_modern_update_installer", error))?;
+    logger::info(
+        &app,
+        "update_modern_installer_download_success",
+        format!(
+            "size_bytes={} sha256={}",
+            result.size_bytes,
+            sanitize_log_value(&result.sha256)
+        ),
+    );
+    Ok(result)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaunchModernUpdateInstallerRequest {
+    pub installer_path: String,
+    pub install_dir: String,
+    pub source_version: String,
+    pub target_version: String,
+}
+
+#[tauri::command]
+pub async fn launch_modern_update_installer(
+    app: AppHandle,
+    request: LaunchModernUpdateInstallerRequest,
+) -> Result<(), String> {
+    let installer_path = PathBuf::from(&request.installer_path);
+    if !installer_path.is_file() {
+        return Err(command_error(
+            &app,
+            "launch_modern_update_installer.installer_path",
+            "更新安装器不存在",
+        ));
+    }
+    if !is_downloaded_modern_installer_path(&installer_path) {
+        return Err(command_error(
+            &app,
+            "launch_modern_update_installer.installer_path",
+            "更新安装器路径不合法",
+        ));
+    }
+
+    let current_pid = std::process::id();
+    let args = vec![
+        "--mode".to_string(),
+        "update".to_string(),
+        "--install-dir".to_string(),
+        request.install_dir.clone(),
+        "--source-version".to_string(),
+        request.source_version.clone(),
+        "--target-version".to_string(),
+        request.target_version.clone(),
+        "--preserve-user-data".to_string(),
+        "--launch-after-install".to_string(),
+        "--parent-pid".to_string(),
+        current_pid.to_string(),
+    ];
+    let safe_source_version = sanitize_log_value(&request.source_version);
+    let safe_target_version = sanitize_log_value(&request.target_version);
+    spawn_modern_installer(&installer_path, &args)
+        .map_err(|error| command_error(&app, "launch_modern_update_installer.spawn", error))?;
+
+    logger::info(
+        &app,
+        "update_modern_installer_launched",
+        format!(
+            "source_version={} target_version={}",
+            safe_source_version, safe_target_version
+        ),
+    );
+
+    app.exit(0);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn open_cliply_release_page(app: AppHandle) -> Result<(), String> {
+    open_url(CLIPLY_RELEASE_PAGE_URL)
+        .map_err(|error| command_error(&app, "open_cliply_release_page.open", error))?;
+    logger::info(&app, "command.open_cliply_release_page", "ok");
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn log_update_install_failed(app: AppHandle, version: String) -> Result<(), String> {
+    logger::error(
+        &app,
+        "update_install_failed",
+        format!("version={}", sanitize_log_value(&version)),
+    );
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn get_system_theme_colors(app: AppHandle) -> Result<serde_json::Value, String> {
     let colors = platform::theme_adapter::read_system_theme_colors()
         .map_err(|error| command_error(&app, "get_system_theme_colors", error))?;
@@ -523,6 +679,248 @@ fn open_directory(path: &Path) -> std::io::Result<()> {
     {
         Command::new("xdg-open").arg(path).spawn().map(|_| ())
     }
+}
+
+fn open_url(url: &str) -> std::io::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        platform::open_url(url).map_err(|error| std::io::Error::other(error.to_string()))
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(url).spawn().map(|_| ())
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open").arg(url).spawn().map(|_| ())
+    }
+}
+
+fn download_modern_update_installer_inner(
+    app: &AppHandle,
+    request: ModernUpdateDownloadRequest,
+) -> Result<ModernUpdateDownloadResult, String> {
+    let expected_sha256 = normalize_sha256(&request.sha256)?;
+    let file_name = sanitize_installer_file_name(&request.file_name)?;
+    let update_dir = std::env::temp_dir().join("Cliply").join("updates");
+    fs::create_dir_all(&update_dir).map_err(|error| error.to_string())?;
+    let output_path = update_dir.join(file_name);
+    if output_path.exists() {
+        fs::remove_file(&output_path).map_err(|error| error.to_string())?;
+    }
+
+    let response = ureq::get(&request.url)
+        .timeout(Duration::from_secs(120))
+        .call()
+        .map_err(|_| "更新安装器下载失败，请检查网络后重试".to_string())?;
+    let total_bytes = response
+        .header("Content-Length")
+        .and_then(|value| value.parse::<u64>().ok());
+    let mut reader = response.into_reader();
+    let mut file = File::create(&output_path).map_err(|error| error.to_string())?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    let mut downloaded_bytes = 0u64;
+
+    loop {
+        let bytes_read = reader
+            .read(&mut buffer)
+            .map_err(|error| error.to_string())?;
+        if bytes_read == 0 {
+            break;
+        }
+        file.write_all(&buffer[..bytes_read])
+            .map_err(|error| error.to_string())?;
+        hasher.update(&buffer[..bytes_read]);
+        downloaded_bytes += bytes_read as u64;
+        let _ = app.emit(
+            "modern-update-download-progress",
+            ModernUpdateDownloadProgress {
+                downloaded_bytes,
+                total_bytes,
+            },
+        );
+    }
+    file.flush().map_err(|error| error.to_string())?;
+
+    let actual_sha256 = format!("{:x}", hasher.finalize());
+    if actual_sha256 != expected_sha256 {
+        let _ = fs::remove_file(&output_path);
+        logger::error(
+            app,
+            "update_modern_installer_checksum_failed",
+            format!(
+                "expected_sha256={} actual_sha256={}",
+                sanitize_log_value(&expected_sha256),
+                sanitize_log_value(&actual_sha256)
+            ),
+        );
+        return Err("更新包校验失败".to_string());
+    }
+
+    Ok(ModernUpdateDownloadResult {
+        path: output_path.to_string_lossy().to_string(),
+        sha256: actual_sha256,
+        size_bytes: downloaded_bytes,
+    })
+}
+
+fn is_downloaded_modern_installer_path(path: &Path) -> bool {
+    let update_dir = std::env::temp_dir().join("Cliply").join("updates");
+    let Ok(canonical_path) = path.canonicalize() else {
+        return false;
+    };
+    let Ok(canonical_update_dir) = update_dir.canonicalize() else {
+        return false;
+    };
+    canonical_path.starts_with(canonical_update_dir)
+        && canonical_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.to_ascii_lowercase().ends_with("-modern-installer.exe"))
+            .unwrap_or(false)
+}
+
+fn normalize_sha256(value: &str) -> Result<String, String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    if normalized.len() == 64
+        && normalized
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+    {
+        Ok(normalized)
+    } else {
+        Err("更新清单中的 SHA256 不合法".to_string())
+    }
+}
+
+fn sanitize_installer_file_name(value: &str) -> Result<String, String> {
+    let file_name = Path::new(value)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(MODERN_INSTALLER_FILE_NAME);
+    if !file_name.to_ascii_lowercase().ends_with(".exe") {
+        return Err("更新安装器文件名不合法".to_string());
+    }
+    if !file_name
+        .to_ascii_lowercase()
+        .ends_with("-modern-installer.exe")
+    {
+        return Err("更新清单中的安装器不是 Modern Installer".to_string());
+    }
+    let sanitized: String = file_name
+        .chars()
+        .filter(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_')
+        })
+        .take(160)
+        .collect();
+    if sanitized.is_empty() {
+        Ok(MODERN_INSTALLER_FILE_NAME.to_string())
+    } else {
+        Ok(sanitized)
+    }
+}
+
+fn sanitize_log_value(value: &str) -> String {
+    value
+        .chars()
+        .filter(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_')
+        })
+        .take(64)
+        .collect()
+}
+
+#[cfg(target_os = "windows")]
+fn spawn_modern_installer(path: &Path, args: &[String]) -> std::io::Result<()> {
+    use std::ffi::OsString;
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let operation = wide_null("runas");
+    let file = wide_null_os(path.as_os_str());
+    let parameters = wide_null_os(&OsString::from(
+        args.iter()
+            .map(|arg| quote_windows_arg(arg))
+            .collect::<Vec<_>>()
+            .join(" "),
+    ));
+    let result = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut() as HWND,
+            operation.as_ptr(),
+            file.as_ptr(),
+            parameters.as_ptr(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        )
+    } as isize;
+
+    if result > 32 {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "ShellExecuteW failed: {result}"
+        )))
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn spawn_modern_installer(path: &Path, args: &[String]) -> std::io::Result<()> {
+    Command::new(path).args(args).spawn().map(|_| ())
+}
+
+#[cfg(target_os = "windows")]
+fn quote_windows_arg(value: &str) -> String {
+    if value.is_empty() {
+        return "\"\"".to_string();
+    }
+    if !value
+        .chars()
+        .any(|character| character.is_whitespace() || character == '"')
+    {
+        return value.to_string();
+    }
+
+    let mut quoted = String::from("\"");
+    let mut backslashes = 0usize;
+    for character in value.chars() {
+        if character == '\\' {
+            backslashes += 1;
+            continue;
+        }
+        if character == '"' {
+            quoted.push_str(&"\\".repeat(backslashes * 2 + 1));
+            quoted.push('"');
+            backslashes = 0;
+            continue;
+        }
+        quoted.push_str(&"\\".repeat(backslashes));
+        backslashes = 0;
+        quoted.push(character);
+    }
+    quoted.push_str(&"\\".repeat(backslashes * 2));
+    quoted.push('"');
+    quoted
+}
+
+#[cfg(target_os = "windows")]
+fn wide_null(value: &str) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+    std::ffi::OsStr::new(value)
+        .encode_wide()
+        .chain(Some(0))
+        .collect()
+}
+
+#[cfg(target_os = "windows")]
+fn wide_null_os(value: &std::ffi::OsStr) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+    value.encode_wide().chain(Some(0)).collect()
 }
 
 fn provider_type(config: &SyncProviderConfig) -> &'static str {

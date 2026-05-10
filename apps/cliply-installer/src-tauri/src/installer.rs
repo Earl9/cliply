@@ -76,6 +76,9 @@ pub struct InstallOptions {
     pub create_desktop_shortcut: bool,
     pub start_on_login: bool,
     pub is_update: bool,
+    pub preserve_user_data: bool,
+    pub launch_after_install: bool,
+    pub parent_pid: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -89,6 +92,13 @@ pub struct InstallOutcome {
 #[serde(rename_all = "camelCase")]
 pub struct InstallerMode {
     pub is_uninstall: bool,
+    pub is_update: bool,
+    pub install_dir: Option<String>,
+    pub source_version: Option<String>,
+    pub target_version: Option<String>,
+    pub preserve_user_data: bool,
+    pub launch_after_install: bool,
+    pub parent_pid: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -130,8 +140,20 @@ pub fn detect_installation() -> InstallResult<InstallDetection> {
 }
 
 pub fn detect_mode() -> InstallerMode {
+    let args: Vec<String> = std::env::args().collect();
+    let is_update = arg_value(&args, "--mode")
+        .is_some_and(|value| value.eq_ignore_ascii_case("update"))
+        || args.iter().any(|arg| arg == "--update");
+
     InstallerMode {
-        is_uninstall: std::env::args().any(|arg| arg == "--uninstall"),
+        is_uninstall: args.iter().any(|arg| arg == "--uninstall"),
+        is_update,
+        install_dir: arg_value(&args, "--install-dir"),
+        source_version: arg_value(&args, "--source-version"),
+        target_version: arg_value(&args, "--target-version"),
+        preserve_user_data: args.iter().any(|arg| arg == "--preserve-user-data"),
+        launch_after_install: args.iter().any(|arg| arg == "--launch-after-install"),
+        parent_pid: arg_value(&args, "--parent-pid").and_then(|value| value.parse().ok()),
     }
 }
 
@@ -140,6 +162,12 @@ where
     F: FnMut(InstallProgress),
 {
     let install_dir = normalize_install_dir(&options.install_dir)?;
+    let preserve_user_data = options.preserve_user_data || options.is_update;
+    if let Some(parent_pid) = options.parent_pid {
+        on_progress(progress(4, "正在等待 Cliply 退出"));
+        wait_for_process_exit(parent_pid, Duration::from_secs(10));
+    }
+
     on_progress(progress(8, "正在关闭正在运行的 Cliply"));
     stop_running_cliply()?;
 
@@ -160,14 +188,30 @@ where
     platform::create_start_menu_shortcuts(START_MENU_FOLDER, &exe_path, &icon_path)?;
 
     on_progress(progress(86, "正在应用你的安装选项"));
-    if options.create_desktop_shortcut {
-        platform::create_desktop_shortcut(&exe_path, &icon_path)?;
+    if options.is_update {
+        platform::refresh_desktop_shortcut_if_exists(&exe_path, &icon_path)?;
+        platform::refresh_start_on_login_if_enabled(PRODUCT_NAME, &exe_path)?;
     } else {
-        let _ = platform::remove_desktop_shortcut();
-    }
+        if options.create_desktop_shortcut {
+            platform::create_desktop_shortcut(&exe_path, &icon_path)?;
+        } else {
+            let _ = platform::remove_desktop_shortcut();
+        }
 
-    platform::set_start_on_login(PRODUCT_NAME, &exe_path, options.start_on_login)?;
-    on_progress(progress(100, "安装完成"));
+        platform::set_start_on_login(PRODUCT_NAME, &exe_path, options.start_on_login)?;
+    }
+    on_progress(progress(
+        100,
+        if preserve_user_data {
+            "安装完成，用户数据已保留"
+        } else {
+            "安装完成"
+        },
+    ));
+
+    if options.launch_after_install {
+        let _ = launch_cliply(install_dir.to_string_lossy().to_string());
+    }
 
     Ok(InstallOutcome {
         install_dir: install_dir.to_string_lossy().to_string(),
@@ -181,6 +225,22 @@ pub fn launch_cliply(install_dir: String) -> InstallResult<()> {
         .spawn()
         .map(|_| ())
         .map_err(InstallError::Launch)
+}
+
+pub fn open_installer_log_directory() -> InstallResult<()> {
+    let dir = user_data_dirs()
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| PathBuf::from(r"C:\ProgramData\Cliply"));
+    fs::create_dir_all(&dir).map_err(|source| InstallError::CreateDir {
+        path: dir.to_string_lossy().to_string(),
+        source,
+    })?;
+    open_path(&dir).map_err(InstallError::Launch)
+}
+
+pub fn open_release_page() -> InstallResult<()> {
+    open_url("https://github.com/Earl9/cliply/releases/latest").map_err(InstallError::Launch)
 }
 
 pub fn uninstall<F>(
@@ -370,6 +430,32 @@ fn wait_until_cliply_exits(timeout: Duration) -> bool {
     !is_cliply_running()
 }
 
+fn wait_for_process_exit(pid: u32, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if !is_process_running(pid) {
+            return true;
+        }
+
+        thread::sleep(Duration::from_millis(250));
+    }
+
+    !is_process_running(pid)
+}
+
+fn is_process_running(pid: u32) -> bool {
+    let pid_text = pid.to_string();
+    let output = Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}")])
+        .creation_flags_no_window()
+        .output();
+
+    output
+        .ok()
+        .map(|output| contains_ascii_case_insensitive(&output.stdout, pid_text.as_bytes()))
+        .unwrap_or(false)
+}
+
 fn is_cliply_running() -> bool {
     let output = Command::new("tasklist")
         .args(["/FI", &format!("IMAGENAME eq {PRODUCT_EXE}")])
@@ -390,6 +476,55 @@ fn contains_ascii_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
     haystack
         .windows(needle.len())
         .any(|window| window.eq_ignore_ascii_case(needle))
+}
+
+fn arg_value(args: &[String], key: &str) -> Option<String> {
+    args.windows(2)
+        .find(|pair| pair[0] == key)
+        .map(|pair| pair[1].clone())
+        .filter(|value| !value.trim().is_empty())
+}
+
+fn open_path(path: &Path) -> std::io::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(path)
+            .creation_flags_no_window()
+            .spawn()
+            .map(|_| ())
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(path).spawn().map(|_| ())
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open").arg(path).spawn().map(|_| ())
+    }
+}
+
+fn open_url(url: &str) -> std::io::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(url)
+            .creation_flags_no_window()
+            .spawn()
+            .map(|_| ())
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(url).spawn().map(|_| ())
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open").arg(url).spawn().map(|_| ())
+    }
 }
 
 fn remove_file_with_retry(path: &Path) -> InstallResult<()> {

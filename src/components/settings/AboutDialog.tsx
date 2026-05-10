@@ -65,7 +65,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             Cliply
           </h2>
           <p className="mt-2 max-w-[320px] text-sm leading-6 text-[color:var(--cliply-muted)]">
-            本地优先、键盘优先的现代剪贴板管理器。当前版本面向 Windows MVP。
+            本地优先、键盘优先的现代剪贴板管理器。当前版本专注 Windows 体验。
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Badge tone="accent">Tauri v2</Badge>

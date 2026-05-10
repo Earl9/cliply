@@ -25,6 +25,13 @@ type InstallDetection = {
 
 type InstallerMode = {
   isUninstall: boolean;
+  isUpdate: boolean;
+  installDir?: string | null;
+  sourceVersion?: string | null;
+  targetVersion?: string | null;
+  preserveUserData: boolean;
+  launchAfterInstall: boolean;
+  parentPid?: number | null;
 };
 
 type InstallProgress = {
@@ -53,7 +60,16 @@ const DEFAULT_DETECTION: InstallDetection = {
 
 function App() {
   const [screen, setScreen] = React.useState<Screen>("setup");
-  const [mode, setMode] = React.useState<InstallerMode>({ isUninstall: false });
+  const [mode, setMode] = React.useState<InstallerMode>({
+    isUninstall: false,
+    isUpdate: false,
+    installDir: null,
+    sourceVersion: null,
+    targetVersion: null,
+    preserveUserData: false,
+    launchAfterInstall: false,
+    parentPid: null,
+  });
   const [detection, setDetection] =
     React.useState<InstallDetection>(DEFAULT_DETECTION);
   const [installDir, setInstallDir] = React.useState(DEFAULT_DETECTION.installDir);
@@ -70,16 +86,25 @@ function App() {
     React.useState<InstallOutcome | null>(null);
   const [uninstallOutcome, setUninstallOutcome] =
     React.useState<UninstallOutcome | null>(null);
+  const modeInstallDirRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     void invoke<InstallerMode>("detect_mode")
-      .then(setMode)
+      .then((nextMode) => {
+        setMode(nextMode);
+        if (nextMode.installDir) {
+          modeInstallDirRef.current = nextMode.installDir;
+          setInstallDir(nextMode.installDir);
+        }
+      })
       .catch((reason) => setError(String(reason)));
 
     void invoke<InstallDetection>("detect_installation")
       .then((nextDetection) => {
         setDetection(nextDetection);
-        setInstallDir(nextDetection.installDir);
+        if (!modeInstallDirRef.current) {
+          setInstallDir(nextDetection.installDir);
+        }
       })
       .catch((reason) => setError(String(reason)));
 
@@ -92,8 +117,16 @@ function App() {
     };
   }, []);
 
-  const isUpdate = detection.isUpdate;
+  const isUpdate = mode.isUpdate || detection.isUpdate;
   const isUninstall = mode.isUninstall;
+
+  React.useEffect(() => {
+    if (!mode.isUpdate || screen !== "setup") {
+      return;
+    }
+    void install();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode.isUpdate]);
 
   async function chooseInstallDir() {
     setError(null);
@@ -118,12 +151,16 @@ function App() {
     setScreen("working");
 
     try {
+      const updateMode = mode.isUpdate;
       const nextOutcome = await invoke<InstallOutcome>("run_install", {
         options: {
           installDir,
-          createDesktopShortcut: desktopShortcut,
-          startOnLogin,
+          createDesktopShortcut: updateMode ? false : desktopShortcut,
+          startOnLogin: updateMode ? false : startOnLogin,
           isUpdate,
+          preserveUserData: mode.preserveUserData || isUpdate,
+          launchAfterInstall: mode.launchAfterInstall,
+          parentPid: mode.parentPid ?? null,
         },
       });
       setInstallOutcome(nextOutcome);
@@ -131,7 +168,7 @@ function App() {
       setScreen("complete");
     } catch (reason) {
       setError(String(reason));
-      setScreen("setup");
+      setScreen(mode.isUpdate ? "working" : "setup");
     }
   }
 
@@ -157,7 +194,7 @@ function App() {
   }
 
   async function finish() {
-    if (!isUninstall && launchAfterInstall && installOutcome) {
+    if (!isUninstall && !(mode.isUpdate && mode.launchAfterInstall) && launchAfterInstall && installOutcome) {
       try {
         await invoke("launch_cliply", { installDir: installOutcome.installDir });
       } catch (reason) {
@@ -224,7 +261,10 @@ function App() {
           <WorkingScreen
             isUpdate={isUpdate}
             isUninstall={isUninstall}
+            sourceVersion={mode.sourceVersion}
+            targetVersion={mode.targetVersion}
             progress={progress}
+            error={error}
             onCancel={() => void getCurrentWindow().close()}
           />
         )}
@@ -232,6 +272,8 @@ function App() {
         {screen === "complete" && (
           <CompleteScreen
             isUninstall={isUninstall}
+            isUpdate={isUpdate}
+            launchHandledByInstaller={mode.isUpdate && mode.launchAfterInstall}
             launchAfterInstall={launchAfterInstall}
             userDataRemoved={uninstallOutcome?.userDataRemoved ?? false}
             error={error}
@@ -406,14 +448,20 @@ function UninstallScreen({
 type WorkingScreenProps = {
   isUpdate: boolean;
   isUninstall: boolean;
+  sourceVersion?: string | null;
+  targetVersion?: string | null;
   progress: InstallProgress;
+  error: string | null;
   onCancel: () => void;
 };
 
 function WorkingScreen({
   isUpdate,
   isUninstall,
+  sourceVersion,
+  targetVersion,
   progress,
+  error,
   onCancel,
 }: WorkingScreenProps) {
   const title = isUninstall
@@ -428,6 +476,13 @@ function WorkingScreen({
         <Loader2 size={30} />
       </div>
       <h1>{title}</h1>
+      {isUpdate && targetVersion ? (
+        <div className="version-row">
+          <span>{sourceVersion ? `v${sourceVersion}` : "当前版本"}</span>
+          <ChevronRight size={14} />
+          <span>v{targetVersion}</span>
+        </div>
+      ) : null}
       <p className="muted-copy">{progress.step}</p>
 
       <div className="progress-track" aria-label="进度">
@@ -437,6 +492,28 @@ function WorkingScreen({
         />
       </div>
       <div className="progress-value">{progress.progress}%</div>
+
+      {error ? (
+        <div className="installer-error-panel">
+          <div className="error-banner compact">{error}</div>
+          <div className="mini-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void invoke("open_installer_log_directory")}
+            >
+              打开日志目录
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void invoke("open_release_page")}
+            >
+              打开 Release 页面
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="actions single-action">
         <button type="button" className="secondary-button" onClick={onCancel}>
@@ -449,6 +526,8 @@ function WorkingScreen({
 
 type CompleteScreenProps = {
   isUninstall: boolean;
+  isUpdate: boolean;
+  launchHandledByInstaller: boolean;
   launchAfterInstall: boolean;
   userDataRemoved: boolean;
   error: string | null;
@@ -458,6 +537,8 @@ type CompleteScreenProps = {
 
 function CompleteScreen({
   isUninstall,
+  isUpdate,
+  launchHandledByInstaller,
   launchAfterInstall,
   userDataRemoved,
   error,
@@ -469,16 +550,18 @@ function CompleteScreen({
       <div className={isUninstall ? "complete-mark danger" : "complete-mark"}>
         <Check size={34} />
       </div>
-      <h1>{isUninstall ? "Cliply 已卸载" : "Cliply 已准备就绪"}</h1>
+      <h1>{isUninstall ? "Cliply 已卸载" : isUpdate ? "Cliply 已更新" : "Cliply 已准备就绪"}</h1>
       <p className="muted-copy">
         {isUninstall
           ? userDataRemoved
             ? "本地历史记录与设置已删除。"
             : "本地历史记录与设置已保留，重新安装后仍可继续使用。"
+          : isUpdate
+            ? "用户数据已保留，Cliply 会重新启动。"
           : "使用 Ctrl + Shift + V 打开剪贴板历史。"}
       </p>
 
-      {!isUninstall && (
+      {!isUninstall && !launchHandledByInstaller && (
         <div className="finish-option">
           <CheckOption
             checked={launchAfterInstall}

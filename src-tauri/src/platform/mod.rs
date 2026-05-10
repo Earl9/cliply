@@ -174,3 +174,40 @@ pub fn set_launch_at_startup(enabled: bool, start_minimized: bool) -> Result<(),
         Ok(())
     }
 }
+
+pub fn read_install_dir_from_registry() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::read_install_dir_from_registry();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        None
+    }
+}
+
+pub fn open_url(url: &str) -> Result<(), CliplyError> {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::open_url(url);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(url)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| CliplyError::PlatformUnavailable(error.to_string()))
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(url)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| CliplyError::PlatformUnavailable(error.to_string()))
+    }
+}

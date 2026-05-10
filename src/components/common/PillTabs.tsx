@@ -26,7 +26,7 @@ export function PillTabs<T extends string>({ options, value, onValueChange }: Pi
               "inline-flex h-8 min-w-20 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border px-3 text-sm font-semibold leading-none transition",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
               selected
-                ? "border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-none"
+                ? "cliply-pill-tab-active border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-none"
                 : "border-transparent bg-transparent text-[color:var(--cliply-muted)] hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
             )}
           >

@@ -40,6 +40,7 @@ export type CliplyThemeTokens = {
 
   // Text
   text: string;
+  bodyText?: string;
   textSecondary: string;
   muted: string;
   placeholder: string;
@@ -417,6 +418,10 @@ export function getCliplyThemeWithAccent(
     return theme;
   }
 
+  if (mode === "dark") {
+    return withDarkAccent(theme, accent);
+  }
+
   return {
     ...theme,
     primary: accent,
@@ -624,7 +629,7 @@ export function cssVarsFromCliplyTheme(theme: CliplyThemeTokens): Record<string,
     "--cliply-accent-100": theme.primarySoft,
     "--cliply-accent-soft": theme.primarySoft,
     "--cliply-accent-border": theme.primaryBorder,
-    "--cliply-body-text": theme.text,
+    "--cliply-body-text": theme.bodyText ?? theme.text,
     "--cliply-faint": theme.textSecondary,
     "--cliply-shadow": theme.shadowWindow,
     "--cliply-shadow-card": theme.shadowPanel,
@@ -712,16 +717,16 @@ function readAutoThemeSourceColor(
 }
 
 function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
-  const rgb = { r: 59, g: 130, b: 246 };
+  const rgb = { r: 124, g: 92, b: 255 };
   return {
     ...theme,
-    primary: "#3B82F6",
-    primaryHover: "#2563EB",
-    primaryActive: "#1D4ED8",
-    primarySoft: "rgba(59, 130, 246, 0.16)",
-    primaryBorder: "rgba(96, 165, 250, 0.55)",
+    primary: "#7C5CFF",
+    primaryHover: "#8B6DFF",
+    primaryActive: "#6D4CFF",
+    primarySoft: "rgba(124, 92, 255, 0.16)",
+    primaryBorder: "rgba(167, 139, 250, 0.55)",
     primaryText: "#FFFFFF",
-    swatch: "#3B82F6",
+    swatch: "#7C5CFF",
     appBg: "#0B1120",
     windowBg: "#0F172A",
     panelBg: "#111C2E",
@@ -732,11 +737,12 @@ function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
     borderStrong: "rgba(148, 163, 184, 0.28)",
     divider: "rgba(148, 163, 184, 0.12)",
     text: "#F8FAFC",
+    bodyText: "#E5E7EB",
     textSecondary: "#CBD5E1",
     muted: "#94A3B8",
     placeholder: "#64748B",
     disabledText: "#64748B",
-    focusRing: "rgba(59, 130, 246, 0.24)",
+    focusRing: "rgba(124, 92, 255, 0.18)",
     successSoft: "rgba(34, 197, 94, 0.14)",
     warningSoft: "rgba(245, 158, 11, 0.16)",
     dangerSoft: "rgba(239, 68, 68, 0.16)",
@@ -744,8 +750,40 @@ function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
     shadowWindow: "0 24px 80px rgba(0, 0, 0, 0.48)",
     shadowPanel: "0 14px 36px rgba(0, 0, 0, 0.28)",
     shadowCardHover: "0 12px 28px rgba(0, 0, 0, 0.32)",
-    shadowSelected: `0 0 0 1px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.42), 0 10px 24px rgba(2, 6, 23, 0.22)`,
+    shadowSelected: `0 0 0 1px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`,
   };
+}
+
+function withDarkAccent(theme: CliplyThemeTokens, accent: string): CliplyThemeTokens {
+  const darkAccent = normalizeDefaultDarkAccent(accent);
+  const rgb = hexToRgb(darkAccent);
+  if (!rgb) {
+    return theme;
+  }
+
+  const isDefaultPurple = darkAccent === "#7C5CFF";
+  return {
+    ...theme,
+    primary: darkAccent,
+    primaryHover: isDefaultPurple ? "#8B6DFF" : mixHex(darkAccent, "#FFFFFF", 0.08),
+    primaryActive: isDefaultPurple ? "#6D4CFF" : mixHex(darkAccent, "#000000", 0.12),
+    primarySoft: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`,
+    primaryBorder: isDefaultPurple
+      ? "rgba(167, 139, 250, 0.55)"
+      : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`,
+    primaryText: "#FFFFFF",
+    focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
+    shadowSelected: `0 0 0 1px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`,
+    swatch: darkAccent,
+  };
+}
+
+function normalizeDefaultDarkAccent(accent: string) {
+  const normalized = normalizeHexColor(accent);
+  if (!normalized) {
+    return "#7C5CFF";
+  }
+  return normalized === "#6D4CFF" ? "#7C5CFF" : normalized;
 }
 
 function isDarkTheme(theme: CliplyThemeTokens) {

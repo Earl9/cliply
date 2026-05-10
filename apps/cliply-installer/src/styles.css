@@ -396,6 +396,21 @@ p {
   color: var(--cliply-text-secondary);
 }
 
+.version-row {
+  min-height: 28px;
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--cliply-border);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0 12px;
+  color: var(--cliply-text-secondary);
+  font-size: 12px;
+  font-weight: 720;
+}
+
 .progress-track {
   width: 430px;
   height: 10px;
@@ -421,6 +436,25 @@ p {
   color: var(--cliply-text-secondary);
   font-size: 13px;
   font-weight: 700;
+}
+
+.installer-error-panel {
+  width: min(460px, 100%);
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.mini-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mini-actions .secondary-button {
+  min-width: 128px;
+  height: 36px;
+  font-size: 13px;
 }
 
 .single-action {

@@ -42,7 +42,9 @@ jobs:
           releaseBody: |
             For manual installation, download `Cliply_*_x64-modern-installer.exe`.
 
-            `Cliply_*_x64-setup.exe`, `.sig`, and `latest.json` are signed updater assets used by Cliply's in-app update flow.
+            Cliply's in-app update flow downloads the Modern Installer listed in `latest.json`, verifies SHA256, and launches it in update mode.
+
+            `Cliply_*_x64-setup.exe` and `.sig` are retained as signed NSIS fallback assets.
 
             See CHANGELOG.md for release notes.
           releaseDraft: true
@@ -72,7 +74,9 @@ jobs:
               body: [
                 "For manual installation, download `Cliply_*_x64-modern-installer.exe`.",
                 "",
-                "`Cliply_*_x64-setup.exe`, `.sig`, and `latest.json` are signed updater assets used by Cliply's in-app update flow.",
+                "Cliply's in-app update flow downloads the Modern Installer listed in `latest.json`, verifies SHA256, and launches it in update mode.",
+                "",
+                "`Cliply_*_x64-setup.exe` and `.sig` are retained as signed NSIS fallback assets.",
                 "",
                 "See CHANGELOG.md for release notes.",
               ].join("\n"),
@@ -109,6 +113,7 @@ jobs:
         with:
           script: |
             const fs = require("fs");
+            const crypto = require("crypto");
             const path = require("path");
 
             const releaseId = Number(process.env.RELEASE_ID);
@@ -118,11 +123,14 @@ jobs:
 
             const assetDir = process.env.ASSET_DIR;
             const { owner, repo } = context.repo;
+            const tagName = process.env.GITHUB_REF_NAME;
             const existingAssets = await github.paginate(github.rest.repos.listReleaseAssets, {
               owner,
               repo,
               release_id: releaseId,
             });
+            let modernInstallerAsset = null;
+            let modernInstallerSha256 = null;
 
             for (const fileName of fs.readdirSync(assetDir)) {
               const filePath = path.join(assetDir, fileName);
@@ -140,15 +148,97 @@ jobs:
                 });
               }
 
-              await github.rest.repos.uploadReleaseAsset({
+              const data = fs.readFileSync(filePath);
+              const upload = await github.rest.repos.uploadReleaseAsset({
                 owner,
                 repo,
                 release_id: releaseId,
                 name: fileName,
-                data: fs.readFileSync(filePath),
+                data,
                 headers: {
                   "content-type": "application/octet-stream",
                   "content-length": stat.size,
                 },
               });
+
+              if (fileName.endsWith("_x64-modern-installer.exe")) {
+                modernInstallerAsset = upload.data;
+                modernInstallerSha256 = crypto.createHash("sha256").update(data).digest("hex");
+              }
             }
+
+            if (!modernInstallerAsset || !modernInstallerSha256) {
+              throw new Error("Modern installer asset was not uploaded");
+            }
+
+            const latestAsset = existingAssets.find((asset) => asset.name === "latest.json");
+            if (!latestAsset) {
+              throw new Error("latest.json was not created by tauri-action");
+            }
+
+            const latestResponse = await github.request({
+              method: "GET",
+              url: `/repos/${owner}/${repo}/releases/assets/${latestAsset.id}`,
+              headers: {
+                accept: "application/octet-stream",
+              },
+            });
+            const latestRaw =
+              typeof latestResponse.data === "string"
+                ? latestResponse.data
+                : Buffer.from(
+                    latestResponse.data instanceof ArrayBuffer
+                      ? new Uint8Array(latestResponse.data)
+                      : latestResponse.data,
+                  ).toString("utf8");
+            const latestJson = JSON.parse(latestRaw);
+            const release = await github.rest.repos.getRelease({
+              owner,
+              repo,
+              release_id: releaseId,
+            });
+            const version = String(latestJson.version || tagName).replace(/^v/i, "");
+            const publishedAt =
+              latestJson.published_at ||
+              latestJson.pub_date ||
+              release.data.published_at ||
+              release.data.created_at ||
+              new Date().toISOString();
+            const notes = latestJson.notes || release.data.body || "";
+            const modernInstallerUrl =
+              modernInstallerAsset.browser_download_url ||
+              `https://github.com/${owner}/${repo}/releases/download/${tagName}/${modernInstallerAsset.name}`;
+
+            const mergedLatestJson = {
+              ...latestJson,
+              version,
+              notes,
+              published_at: publishedAt,
+              modernInstaller: {
+                version,
+                notes,
+                published_at: publishedAt,
+                name: modernInstallerAsset.name,
+                url: modernInstallerUrl,
+                sha256: modernInstallerSha256,
+              },
+            };
+            const latestBytes = Buffer.from(`${JSON.stringify(mergedLatestJson, null, 2)}\n`);
+
+            await github.rest.repos.deleteReleaseAsset({
+              owner,
+              repo,
+              asset_id: latestAsset.id,
+            });
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner,
+              repo,
+              release_id: releaseId,
+              name: "latest.json",
+              data: latestBytes,
+              headers: {
+                "content-type": "application/json",
+                "content-length": latestBytes.length,
+              },
+            });

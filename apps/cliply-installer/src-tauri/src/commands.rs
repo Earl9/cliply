@@ -46,3 +46,13 @@ pub fn run_uninstall(
 pub fn launch_cliply(install_dir: String) -> Result<(), String> {
     installer::launch_cliply(install_dir).map_err(|error| error.to_string())
 }
+
+#[tauri::command]
+pub fn open_installer_log_directory() -> Result<(), String> {
+    installer::open_installer_log_directory().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn open_release_page() -> Result<(), String> {
+    installer::open_release_page().map_err(|error| error.to_string())
+}
