@@ -2,43 +2,44 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Cliply 是一个面向 Windows 的本地优先剪贴板管理器，使用 Tauri v2、
-React、TypeScript、Vite、Tailwind CSS、SQLite 和 Rust 构建。
+Cliply 是一个面向 Windows 的本地优先剪贴板管理器。它让剪贴板历史快速、
+可搜索、可控，不需要账号，也不会把剪贴板内容发送到 Cliply 托管云服务。
 
-它适合希望快速找回剪贴板历史，同时不想依赖账号、云服务或把剪贴板内容发送到托管服务的用户。
+## 截图
 
-> 当前状态：`v0.4.0-beta.1` 发布前稳定化。核心功能已经完成，但在标记为 beta 可发布前，
-> 仍需要完成真实安装器、WebDAV/FTP/FTPS、粘贴、DPI 和多显示器场景验证。
+| 主窗口（浅色） | 主窗口（深色） |
+| --- | --- |
+| ![Cliply 浅色主窗口](docs/assets/screenshots/main-light.png) | ![Cliply 深色主窗口](docs/assets/screenshots/main-dark.png) |
 
-![Cliply 文本历史](cliply-ui-after-text.png)
+| 同步设置 | 安装器 |
+| --- | --- |
+| ![Cliply 同步设置](docs/assets/screenshots/settings-sync.png) | ![Cliply 安装器](docs/assets/screenshots/installer.png) |
 
 ## 功能特性
 
-- 文本、链接、代码和图片剪贴板历史
-- 搜索、类型筛选、固定、删除和详情预览
-- 无格式粘贴，以及自动粘贴回上一个目标窗口
-- 本地 SQLite 存储
+- 支持文本、链接、代码片段和图片剪贴板历史
+- 快速搜索、类型筛选、固定、删除和详情预览
+- 粘贴、复制、无格式粘贴，以及自动粘贴回上一个应用
+- 本地 SQLite 存储，可配置历史保留和重复内容处理
 - 图片缩略图和本地图片 blob 存储
-- 对密码、令牌、私钥和验证码等敏感内容进行检测
-- 可配置历史保留、重复内容处理、开机行为和快捷键
-- 主题设置和强调色预设
-- 加密 `.cliply-sync` 同步包导出/导入
-- 远程同步 provider 架构
-- Local Folder、WebDAV、FTP 和 FTPS 同步 provider
-- 支持保存本机同步密码的自动同步
-- 现代 Windows 安装器和备用 NSIS 安装器
-- 日志和诊断信息会脱敏剪贴板正文、密码、token 和大体积 payload
+- 可配置快捷键、启动行为和粘贴行为
+- 浅色/深色主题、强调色和贴近 Windows 的界面控件
+- 加密 `.cliply-sync` 同步包导入和导出
+- 通过用户自有存储同步：本地文件夹、WebDAV、FTP 和 FTPS
+- 支持可配置间隔的自动同步和图片同步模式
+- Windows 安装器支持安装、更新、卸载、开机自启和用户数据保留控制
 
-## 隐私模型
+## 隐私
 
 Cliply 采用本地优先设计：
 
-- 剪贴板历史保存在本地应用数据目录。
-- 不内置账号系统。
-- 不提供托管的 Cliply 云服务。
-- 同步包在导出前会加密。
-- 远程同步 provider 接收的是加密同步包；启用远端图片 blob 同步时，图片 blob 上传前也会加密。
-- 日志只应包含运行元数据，不应包含剪贴板正文或密钥。
+- 剪贴板历史保存在你的 Windows 本机。
+- Cliply 不需要账号。
+- Cliply 不提供、也不使用托管云服务保存你的剪贴板数据。
+- 同步包会在写入磁盘或上传到你配置的 provider 之前加密。
+- 远程同步 provider 接收的是加密同步包，不是明文剪贴板历史。
+- 日志和诊断信息不得包含剪贴板正文、同步密码、provider 密码、token、
+  Authorization header、private key 或图片内容。
 
 默认 Windows 数据位置：
 
@@ -46,63 +47,25 @@ Cliply 采用本地优先设计：
 %APPDATA%\com.cliply.app\
 ```
 
-## 当前发布状态
+更多信息见 [PRIVACY.md](PRIVACY.md) 和
+[docs/privacy-and-logs.md](docs/privacy-and-logs.md)。
 
-最新稳定化测试结果记录在：
+## 安全
 
-```text
-docs/v0.4.0-beta.1-stabilization-test-results.md
+安全敏感区域包括剪贴板捕获、粘贴行为、同步包加密、远程 provider 认证、
+诊断信息和安装器升级/卸载流程。
+
+请不要在公开 issue 中粘贴生产密钥或敏感剪贴板内容。若发现安全或隐私问题，
+请按照 [SECURITY.md](SECURITY.md) 处理。
+
+## 开发
+
+克隆仓库：
+
+```powershell
+git clone https://github.com/<owner>/cliply.git
+cd cliply
 ```
-
-当前自动化检查已通过：
-
-- 前端生产构建
-- Rust `cargo check`
-- Rust 单元测试
-- 现代安装器构建
-- 日志脱敏扫描
-- 1000 条本地数据性能冒烟测试
-
-仍需人工验证的发布阻塞项：
-
-- 全新安装、覆盖更新、自定义路径、卸载和用户数据保留
-- 真实 WebDAV、FTP 和 FTPS 成功/失败路径
-- 自动粘贴到真实 Windows 目标应用
-- DPI 和多显示器表现
-- 手动流程后的最终日志抽样
-
-## 文档
-
-- [隐私政策](PRIVACY.md)
-- [安全政策](SECURITY.md)
-- [贡献指南](CONTRIBUTING.md)
-- [路线图](ROADMAP.md)
-- [更新日志](CHANGELOG.md)
-- [手动测试清单](docs/manual-test-checklist.md)
-- [发布检查清单](docs/release-checklist.md)
-- [同步设计](docs/sync-design.md)
-- [安装器说明](docs/installer.md)
-- [隐私和日志](docs/privacy-and-logs.md)
-
-## 技术栈
-
-- 桌面外壳：Tauri v2
-- 前端：React、TypeScript、Vite、Tailwind CSS
-- 图标：lucide-react
-- 后端：Rust
-- 存储：SQLite via `rusqlite`
-- 同步加密：AES-GCM + Argon2 密钥派生
-- 安装器：Tauri 应用式现代安装器，另有 NSIS 备用安装器
-
-## 环境要求
-
-- Windows 10/11，用于完整桌面体验
-- Node.js 和 npm
-- Rust stable toolchain
-- Windows 上的 Tauri v2 依赖
-- 构建 NSIS 包时，Tauri 会下载或使用 NSIS
-
-## 快速开始
 
 安装依赖：
 
@@ -110,13 +73,7 @@ docs/v0.4.0-beta.1-stabilization-test-results.md
 npm install
 ```
 
-只运行前端：
-
-```powershell
-npm run dev
-```
-
-运行 Tauri 桌面应用：
+运行桌面应用开发模式：
 
 ```powershell
 npm run tauri dev
@@ -132,7 +89,6 @@ npm run build
 
 ```powershell
 cargo check --manifest-path .\src-tauri\Cargo.toml
-cargo test --manifest-path .\src-tauri\Cargo.toml
 ```
 
 构建现代安装器：
@@ -141,119 +97,23 @@ cargo test --manifest-path .\src-tauri\Cargo.toml
 npm run build:modern-installer
 ```
 
-现代安装器输出：
+## 文档
 
-```text
-apps\cliply-installer\src-tauri\target\release\cliply-modern-installer.exe
-```
+- [隐私政策](PRIVACY.md)
+- [安全政策](SECURITY.md)
+- [更新日志](CHANGELOG.md)
+- [同步设计](docs/sync-design.md)
+- [安装器说明](docs/installer.md)
+- [隐私和日志](docs/privacy-and-logs.md)
 
-备用 NSIS 输出：
+## 技术栈
 
-```text
-src-tauri\target\release\bundle\nsis\Cliply_0.4.0-beta.1_x64-setup.exe
-```
-
-## 项目结构
-
-```text
-apps/cliply-installer/      现代安装器应用
-docs/                       手动测试清单和稳定化报告
-scripts/                    构建和打包脚本
-src/                        React 前端
-src-tauri/                  Rust 后端和 Tauri 配置
-src-tauri/src/commands/     Tauri command handlers
-src-tauri/src/db/           SQLite migrations
-src-tauri/src/platform/     平台适配层
-src-tauri/src/services/     剪贴板、同步、设置、日志和粘贴服务
-```
-
-## 测试
-
-常用验证命令：
-
-```powershell
-npm run build
-cargo check --manifest-path .\src-tauri\Cargo.toml
-cargo test --manifest-path .\src-tauri\Cargo.toml
-npm run build:modern-installer
-```
-
-定向同步测试：
-
-```powershell
-cargo test --manifest-path .\src-tauri\Cargo.toml local_folder -- --nocapture
-cargo test --manifest-path .\src-tauri\Cargo.toml sync_blob -- --nocapture
-cargo test --manifest-path .\src-tauri\Cargo.toml sync_crypto -- --nocapture
-```
-
-真实 FTP roundtrip 测试默认被忽略。如需运行，请提供：
-
-```text
-CLIPLY_TEST_FTP_HOST
-CLIPLY_TEST_FTP_PORT
-CLIPLY_TEST_FTP_USER
-CLIPLY_TEST_FTP_PASSWORD
-CLIPLY_TEST_FTP_SECURE
-CLIPLY_TEST_FTP_REMOTE_PATH
-```
-
-## 发布检查清单
-
-标记 beta release 前需要：
-
-- 运行上面列出的所有自动化检查。
-- 构建现代安装器。
-- 验证安装器矩阵：
-  - 全新安装
-  - 覆盖更新
-  - 自定义路径安装
-  - 卸载并保留用户数据
-  - 卸载并删除用户数据
-  - 开机自启项行为
-- 在真实环境中验证 WebDAV、FTP 和 FTPS。
-- 使用 Notepad 和至少一个浏览器或编辑器输入框验证自动粘贴。
-- 手动流程后重新抽样日志脱敏。
-- 更新 `docs/` 中的稳定化报告。
-- 面向公开分发前尽量签名 release 二进制文件。
-
-## 安全
-
-请不要在公开 issue 中粘贴生产密钥或敏感剪贴板内容。若发现漏洞或隐私泄漏，
-请先通过私密渠道联系维护者，再公开细节。
-
-安全敏感区域：
-
-- 剪贴板捕获和粘贴逻辑
-- 日志和诊断脱敏
-- 同步包加密/解密
-- 远程 provider 认证
-- 安装器和更新行为
-
-## 贡献
-
-在仓库正式准备好公开协作后，欢迎贡献。当前建议：
-
-1. 先创建 issue 描述 bug 或改进点。
-2. 保持改动聚焦。
-3. 为后端行为新增或更新测试。
-4. 提交 pull request 前运行验证命令。
-5. 不要提交生成产物，例如 `dist/`、`target/`、安装器 exe、payload archive 或 `node_modules/`。
-
-## 路线图
-
-近期：
-
-- 完成 `v0.4.0-beta.1` 发布验证
-- 完成真实 WebDAV/FTP/FTPS 测试矩阵
-- 加固安装器升级和卸载流程
-- 扩展粘贴和同步失败路径回归测试
-
-后续：
-
-- 更完善的发布自动化
-- 签名 Windows 构建
-- 继续加固同步 provider
-- 更好的多设备冲突报告
+- 桌面外壳：Tauri v2
+- 前端：React、TypeScript、Vite、Tailwind CSS
+- 后端：Rust
+- 存储：SQLite via `rusqlite`
+- 同步加密：AES-GCM + Argon2 密钥派生
+- 安装器：Tauri 应用式现代安装器，另有 NSIS 备用安装器
 
 ## 许可证
 
