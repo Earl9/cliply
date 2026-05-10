@@ -20,8 +20,9 @@ const toneClass: Record<BadgeTone, string> = {
 export function Badge({ children, tone = "neutral", className }: BadgeProps) {
   return (
     <span
+      data-tone={tone}
       className={clsx(
-        "inline-flex h-6 items-center rounded-md px-2 text-xs font-medium",
+        "cliply-badge inline-flex h-6 items-center rounded-md px-2 text-xs font-medium",
         toneClass[tone],
         className,
       )}

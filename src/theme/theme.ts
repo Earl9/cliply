@@ -22,6 +22,7 @@ export type CliplyThemeTokens = {
   primaryActive: string;
   primarySoft: string;
   primaryBorder: string;
+  primaryBorderSelected?: string;
   primaryText: string;
 
   // Neutral surfaces
@@ -36,6 +37,7 @@ export type CliplyThemeTokens = {
   border: string;
   borderStrong: string;
   divider: string;
+  focusBorder?: string;
   focusRing: string;
 
   // Text
@@ -98,6 +100,8 @@ const AUTO_THEME_FALLBACK_COLORS: Record<CliplyAutoThemeSource, string> = {
   "system-accent": "#6D4CFF",
   wallpaper: "#3B82F6",
 };
+
+let themeTransitionResetTimer: number | undefined;
 
 export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
   "purple-default": {
@@ -579,6 +583,7 @@ export function cssVarsFromCliplyTheme(theme: CliplyThemeTokens): Record<string,
     "--cliply-primary-active": theme.primaryActive,
     "--cliply-primary-soft": theme.primarySoft,
     "--cliply-primary-border": theme.primaryBorder,
+    "--cliply-primary-border-selected": theme.primaryBorderSelected ?? theme.primaryBorder,
     "--cliply-primary-text": theme.primaryText,
 
     "--cliply-app-bg": theme.appBg,
@@ -591,6 +596,7 @@ export function cssVarsFromCliplyTheme(theme: CliplyThemeTokens): Record<string,
     "--cliply-border": theme.border,
     "--cliply-border-strong": theme.borderStrong,
     "--cliply-divider": theme.divider,
+    "--cliply-focus-border": theme.focusBorder ?? theme.primary,
     "--cliply-focus-ring": theme.focusRing,
 
     "--cliply-text": theme.text,
@@ -629,6 +635,7 @@ export function cssVarsFromCliplyTheme(theme: CliplyThemeTokens): Record<string,
     "--cliply-accent-100": theme.primarySoft,
     "--cliply-accent-soft": theme.primarySoft,
     "--cliply-accent-border": theme.primaryBorder,
+    "--cliply-accent-border-selected": theme.primaryBorderSelected ?? theme.primaryBorder,
     "--cliply-body-text": theme.bodyText ?? theme.text,
     "--cliply-faint": theme.textSecondary,
     "--cliply-shadow": theme.shadowWindow,
@@ -643,6 +650,7 @@ export function applyCliplyTheme(nameOrTheme: CliplyThemeName | CliplyThemeToken
 
   const root = document.documentElement;
   const vars = cssVarsFromCliplyTheme(theme);
+  suppressThemeTransitions(root);
 
   for (const [key, value] of Object.entries(vars)) {
     root.style.setProperty(key, value);
@@ -651,6 +659,22 @@ export function applyCliplyTheme(nameOrTheme: CliplyThemeName | CliplyThemeToken
   root.dataset.cliplyTheme = theme.name;
   root.dataset.theme = isDarkTheme(theme) ? "dark" : "light";
   root.style.colorScheme = isDarkTheme(theme) ? "dark" : "light";
+}
+
+function suppressThemeTransitions(root: HTMLElement) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  root.classList.add("cliply-theme-applying");
+  if (themeTransitionResetTimer !== undefined) {
+    window.clearTimeout(themeTransitionResetTimer);
+  }
+
+  themeTransitionResetTimer = window.setTimeout(() => {
+    root.classList.remove("cliply-theme-applying");
+    themeTransitionResetTimer = undefined;
+  }, 120);
 }
 
 export function setCliplyTheme(name: CliplyThemeName): CliplyThemeTokens {
@@ -717,16 +741,24 @@ function readAutoThemeSourceColor(
 }
 
 function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
-  const rgb = { r: 124, g: 92, b: 255 };
+  const darkAccent = normalizeDefaultDarkAccent(theme.primary);
+  const rgb = hexToRgb(darkAccent) ?? { r: 124, g: 92, b: 255 };
+  const isDefaultPurple = darkAccent === "#7C5CFF";
+
   return {
     ...theme,
-    primary: "#7C5CFF",
-    primaryHover: "#8B6DFF",
-    primaryActive: "#6D4CFF",
-    primarySoft: "rgba(124, 92, 255, 0.16)",
-    primaryBorder: "rgba(167, 139, 250, 0.55)",
+    primary: darkAccent,
+    primaryHover: isDefaultPurple ? "#8B6DFF" : mixHex(darkAccent, "#FFFFFF", 0.08),
+    primaryActive: isDefaultPurple ? "#6D4CFF" : mixHex(darkAccent, "#000000", 0.12),
+    primarySoft: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`,
+    primaryBorder: isDefaultPurple
+      ? "rgba(167, 139, 250, 0.55)"
+      : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`,
+    primaryBorderSelected: isDefaultPurple
+      ? "rgba(167, 139, 250, 0.75)"
+      : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.72)`,
     primaryText: "#FFFFFF",
-    swatch: "#7C5CFF",
+    swatch: darkAccent,
     appBg: "#0B1120",
     windowBg: "#0F172A",
     panelBg: "#111C2E",
@@ -742,7 +774,8 @@ function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
     muted: "#94A3B8",
     placeholder: "#64748B",
     disabledText: "#64748B",
-    focusRing: "rgba(124, 92, 255, 0.18)",
+    focusBorder: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.65)`,
+    focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
     successSoft: "rgba(34, 197, 94, 0.14)",
     warningSoft: "rgba(245, 158, 11, 0.16)",
     dangerSoft: "rgba(239, 68, 68, 0.16)",
@@ -771,7 +804,11 @@ function withDarkAccent(theme: CliplyThemeTokens, accent: string): CliplyThemeTo
     primaryBorder: isDefaultPurple
       ? "rgba(167, 139, 250, 0.55)"
       : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`,
+    primaryBorderSelected: isDefaultPurple
+      ? "rgba(167, 139, 250, 0.75)"
+      : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.72)`,
     primaryText: "#FFFFFF",
+    focusBorder: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.65)`,
     focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
     shadowSelected: `0 0 0 1px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`,
     swatch: darkAccent,

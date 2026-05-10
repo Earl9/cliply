@@ -109,8 +109,9 @@ export function ClipboardListItem({
           event.preventDefault();
           event.stopPropagation();
         }}
+        data-pinned={item.isPinned ? "true" : "false"}
         className={clsx(
-          "grid size-6 shrink-0 place-items-center rounded-md text-[color:var(--cliply-muted)] opacity-30 transition hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-80",
+          "cliply-pin-button grid size-6 shrink-0 place-items-center rounded-md text-[color:var(--cliply-muted)] opacity-30 transition hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-muted)] hover:opacity-100 group-hover:opacity-80",
           item.isPinned && "text-[color:var(--cliply-accent-strong)] opacity-100",
         )}
       >

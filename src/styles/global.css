@@ -69,6 +69,7 @@
   --cliply-primary-active: #6D4CFF;
   --cliply-primary-soft: rgba(124, 92, 255, 0.16);
   --cliply-primary-border: rgba(167, 139, 250, 0.55);
+  --cliply-primary-border-selected: rgba(167, 139, 250, 0.75);
   --cliply-accent: #7C5CFF;
   --cliply-accent-strong: #7C5CFF;
   --cliply-accent-dark: #8B6DFF;
@@ -76,6 +77,8 @@
   --cliply-accent-100: rgba(124, 92, 255, 0.16);
   --cliply-accent-soft: rgba(124, 92, 255, 0.16);
   --cliply-accent-border: rgba(167, 139, 250, 0.55);
+  --cliply-accent-border-selected: rgba(167, 139, 250, 0.75);
+  --cliply-focus-border: rgba(124, 92, 255, 0.65);
   --cliply-focus-ring: rgba(124, 92, 255, 0.18);
   --cliply-text: #f8fafc;
   --cliply-body-text: #e5e7eb;
@@ -165,6 +168,12 @@ button {
   border: 0;
 }
 
+:root.cliply-theme-applying *,
+:root.cliply-theme-applying *::before,
+:root.cliply-theme-applying *::after {
+  transition: none !important;
+}
+
 ::selection {
   background: rgba(101, 84, 246, 0.22);
 }
@@ -204,22 +213,51 @@ button {
 }
 
 :root[data-theme="dark"] .cliply-list-item-selected {
-  background: rgba(124, 92, 255, 0.18);
-  border-color: rgba(167, 139, 250, 0.75);
-  box-shadow: 0 0 0 1px rgba(124, 92, 255, 0.28);
+  background-color: var(--cliply-primary-soft) !important;
+  border-color: var(--cliply-primary-border-selected) !important;
+  box-shadow: var(--cliply-shadow-selected) !important;
+  color: var(--cliply-text);
+}
+
+:root[data-theme="dark"] .cliply-pin-button[data-pinned="true"] {
+  color: var(--cliply-primary) !important;
+}
+
+:root[data-theme="dark"] .cliply-pin-button[data-pinned="true"] svg {
+  fill: var(--cliply-primary) !important;
+}
+
+:root[data-theme="dark"] .cliply-badge[data-tone="accent"] {
+  background-color: var(--cliply-primary-soft) !important;
+  color: var(--cliply-primary) !important;
+}
+
+:root[data-theme="dark"] .cliply-search-shell {
+  background-color: var(--cliply-input-bg) !important;
+  border-color: var(--cliply-border-strong) !important;
 }
 
 :root[data-theme="dark"] .cliply-search-shell:focus-within {
-  border-color: rgba(124, 92, 255, 0.65);
+  border-color: var(--cliply-focus-border) !important;
   box-shadow:
-    0 0 0 3px rgba(124, 92, 255, 0.18),
-    0 8px 24px rgba(0, 0, 0, 0.18);
+    0 0 0 3px var(--cliply-focus-ring),
+    0 8px 24px rgba(0, 0, 0, 0.18) !important;
 }
 
 :root[data-theme="dark"] .cliply-pill-tab-active {
-  background: var(--cliply-primary-soft);
-  border-color: var(--cliply-primary-border);
-  color: var(--cliply-primary);
+  background-color: var(--cliply-primary-soft) !important;
+  border-color: var(--cliply-primary-border) !important;
+  color: var(--cliply-primary) !important;
+}
+
+:root[data-theme="dark"] .cliply-action-button[data-primary="true"] {
+  background-color: var(--cliply-primary) !important;
+  border-color: transparent !important;
+  color: var(--cliply-primary-text) !important;
+}
+
+:root[data-theme="dark"] .cliply-action-button[data-primary="true"]:hover {
+  background-color: var(--cliply-primary-hover) !important;
 }
 
 @container (max-width: 540px) {
