@@ -45,6 +45,7 @@ npm run build:modern-installer
 - [ ] Download progress displays normally.
 - [ ] Installed update state offers immediate relaunch.
 - [ ] Release contains `latest.json` and updater signature `.sig` artifacts.
+- [ ] Release is not marked as a GitHub Pre-release while the updater endpoint uses `/releases/latest/download/latest.json`.
 - [ ] Update flow never forces updates, silently installs in the background, uses a custom update server, accepts unsigned updates, or manually replaces the exe.
 - [ ] Installer matrix passes.
 - [ ] Logs and diagnostics are redacted.
