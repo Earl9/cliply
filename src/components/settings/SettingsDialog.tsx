@@ -42,16 +42,13 @@ import {
   clearAutoSyncPassword,
   exportSyncPackage,
   exportToRemoteSyncFolder,
-  checkForUpdates,
   getRemoteSyncStatus,
   getSyncPackageStatus,
   importFromRemoteSyncFolder,
   importSyncPackage,
-  openReleasePage,
   setRemoteSyncProvider,
   syncWithRemoteNow,
   updateAutoSyncConfig,
-  type UpdateCheckResult,
   type RemoteSyncResult,
   type RemoteSyncStatus,
   type SyncImportResult,
@@ -59,6 +56,12 @@ import {
   type SyncProviderConfig,
   type ShortcutCheck,
 } from "@/lib/settingsRepository";
+import {
+  checkCliplyUpdate,
+  downloadAndInstallCliplyUpdate,
+  relaunchCliply,
+  type CliplyUpdateInfo,
+} from "@/lib/updateService";
 import {
   CLIPLY_THEME_OPTIONS,
   DEFAULT_THEME_NAME,
@@ -2056,9 +2059,6 @@ function AboutSettingsTab({
   onRefresh: () => void;
 }) {
   const [diagnosticMessage, setDiagnosticMessage] = useState<string | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "current" | "available" | "failed">("idle");
-  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
-  const [updateError, setUpdateError] = useState<string | null>(null);
   const appVersion = debugInfo?.appVersion ?? CLIPLY_VERSION;
 
   const showDiagnosticMessage = (message: string) => {
@@ -2088,50 +2088,6 @@ function AboutSettingsTab({
       showDiagnosticMessage(errorMessage(error, "打开日志目录失败"));
     }
   };
-
-  const runUpdateCheck = async () => {
-    setUpdateStatus("checking");
-    setUpdateError(null);
-    const checkedAt = new Date().toISOString();
-    try {
-      const result = await checkForUpdates();
-      setUpdateResult(result);
-      setUpdateStatus(result.hasUpdate ? "available" : "current");
-      updateDraft("update", {
-        ...draft.update,
-        lastCheckedAt: checkedAt,
-      });
-    } catch (error) {
-      setUpdateStatus("failed");
-      setUpdateError(errorMessage(error, "检查更新失败"));
-      updateDraft("update", {
-        ...draft.update,
-        lastCheckedAt: checkedAt,
-      });
-    }
-  };
-
-  const openUpdateUrl = async (url?: string | null) => {
-    if (!url) {
-      return;
-    }
-    try {
-      await openReleasePage(url);
-    } catch (error) {
-      showDiagnosticMessage(errorMessage(error, "打开 Release 页面失败"));
-    }
-  };
-
-  const updateChannelLabel = draft.update.channel === "stable" ? "Stable" : "Beta";
-  const updateStatusLabel = {
-    idle: "尚未检查",
-    checking: "正在检查更新",
-    current: "已是最新版本",
-    available: "发现新版本",
-    failed: "检查失败",
-  }[updateStatus];
-  const releaseUrl = updateResult?.releaseUrl;
-  const downloadUrl = updateResult?.installerDownloadUrl ?? updateResult?.releaseUrl;
 
   return (
     <div className="grid gap-4">
@@ -2202,123 +2158,7 @@ function AboutSettingsTab({
           </div>
         </div>
       </SettingSection>
-      <SettingSection icon={RefreshCw} title="更新">
-        <div className="grid gap-3 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-3">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
-            <DiagnosticStat label="当前版本" value={`v${appVersion}`} />
-            <DiagnosticStat label="更新通道" value={updateChannelLabel} />
-            <DiagnosticStat label="最近检查" value={formatSyncTime(draft.update.lastCheckedAt)} />
-            <DiagnosticStat label="状态" value={updateStatusLabel} />
-          </div>
-
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
-            <label className="flex min-h-9 items-center justify-between gap-3 rounded-lg bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-[13px] font-medium text-[color:var(--cliply-muted)]">
-              自动检查
-              <input
-                type="checkbox"
-                checked={draft.update.autoCheck}
-                onChange={(event) =>
-                  updateDraft("update", {
-                    ...draft.update,
-                    autoCheck: event.target.checked,
-                  })
-                }
-                className="size-4 accent-[color:var(--cliply-accent)]"
-              />
-            </label>
-            <select
-              value={draft.update.checkInterval}
-              onChange={(event) =>
-                updateDraft("update", {
-                  ...draft.update,
-                  checkInterval: event.target.value as CliplySettings["update"]["checkInterval"],
-                })
-              }
-              className="h-9 min-w-0 rounded-lg border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
-            >
-              <option value="manual">手动</option>
-              <option value="daily">每天</option>
-              <option value="weekly">每周</option>
-            </select>
-            <select
-              value={draft.update.channel}
-              onChange={(event) =>
-                updateDraft("update", {
-                  ...draft.update,
-                  channel: event.target.value as CliplySettings["update"]["channel"],
-                })
-              }
-              className="h-9 min-w-0 rounded-lg border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
-            >
-              <option value="beta">Beta</option>
-              <option value="stable">Stable</option>
-            </select>
-          </div>
-
-          <button
-            type="button"
-            disabled={updateStatus === "checking"}
-            onClick={() => void runUpdateCheck()}
-            className="inline-flex h-9 w-fit items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
-          >
-            <RefreshCw className={clsx("size-4", updateStatus === "checking" && "animate-spin")} />
-            {updateStatus === "checking" ? "正在检查..." : "检查更新"}
-          </button>
-
-          {updateStatus === "current" ? (
-            <p className="rounded-lg bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-success)]">
-              当前已经是最新版本。
-            </p>
-          ) : null}
-
-          {updateStatus === "failed" ? (
-            <p className="rounded-lg bg-[color:var(--cliply-danger-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-danger)]">
-              {updateError || "检查更新失败"}
-            </p>
-          ) : null}
-
-          {updateStatus === "available" && updateResult ? (
-            <div className="grid gap-2 rounded-xl border border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] px-3 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
-                    新版本 v{updateResult.latestVersion}
-                  </div>
-                  <div className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]">
-                    更新时间：{formatSyncTime(updateResult.publishedAt)}
-                  </div>
-                </div>
-                <Badge tone="accent">{updateResult.installerAssetName ? "可下载" : "查看 Release"}</Badge>
-              </div>
-              <p className="line-clamp-4 whitespace-pre-line text-xs leading-5 text-[color:var(--cliply-muted)]">
-                {summarizeReleaseNotes(updateResult.releaseNotes)}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void openUpdateUrl(releaseUrl)}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
-                >
-                  <ExternalLink className="size-4 text-[color:var(--cliply-accent)]" />
-                  查看 Release
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void openUpdateUrl(downloadUrl)}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
-                >
-                  <ExternalLink className="size-4" />
-                  下载更新
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="text-xs leading-5 text-[color:var(--cliply-muted)]">
-            第一版只打开 GitHub Release 或安装器下载地址，不会静默下载、替换 exe 或自动重启。
-          </div>
-        </div>
-      </SettingSection>
+      <UpdatePanel appVersion={appVersion} draft={draft} updateDraft={updateDraft} />
     </div>
   );
 }
@@ -2331,6 +2171,252 @@ function DiagnosticStat({ label, value }: { label: string; value: string }) {
         {value}
       </div>
     </div>
+  );
+}
+
+type UpdatePanelStatus =
+  | "idle"
+  | "checking"
+  | "current"
+  | "available"
+  | "downloading"
+  | "installed"
+  | "failed";
+
+function UpdatePanel({
+  appVersion,
+  draft,
+  updateDraft,
+}: {
+  appVersion: string;
+  draft: CliplySettings;
+  updateDraft: UpdateSettingsDraft;
+}) {
+  const [status, setStatus] = useState<UpdatePanelStatus>("idle");
+  const [updateInfo, setUpdateInfo] = useState<CliplyUpdateInfo | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmInstall, setConfirmInstall] = useState(false);
+
+  const runUpdateCheck = async () => {
+    setStatus("checking");
+    setError(null);
+    setDownloadProgress(null);
+    setConfirmInstall(false);
+    const checkedAt = new Date().toISOString();
+    try {
+      const result = await checkCliplyUpdate();
+      setUpdateInfo(result);
+      setStatus(result ? "available" : "current");
+    } catch (updateError) {
+      setStatus("failed");
+      setError(errorMessage(updateError, "检查更新失败"));
+    } finally {
+      updateDraft("update", {
+        ...draft.update,
+        lastCheckedAt: checkedAt,
+      });
+    }
+  };
+
+  const installUpdate = async () => {
+    setStatus("downloading");
+    setError(null);
+    setConfirmInstall(false);
+    setDownloadProgress(0);
+    try {
+      await downloadAndInstallCliplyUpdate(setDownloadProgress);
+      setStatus("installed");
+      setDownloadProgress(1);
+    } catch (updateError) {
+      setStatus("failed");
+      setError(errorMessage(updateError, "下载或安装更新失败"));
+    }
+  };
+
+  const statusLabel = {
+    idle: "尚未检查",
+    checking: "正在检查更新",
+    current: "已是最新版本",
+    available: "发现新版本",
+    downloading: "正在下载并安装",
+    installed: "安装完成",
+    failed: "更新失败",
+  }[status];
+  const updateChannelLabel = draft.update.channel === "stable" ? "Stable" : "Beta";
+  const knownProgress = typeof downloadProgress === "number";
+
+  return (
+    <SettingSection icon={RefreshCw} title="更新">
+      <div className="grid gap-3 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
+          <DiagnosticStat label="当前版本" value={`v${appVersion}`} />
+          <DiagnosticStat label="更新通道" value={updateChannelLabel} />
+          <DiagnosticStat label="最近检查" value={formatSyncTime(draft.update.lastCheckedAt)} />
+          <DiagnosticStat label="状态" value={statusLabel} />
+        </div>
+
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
+          <label className="flex min-h-9 items-center justify-between gap-3 rounded-lg bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-[13px] font-medium text-[color:var(--cliply-muted)]">
+            自动检查
+            <input
+              type="checkbox"
+              checked={draft.update.autoCheck}
+              onChange={(event) =>
+                updateDraft("update", {
+                  ...draft.update,
+                  autoCheck: event.target.checked,
+                })
+              }
+              className="size-4 accent-[color:var(--cliply-accent)]"
+            />
+          </label>
+          <select
+            value={draft.update.checkInterval}
+            onChange={(event) =>
+              updateDraft("update", {
+                ...draft.update,
+                checkInterval: event.target.value as CliplySettings["update"]["checkInterval"],
+              })
+            }
+            className="h-9 min-w-0 rounded-lg border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
+          >
+            <option value="manual">手动</option>
+            <option value="daily">每天</option>
+            <option value="weekly">每周</option>
+          </select>
+          <select
+            value={draft.update.channel}
+            onChange={(event) =>
+              updateDraft("update", {
+                ...draft.update,
+                channel: event.target.value as CliplySettings["update"]["channel"],
+              })
+            }
+            className="h-9 min-w-0 rounded-lg border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
+          >
+            <option value="beta">Beta</option>
+            <option value="stable">Stable</option>
+          </select>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={status === "checking" || status === "downloading"}
+            onClick={() => void runUpdateCheck()}
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+          >
+            <RefreshCw className={clsx("size-4", status === "checking" && "animate-spin")} />
+            {status === "checking" ? "正在检查..." : "检查更新"}
+          </button>
+          {status === "available" && updateInfo ? (
+            <button
+              type="button"
+              onClick={() => setConfirmInstall(true)}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
+            >
+              下载并安装
+            </button>
+          ) : null}
+          {status === "installed" ? (
+            <button
+              type="button"
+              onClick={() => void relaunchCliply()}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
+            >
+              立即重启
+            </button>
+          ) : null}
+        </div>
+
+        {confirmInstall ? (
+          <div className="grid gap-2 rounded-xl border border-[color:var(--cliply-warning)] bg-[color:var(--cliply-warning-soft)] px-3 py-3">
+            <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
+              安装更新时 Cliply 会暂时关闭。
+            </div>
+            <p className="text-xs leading-5 text-[color:var(--cliply-muted)]">
+              更新包会先完成签名校验，然后由 Tauri 官方 updater 安装。Cliply 不会静默替换 exe。
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void installUpdate()}
+                className="inline-flex h-9 items-center rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
+              >
+                继续安装
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmInstall(false)}
+                className="inline-flex h-9 items-center rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {status === "current" ? (
+          <p className="rounded-lg bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-success)]">
+            当前已经是最新版本。
+          </p>
+        ) : null}
+
+        {status === "failed" ? (
+          <p className="rounded-lg bg-[color:var(--cliply-danger-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-danger)]">
+            {error || "更新失败"}
+          </p>
+        ) : null}
+
+        {status === "available" && updateInfo ? (
+          <div className="grid gap-2 rounded-xl border border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
+                  新版本 v{updateInfo.version}
+                </div>
+                <div className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]">
+                  发布时间：{formatSyncTime(updateInfo.date)}
+                </div>
+              </div>
+              <Badge tone="accent">签名更新</Badge>
+            </div>
+            <p className="line-clamp-4 whitespace-pre-line text-xs leading-5 text-[color:var(--cliply-muted)]">
+              {summarizeReleaseNotes(updateInfo.body)}
+            </p>
+          </div>
+        ) : null}
+
+        {status === "downloading" ? (
+          <div className="grid gap-2 rounded-lg bg-[color:var(--cliply-muted-bg)] px-3 py-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-[color:var(--cliply-muted)]">
+              <span>{knownProgress ? "下载进度" : "正在下载更新包"}</span>
+              <span>{knownProgress ? `${Math.round((downloadProgress ?? 0) * 100)}%` : "计算中"}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[color:var(--cliply-border-soft)]">
+              <div
+                className={clsx(
+                  "h-full rounded-full bg-[color:var(--cliply-accent-strong)] transition-all",
+                  !knownProgress && "w-1/2 animate-pulse",
+                )}
+                style={knownProgress ? { width: `${Math.round((downloadProgress ?? 0) * 100)}%` } : undefined}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {status === "installed" ? (
+          <p className="rounded-lg bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-success)]">
+            更新已安装完成，点击“立即重启”后 Cliply 会重新打开。
+          </p>
+        ) : null}
+
+        <div className="text-xs leading-5 text-[color:var(--cliply-muted)]">
+          Cliply 使用 Tauri 官方签名 updater。不会强制更新、静默后台安装或使用自建更新服务器。
+        </div>
+      </div>
+    </SettingSection>
   );
 }
 

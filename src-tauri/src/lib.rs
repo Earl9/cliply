@@ -22,6 +22,8 @@ impl Drop for ClipboardListenerShutdown {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = show_main_window(app);
         }))
@@ -53,8 +55,6 @@ pub fn run() {
             commands::get_cliply_settings,
             commands::update_cliply_settings,
             commands::check_global_shortcut,
-            commands::check_for_updates,
-            commands::open_release_page,
             commands::set_monitoring_paused,
             commands::show_main_window,
             commands::hide_main_window,

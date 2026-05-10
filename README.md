@@ -29,7 +29,7 @@ or sending clipboard contents to a Cliply-hosted cloud service.
 - Sync through user-controlled storage: Local Folder, WebDAV, FTP, and FTPS
 - Auto sync with configurable intervals and image sync modes
 - Windows installer with install, update, uninstall, startup, and data-retention controls
-- Manual update checks from the About tab, with GitHub Release links for downloads
+- Signed update checks from the About tab using the official Tauri updater
 
 ## Privacy
 
@@ -42,8 +42,8 @@ Cliply is local-first by design:
   provider you configure.
 - Remote sync providers receive encrypted sync packages, not plaintext
   clipboard history.
-- Update checks contact GitHub Releases and do not include clipboard history,
-  sync passwords, or local database content.
+- Update checks contact GitHub Releases for signed updater metadata and do
+  not include clipboard history, sync passwords, or local database content.
 - Logs and diagnostics must not contain clipboard body text, sync passwords,
   provider passwords, tokens, Authorization headers, private keys, or image
   contents.
@@ -65,6 +65,12 @@ upgrade/uninstall flows.
 
 Please do not paste production secrets into public issues. If you discover a
 security or privacy issue, follow [SECURITY.md](SECURITY.md).
+
+## Updates
+
+Cliply checks GitHub Releases for signed Tauri updater metadata. Updates are
+verified before installation, and Cliply asks before installing because the app
+may temporarily close during the Windows update flow.
 
 ## Development
 

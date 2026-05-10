@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default Cliply desktop window capability.","local":true,"windows":["main"],"permissions":["core:default","dialog:allow-open","dialog:allow-save","core:window:allow-start-dragging","core:window:allow-toggle-maximize"]}}
+{"default":{"identifier":"default","description":"Default Cliply desktop window capability.","local":true,"windows":["main"],"permissions":["core:default","dialog:allow-open","dialog:allow-save","core:window:allow-start-dragging","core:window:allow-toggle-maximize","process:default","updater:default"]}}

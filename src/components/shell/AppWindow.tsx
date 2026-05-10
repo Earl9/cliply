@@ -35,7 +35,7 @@ import { PrivacyBanner } from "@/components/shell/PrivacyBanner";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { getClipboardActionAvailability } from "@/lib/clipboardCapabilities";
 import type { ClipboardFilter, ClipboardItem } from "@/lib/clipboardTypes";
-import { checkForUpdates } from "@/lib/settingsRepository";
+import { checkCliplyUpdate } from "@/lib/updateService";
 import { hideMainWindow, toggleAlwaysOnTop } from "@/lib/windowAdapter";
 import {
   applyCliplyTheme,
@@ -214,7 +214,7 @@ export function AppWindow() {
         });
       };
 
-      void checkForUpdates()
+      void checkCliplyUpdate()
         .then(() => saveLastCheckedAt())
         .catch(() => {
           void saveLastCheckedAt().catch(() => {

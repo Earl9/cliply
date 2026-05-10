@@ -38,6 +38,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
@@ -74,6 +75,18 @@
         "installerHooks": "nsis/installer-hooks.nsh",
         "displayLanguageSelector": false,
         "startMenuFolder": "Cliply"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMyRjRCNzgzOTgzMTUzRgpSV1EvRllNNWVFc3ZBMUFwbHBGSEpNKzNvWndEdHJ3UXJ0YzVER3NWZ2cxVk53dmtjUnNWS2tFUAo=",
+      "endpoints": [
+        "https://github.com/Earl9/cliply/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive",
+        "installerArgs": []
       }
     }
   }

@@ -26,6 +26,7 @@ suppaftp = { version = "8.0.3", features = ["native-tls", "no-log"] }
 tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
 thiserror = "2"
 time = { version = "0.3", features = ["formatting", "macros"] }
@@ -46,3 +47,6 @@ windows-sys = { version = "0.61", features = [
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_WindowsAndMessaging"
 ] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"

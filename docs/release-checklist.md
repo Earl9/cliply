@@ -37,14 +37,15 @@ npm run build:modern-installer
 - [ ] FTP pass/fail paths pass.
 - [ ] FTPS pass/fail paths pass.
 - [ ] About > Update shows current version, channel, last checked time, and manual check status.
-- [ ] Manual update check handles latest/no-update, update-available, and network failure states.
-- [ ] Update available state shows version, published time, release notes summary, and GitHub actions.
-- [ ] "View Release" opens the GitHub Release page.
-- [ ] "Download Update" opens the matched installer asset URL, or falls back to the GitHub Release page.
-- [ ] Update checks never silently download, replace the executable, restart the app, or change installer logic.
-- [ ] Automatic update check starts after launch delay, does not block startup, and runs at most once per day for the daily interval.
-- [ ] Failed automatic update checks do not show a strong popup; status remains visible from About or logs.
-- [ ] Update logs contain only `update_check_started`, `update_check_success`, `update_available`, or `update_check_failed` with non-sensitive metadata.
+- [ ] Current version lower than GitHub latest signed updater metadata discovers an update.
+- [ ] Current version equal to latest signed updater metadata shows "already up to date".
+- [ ] Network failure shows an inline update error.
+- [ ] Update available state shows version, published time, and release notes.
+- [ ] Installing an update warns that Cliply may temporarily close.
+- [ ] Download progress displays normally.
+- [ ] Installed update state offers immediate relaunch.
+- [ ] Release contains `latest.json` and updater signature `.sig` artifacts.
+- [ ] Update flow never forces updates, silently installs in the background, uses a custom update server, accepts unsigned updates, or manually replaces the exe.
 - [ ] Installer matrix passes.
 - [ ] Logs and diagnostics are redacted.
 - [ ] DPI and multi-monitor smoke tests pass.

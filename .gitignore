@@ -43,6 +43,7 @@ src-tauri/target/release/bundle/
 !.env.example
 *.pem
 *.key
+*.key.pub
 *.pfx
 *.p12
 *.cer
