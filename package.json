@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "lint": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
     "build:installer": "powershell -ExecutionPolicy Bypass -File scripts/build-modern-installer.ps1",
     "build:modern-installer": "powershell -ExecutionPolicy Bypass -File scripts/build-modern-installer-app.ps1",

@@ -71,6 +71,19 @@ docs/v0.4.0-beta.1-stabilization-test-results.md
 - DPI 和多显示器表现
 - 手动流程后的最终日志抽样
 
+## 文档
+
+- [隐私政策](PRIVACY.md)
+- [安全政策](SECURITY.md)
+- [贡献指南](CONTRIBUTING.md)
+- [路线图](ROADMAP.md)
+- [更新日志](CHANGELOG.md)
+- [手动测试清单](docs/manual-test-checklist.md)
+- [发布检查清单](docs/release-checklist.md)
+- [同步设计](docs/sync-design.md)
+- [安装器说明](docs/installer.md)
+- [隐私和日志](docs/privacy-and-logs.md)
+
 ## 技术栈
 
 - 桌面外壳：Tauri v2
@@ -244,4 +257,4 @@ CLIPLY_TEST_FTP_REMOTE_PATH
 
 ## 许可证
 
-当前尚未声明许可证。公开开源发布前请添加 `LICENSE` 文件；没有许可证时，其他人没有明确的法律许可来使用、修改或再分发代码。
+Cliply 使用 [MIT License](LICENSE) 授权。

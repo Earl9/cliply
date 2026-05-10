@@ -1,17 +1,65 @@
+# Dependencies
 node_modules/
+apps/*/node_modules/
+
+# Frontend build output
 dist/
 dist-ssr/
+apps/*/dist/
+
+# Rust/Tauri build output
 target/
 src-tauri/target/
 apps/*/src-tauri/target/
+
+# Installer payloads and generated packages
 apps/*/src-tauri/payload/
-apps/*/dist/
-apps/*/node_modules/
-icon-debug/
-tmp_wix_decompile/
+src-tauri/target/release/bundle/
+*.exe
+*.msi
+*.msix
+*.appx
+*.appxbundle
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
+# Local runtime data
 *.log
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.cliply-sync
+*.cliply-event
+*.cliply-blob
+
+# Secrets and local environment
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
+*.csr
+*.der
+*.jks
+*.keystore
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# Local scratch/debug folders
+icon-debug/
+tmp_wix_decompile/
+
+# OS/editor noise
 .DS_Store
 Thumbs.db

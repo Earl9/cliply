@@ -75,6 +75,19 @@ Manual release blockers still to verify:
 - DPI and multi-monitor behavior
 - Final log sampling after manual workflows
 
+## Documentation
+
+- [Privacy Policy](PRIVACY.md)
+- [Security Policy](SECURITY.md)
+- [Contributing Guide](CONTRIBUTING.md)
+- [Roadmap](ROADMAP.md)
+- [Changelog](CHANGELOG.md)
+- [Manual Test Checklist](docs/manual-test-checklist.md)
+- [Release Checklist](docs/release-checklist.md)
+- [Sync Design](docs/sync-design.md)
+- [Installer Notes](docs/installer.md)
+- [Privacy And Logs](docs/privacy-and-logs.md)
+
 ## Tech Stack
 
 - Desktop shell: Tauri v2
@@ -251,6 +264,4 @@ Later:
 
 ## License
 
-No license has been declared yet. Add a `LICENSE` file before publishing this
-repository as open source; without a license, others do not have clear legal
-permission to use, modify, or redistribute the code.
+Cliply is licensed under the [MIT License](LICENSE).
