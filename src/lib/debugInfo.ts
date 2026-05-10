@@ -17,7 +17,7 @@ export type CliplyDebugInfo = {
 export async function getCliplyDebugInfo(): Promise<CliplyDebugInfo> {
   if (!isTauri()) {
     return {
-      appVersion: "0.4.0-beta.1",
+      appVersion: "0.4.1-beta.1",
       logPath: "%APPDATA%\\com.cliply.app\\cliply.log",
       logDir: "%APPDATA%\\com.cliply.app",
       databasePath: "%APPDATA%\\com.cliply.app\\cliply.db",

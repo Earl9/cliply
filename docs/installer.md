@@ -13,7 +13,7 @@ apps\cliply-installer\src-tauri\target\release\cliply-modern-installer.exe
 Fallback NSIS installer:
 
 ```text
-src-tauri\target\release\bundle\nsis\Cliply_0.4.0-beta.1_x64-setup.exe
+src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.1_x64-setup.exe
 ```
 
 ## Build Command

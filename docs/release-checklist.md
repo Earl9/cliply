@@ -56,7 +56,7 @@ Expected local artifacts:
 
 ```text
 apps\cliply-installer\src-tauri\target\release\cliply-modern-installer.exe
-src-tauri\target\release\bundle\nsis\Cliply_0.4.0-beta.1_x64-setup.exe
+src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.1_x64-setup.exe
 ```
 
 For each release artifact:

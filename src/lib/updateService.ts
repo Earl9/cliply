@@ -14,7 +14,7 @@ let pendingUpdate: Update | null = null;
 export async function checkCliplyUpdate(): Promise<CliplyUpdateInfo | null> {
   if (!isTauri()) {
     return {
-      currentVersion: "0.4.0-beta.1",
+      currentVersion: "0.4.1-beta.1",
       version: "0.4.1",
       date: new Date().toISOString(),
       body: "Signed updater preview from the browser mock.",

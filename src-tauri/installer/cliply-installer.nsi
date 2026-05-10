@@ -11,7 +11,7 @@ SetCompressor /SOLID lzma
 !include WinMessages.nsh
 
 !define PRODUCT_NAME "Cliply"
-!define PRODUCT_VERSION "0.4.0-beta.1"
+!define PRODUCT_VERSION "0.4.1-beta.1"
 !define PRODUCT_PUBLISHER "Cliply"
 !define PRODUCT_EXE "cliply.exe"
 !define PRODUCT_ICON "cliply.ico"
@@ -19,7 +19,7 @@ SetCompressor /SOLID lzma
 !define PRODUCT_REG_KEY "Software\cliply\Cliply"
 !define STARTMENU_FOLDER "Cliply"
 !define SOURCE_EXE "E:\Cliply\src-tauri\target\release\cliply.exe"
-!define OUT_EXE "E:\Cliply\src-tauri\target\release\bundle\custom\Cliply_0.4.0-beta.1_x64-modern-setup.exe"
+!define OUT_EXE "E:\Cliply\src-tauri\target\release\bundle\custom\Cliply_0.4.1-beta.1_x64-modern-setup.exe"
 !define ICON_FILE "E:\Cliply\src-tauri\icons\icon.ico"
 !define LOGO_IMAGE "E:\Cliply\src-tauri\installer\cliply-logo-96.bmp"
 !define CLIPLY_PRIMARY "6D4CFF"
