@@ -42,13 +42,16 @@ import {
   clearAutoSyncPassword,
   exportSyncPackage,
   exportToRemoteSyncFolder,
+  checkForUpdates,
   getRemoteSyncStatus,
   getSyncPackageStatus,
   importFromRemoteSyncFolder,
   importSyncPackage,
+  openReleasePage,
   setRemoteSyncProvider,
   syncWithRemoteNow,
   updateAutoSyncConfig,
+  type UpdateCheckResult,
   type RemoteSyncResult,
   type RemoteSyncStatus,
   type SyncImportResult,
@@ -854,7 +857,14 @@ export function SettingsDialog({
           />
         );
       case "about":
-        return <AboutSettingsTab debugInfo={debugInfo} onRefresh={refreshDebugInfo} />;
+        return (
+          <AboutSettingsTab
+            debugInfo={debugInfo}
+            draft={draft}
+            updateDraft={updateDraft}
+            onRefresh={refreshDebugInfo}
+          />
+        );
       default:
         return null;
     }
@@ -2036,12 +2046,19 @@ function ImageSyncSettingsSection({
 
 function AboutSettingsTab({
   debugInfo,
+  draft,
+  updateDraft,
   onRefresh,
 }: {
   debugInfo: CliplyDebugInfo | null;
+  draft: CliplySettings;
+  updateDraft: UpdateSettingsDraft;
   onRefresh: () => void;
 }) {
   const [diagnosticMessage, setDiagnosticMessage] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "current" | "available" | "failed">("idle");
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const appVersion = debugInfo?.appVersion ?? CLIPLY_VERSION;
 
   const showDiagnosticMessage = (message: string) => {
@@ -2071,6 +2088,50 @@ function AboutSettingsTab({
       showDiagnosticMessage(errorMessage(error, "打开日志目录失败"));
     }
   };
+
+  const runUpdateCheck = async () => {
+    setUpdateStatus("checking");
+    setUpdateError(null);
+    const checkedAt = new Date().toISOString();
+    try {
+      const result = await checkForUpdates();
+      setUpdateResult(result);
+      setUpdateStatus(result.hasUpdate ? "available" : "current");
+      updateDraft("update", {
+        ...draft.update,
+        lastCheckedAt: checkedAt,
+      });
+    } catch (error) {
+      setUpdateStatus("failed");
+      setUpdateError(errorMessage(error, "检查更新失败"));
+      updateDraft("update", {
+        ...draft.update,
+        lastCheckedAt: checkedAt,
+      });
+    }
+  };
+
+  const openUpdateUrl = async (url?: string | null) => {
+    if (!url) {
+      return;
+    }
+    try {
+      await openReleasePage(url);
+    } catch (error) {
+      showDiagnosticMessage(errorMessage(error, "打开 Release 页面失败"));
+    }
+  };
+
+  const updateChannelLabel = draft.update.channel === "stable" ? "Stable" : "Beta";
+  const updateStatusLabel = {
+    idle: "尚未检查",
+    checking: "正在检查更新",
+    current: "已是最新版本",
+    available: "发现新版本",
+    failed: "检查失败",
+  }[updateStatus];
+  const releaseUrl = updateResult?.releaseUrl;
+  const downloadUrl = updateResult?.installerDownloadUrl ?? updateResult?.releaseUrl;
 
   return (
     <div className="grid gap-4">
@@ -2142,17 +2203,120 @@ function AboutSettingsTab({
         </div>
       </SettingSection>
       <SettingSection icon={RefreshCw} title="更新">
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-2">
-          <div className="text-sm font-medium text-[color:var(--cliply-muted)]">
-            检查更新将在后续版本接入。
+        <div className="grid gap-3 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
+            <DiagnosticStat label="当前版本" value={`v${appVersion}`} />
+            <DiagnosticStat label="更新通道" value={updateChannelLabel} />
+            <DiagnosticStat label="最近检查" value={formatSyncTime(draft.update.lastCheckedAt)} />
+            <DiagnosticStat label="状态" value={updateStatusLabel} />
           </div>
+
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
+            <label className="flex min-h-9 items-center justify-between gap-3 rounded-lg bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-[13px] font-medium text-[color:var(--cliply-muted)]">
+              自动检查
+              <input
+                type="checkbox"
+                checked={draft.update.autoCheck}
+                onChange={(event) =>
+                  updateDraft("update", {
+                    ...draft.update,
+                    autoCheck: event.target.checked,
+                  })
+                }
+                className="size-4 accent-[color:var(--cliply-accent)]"
+              />
+            </label>
+            <select
+              value={draft.update.checkInterval}
+              onChange={(event) =>
+                updateDraft("update", {
+                  ...draft.update,
+                  checkInterval: event.target.value as CliplySettings["update"]["checkInterval"],
+                })
+              }
+              className="h-9 min-w-0 rounded-lg border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
+            >
+              <option value="manual">手动</option>
+              <option value="daily">每天</option>
+              <option value="weekly">每周</option>
+            </select>
+            <select
+              value={draft.update.channel}
+              onChange={(event) =>
+                updateDraft("update", {
+                  ...draft.update,
+                  channel: event.target.value as CliplySettings["update"]["channel"],
+                })
+              }
+              className="h-9 min-w-0 rounded-lg border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
+            >
+              <option value="beta">Beta</option>
+              <option value="stable">Stable</option>
+            </select>
+          </div>
+
           <button
             type="button"
-            disabled
-            className="h-8 rounded-lg border border-[color:var(--cliply-border)] bg-[color:var(--cliply-muted-bg)] px-3 text-xs font-semibold text-[color:var(--cliply-disabled-text)]"
+            disabled={updateStatus === "checking"}
+            onClick={() => void runUpdateCheck()}
+            className="inline-flex h-9 w-fit items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
-            检查更新
+            <RefreshCw className={clsx("size-4", updateStatus === "checking" && "animate-spin")} />
+            {updateStatus === "checking" ? "正在检查..." : "检查更新"}
           </button>
+
+          {updateStatus === "current" ? (
+            <p className="rounded-lg bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-success)]">
+              当前已经是最新版本。
+            </p>
+          ) : null}
+
+          {updateStatus === "failed" ? (
+            <p className="rounded-lg bg-[color:var(--cliply-danger-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-danger)]">
+              {updateError || "检查更新失败"}
+            </p>
+          ) : null}
+
+          {updateStatus === "available" && updateResult ? (
+            <div className="grid gap-2 rounded-xl border border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] px-3 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
+                    新版本 v{updateResult.latestVersion}
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]">
+                    更新时间：{formatSyncTime(updateResult.publishedAt)}
+                  </div>
+                </div>
+                <Badge tone="accent">{updateResult.installerAssetName ? "可下载" : "查看 Release"}</Badge>
+              </div>
+              <p className="line-clamp-4 whitespace-pre-line text-xs leading-5 text-[color:var(--cliply-muted)]">
+                {summarizeReleaseNotes(updateResult.releaseNotes)}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void openUpdateUrl(releaseUrl)}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
+                >
+                  <ExternalLink className="size-4 text-[color:var(--cliply-accent)]" />
+                  查看 Release
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openUpdateUrl(downloadUrl)}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
+                >
+                  <ExternalLink className="size-4" />
+                  下载更新
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="text-xs leading-5 text-[color:var(--cliply-muted)]">
+            第一版只打开 GitHub Release 或安装器下载地址，不会静默下载、替换 exe 或自动重启。
+          </div>
         </div>
       </SettingSection>
     </div>
@@ -2808,6 +2972,18 @@ function formatSyncTime(value?: string | null) {
 
 function syncImportResultMessage(result: SyncImportResult) {
   return `导入完成：新增 ${result.importedCount}，更新 ${result.updatedCount}，删除 ${result.deletedCount}，跳过 ${result.skippedCount}，冲突 ${result.conflictedCount}`;
+}
+
+function summarizeReleaseNotes(value?: string | null) {
+  const normalized = value
+    ?.replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+    .join("\n");
+
+  return normalized || "该版本未提供更新说明。";
 }
 
 function remoteSyncResultMessage(result: RemoteSyncResult, prefix: string) {

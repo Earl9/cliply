@@ -36,6 +36,15 @@ npm run build:modern-installer
 - [ ] WebDAV pass/fail paths pass.
 - [ ] FTP pass/fail paths pass.
 - [ ] FTPS pass/fail paths pass.
+- [ ] About > Update shows current version, channel, last checked time, and manual check status.
+- [ ] Manual update check handles latest/no-update, update-available, and network failure states.
+- [ ] Update available state shows version, published time, release notes summary, and GitHub actions.
+- [ ] "View Release" opens the GitHub Release page.
+- [ ] "Download Update" opens the matched installer asset URL, or falls back to the GitHub Release page.
+- [ ] Update checks never silently download, replace the executable, restart the app, or change installer logic.
+- [ ] Automatic update check starts after launch delay, does not block startup, and runs at most once per day for the daily interval.
+- [ ] Failed automatic update checks do not show a strong popup; status remains visible from About or logs.
+- [ ] Update logs contain only `update_check_started`, `update_check_success`, `update_available`, or `update_check_failed` with non-sensitive metadata.
 - [ ] Installer matrix passes.
 - [ ] Logs and diagnostics are redacted.
 - [ ] DPI and multi-monitor smoke tests pass.

@@ -59,6 +59,18 @@ export type ShortcutCheck = {
   message: string;
 };
 
+export type UpdateCheckResult = {
+  currentVersion: string;
+  latestVersion?: string | null;
+  hasUpdate: boolean;
+  releaseName?: string | null;
+  releaseNotes?: string | null;
+  publishedAt?: string | null;
+  releaseUrl?: string | null;
+  installerAssetName?: string | null;
+  installerDownloadUrl?: string | null;
+};
+
 export async function getCliplySettings(): Promise<CliplySettings> {
   if (!isTauri()) {
     return readMockSettings();
@@ -90,6 +102,34 @@ export async function checkGlobalShortcut(
     shortcut,
     currentShortcut,
   });
+}
+
+export async function checkForUpdates(): Promise<UpdateCheckResult> {
+  if (!isTauri()) {
+    return {
+      currentVersion: "0.4.0-beta.1",
+      latestVersion: "0.4.1",
+      hasUpdate: true,
+      releaseName: "Cliply v0.4.1",
+      releaseNotes:
+        "Adds a manual update check in Settings, with GitHub Release links and installer download discovery.",
+      publishedAt: new Date().toISOString(),
+      releaseUrl: "https://github.com/earl/cliply/releases/tag/v0.4.1",
+      installerAssetName: "Cliply_0.4.1_x64-setup.exe",
+      installerDownloadUrl: "https://github.com/earl/cliply/releases/download/v0.4.1/Cliply_0.4.1_x64-setup.exe",
+    };
+  }
+
+  return invoke<UpdateCheckResult>("check_for_updates");
+}
+
+export async function openReleasePage(url: string): Promise<void> {
+  if (!isTauri()) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  await invoke<void>("open_release_page", { url });
 }
 
 export async function setMonitoringPaused(paused: boolean): Promise<CliplySettings> {
@@ -296,6 +336,10 @@ function readMockSettings(): CliplySettings {
       imageSync: {
         ...defaultSettingsState.imageSync,
         ...parsed.imageSync,
+      },
+      update: {
+        ...defaultSettingsState.update,
+        ...parsed.update,
       },
     };
   } catch {

@@ -21,6 +21,7 @@ pub struct CliplySettings {
     pub accent_color: String,
     pub auto_theme: CliplyAutoThemeSettings,
     pub image_sync: CliplyImageSyncSettings,
+    pub update: CliplyUpdateSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +66,28 @@ impl Default for CliplyImageSyncSettings {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CliplyUpdateSettings {
+    pub auto_check: bool,
+    pub check_interval: String,
+    pub channel: String,
+    pub last_checked_at: Option<String>,
+    pub ignored_version: Option<String>,
+}
+
+impl Default for CliplyUpdateSettings {
+    fn default() -> Self {
+        Self {
+            auto_check: true,
+            check_interval: "daily".to_string(),
+            channel: "beta".to_string(),
+            last_checked_at: None,
+            ignored_version: None,
+        }
+    }
+}
+
 impl Default for CliplySettings {
     fn default() -> Self {
         Self {
@@ -92,6 +115,7 @@ impl Default for CliplySettings {
             accent_color: "#6D4CFF".to_string(),
             auto_theme: CliplyAutoThemeSettings::default(),
             image_sync: CliplyImageSyncSettings::default(),
+            update: CliplyUpdateSettings::default(),
         }
     }
 }

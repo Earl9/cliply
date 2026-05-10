@@ -4,7 +4,7 @@ use crate::models::settings::CliplySettings;
 use crate::services::sync_storage_provider::SyncProviderConfig;
 use crate::services::{
     clipboard_service, database_service, paste_service, remote_sync_service, settings_service,
-    sync_package_service,
+    sync_package_service, update_check_service,
 };
 use crate::{platform, shortcuts, tray};
 use rusqlite::{params, OptionalExtension};
@@ -427,6 +427,25 @@ pub async fn get_system_theme_colors(app: AppHandle) -> Result<serde_json::Value
     );
     serde_json::to_value(colors)
         .map_err(|error| command_error(&app, "get_system_theme_colors.serialize", error))
+}
+
+#[tauri::command]
+pub async fn check_for_updates(
+    app: AppHandle,
+) -> Result<update_check_service::UpdateCheckResult, String> {
+    let worker_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        update_check_service::check_for_updates(&worker_app)
+    })
+    .await
+    .map_err(|error| command_error(&app, "check_for_updates.join", error))?
+    .map_err(|error| command_error(&app, "check_for_updates", error))
+}
+
+#[tauri::command]
+pub async fn open_release_page(app: AppHandle, url: String) -> Result<(), String> {
+    update_check_service::open_release_page(url)
+        .map_err(|error| command_error(&app, "open_release_page", error))
 }
 
 fn command_error(app: &AppHandle, command: &str, error: impl std::fmt::Display) -> String {

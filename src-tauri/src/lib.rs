@@ -53,6 +53,8 @@ pub fn run() {
             commands::get_cliply_settings,
             commands::update_cliply_settings,
             commands::check_global_shortcut,
+            commands::check_for_updates,
+            commands::open_release_page,
             commands::set_monitoring_paused,
             commands::show_main_window,
             commands::hide_main_window,

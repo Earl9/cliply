@@ -15,3 +15,4 @@ pub mod sync_scheduler_service;
 pub mod sync_secret_service;
 pub mod sync_service;
 pub mod sync_storage_provider;
+pub mod update_check_service;

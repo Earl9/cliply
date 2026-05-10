@@ -22,6 +22,7 @@ export type CliplySettings = {
   accentColor: string;
   autoTheme: CliplyAutoThemeSettings;
   imageSync: CliplyImageSyncSettings;
+  update: CliplyUpdateSettings;
 };
 
 export type ImageSyncMode =
@@ -36,6 +37,17 @@ export type CliplyImageSyncSettings = {
   quality: number;
   stripMetadata: boolean;
   maxImageSizeMB: number;
+};
+
+export type UpdateCheckInterval = "manual" | "daily" | "weekly";
+export type UpdateChannel = "stable" | "beta";
+
+export type CliplyUpdateSettings = {
+  autoCheck: boolean;
+  checkInterval: UpdateCheckInterval;
+  channel: UpdateChannel;
+  lastCheckedAt?: string | null;
+  ignoredVersion?: string | null;
 };
 
 export type SettingsState = CliplySettings;
@@ -64,5 +76,12 @@ export const defaultSettingsState: CliplySettings = {
     quality: 80,
     stripMetadata: true,
     maxImageSizeMB: 25,
+  },
+  update: {
+    autoCheck: true,
+    checkInterval: "daily",
+    channel: "beta",
+    lastCheckedAt: null,
+    ignoredVersion: null,
   },
 };

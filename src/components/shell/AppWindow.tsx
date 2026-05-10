@@ -35,6 +35,7 @@ import { PrivacyBanner } from "@/components/shell/PrivacyBanner";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { getClipboardActionAvailability } from "@/lib/clipboardCapabilities";
 import type { ClipboardFilter, ClipboardItem } from "@/lib/clipboardTypes";
+import { checkForUpdates } from "@/lib/settingsRepository";
 import { hideMainWindow, toggleAlwaysOnTop } from "@/lib/windowAdapter";
 import {
   applyCliplyTheme,
@@ -55,6 +56,26 @@ function shouldAllowNativeContextMenu(target: EventTarget | null) {
     target instanceof HTMLTextAreaElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
+}
+
+function shouldRunAutoUpdateCheck(
+  lastCheckedAt: string | null | undefined,
+  interval: "manual" | "daily" | "weekly",
+) {
+  if (interval === "manual") {
+    return false;
+  }
+  if (!lastCheckedAt) {
+    return true;
+  }
+
+  const timestamp = Date.parse(lastCheckedAt);
+  if (!Number.isFinite(timestamp)) {
+    return true;
+  }
+
+  const intervalMs = interval === "weekly" ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+  return Date.now() - timestamp >= intervalMs;
 }
 
 export function AppWindow() {
@@ -87,6 +108,11 @@ export function AppWindow() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [imageViewerItem, setImageViewerItem] = useState<ClipboardItem | null>(null);
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => getSystemPrefersDark());
+  const settingsRef = useRef(settings);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -166,6 +192,39 @@ export function AppWindow() {
     mediaQuery.addEventListener("change", updateSystemMode);
     return () => mediaQuery.removeEventListener("change", updateSystemMode);
   }, []);
+
+  useEffect(() => {
+    if (
+      !settings.update.autoCheck ||
+      !shouldRunAutoUpdateCheck(settings.update.lastCheckedAt, settings.update.checkInterval)
+    ) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      const checkedAt = new Date().toISOString();
+      const saveLastCheckedAt = async () => {
+        const latestSettings = settingsRef.current;
+        await setSettings({
+          ...latestSettings,
+          update: {
+            ...latestSettings.update,
+            lastCheckedAt: checkedAt,
+          },
+        });
+      };
+
+      void checkForUpdates()
+        .then(() => saveLastCheckedAt())
+        .catch(() => {
+          void saveLastCheckedAt().catch(() => {
+            // Automatic update checks stay quiet; users can retry manually from About.
+          });
+        });
+    }, 20_000);
+
+    return () => window.clearTimeout(timeout);
+  }, [setSettings, settings.update.autoCheck, settings.update.checkInterval, settings.update.lastCheckedAt]);
 
   useEffect(() => {
     const removeListeners: Array<() => void> = [];

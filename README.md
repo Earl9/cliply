@@ -29,6 +29,7 @@ or sending clipboard contents to a Cliply-hosted cloud service.
 - Sync through user-controlled storage: Local Folder, WebDAV, FTP, and FTPS
 - Auto sync with configurable intervals and image sync modes
 - Windows installer with install, update, uninstall, startup, and data-retention controls
+- Manual update checks from the About tab, with GitHub Release links for downloads
 
 ## Privacy
 
@@ -41,6 +42,8 @@ Cliply is local-first by design:
   provider you configure.
 - Remote sync providers receive encrypted sync packages, not plaintext
   clipboard history.
+- Update checks contact GitHub Releases and do not include clipboard history,
+  sync passwords, or local database content.
 - Logs and diagnostics must not contain clipboard body text, sync passwords,
   provider passwords, tokens, Authorization headers, private keys, or image
   contents.
