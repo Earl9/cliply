@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "cliply-modern-installer"
-version = "0.4.1-beta.2"
+version = "0.4.1-beta.3"
 dependencies = [
  "flate2",
  "serde",

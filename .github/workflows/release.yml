@@ -47,7 +47,7 @@ jobs:
             `Cliply_*_x64-setup.exe` and `.sig` are retained as signed NSIS fallback assets.
 
             See CHANGELOG.md for release notes.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: --bundles nsis
           includeUpdaterJson: true
@@ -70,6 +70,8 @@ jobs:
               owner,
               repo,
               release_id: releaseId,
+              tag_name: tagName,
+              target_commitish: context.sha,
               name: `Cliply ${tagName}`,
               body: [
                 "For manual installation, download `Cliply_*_x64-modern-installer.exe`.",
@@ -205,21 +207,43 @@ jobs:
               release.data.created_at ||
               new Date().toISOString();
             const notes = latestJson.notes || release.data.body || "";
-            const modernInstallerUrl =
-              modernInstallerAsset.browser_download_url ||
-              `https://github.com/${owner}/${repo}/releases/download/${tagName}/${modernInstallerAsset.name}`;
+            const stableAssetUrl = (assetName) =>
+              `https://github.com/${owner}/${repo}/releases/download/${encodeURIComponent(tagName)}/${encodeURIComponent(assetName)}`;
+            const assetNameFromUrl = (value) => {
+              try {
+                return path.posix.basename(new URL(value).pathname);
+              } catch {
+                return path.posix.basename(String(value || ""));
+              }
+            };
+            const stablePlatforms = Object.fromEntries(
+              Object.entries(latestJson.platforms || {}).map(([platform, info]) => {
+                if (!info || typeof info !== "object" || !info.url) {
+                  return [platform, info];
+                }
+                const assetName = assetNameFromUrl(info.url);
+                return [
+                  platform,
+                  {
+                    ...info,
+                    url: assetName ? stableAssetUrl(assetName) : info.url,
+                  },
+                ];
+              }),
+            );
 
             const mergedLatestJson = {
               ...latestJson,
               version,
               notes,
               published_at: publishedAt,
+              platforms: stablePlatforms,
               modernInstaller: {
                 version,
                 notes,
                 published_at: publishedAt,
                 name: modernInstallerAsset.name,
-                url: modernInstallerUrl,
+                url: stableAssetUrl(modernInstallerAsset.name),
                 sha256: modernInstallerSha256,
               },
             };
