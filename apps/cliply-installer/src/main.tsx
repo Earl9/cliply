@@ -159,7 +159,7 @@ function App() {
           startOnLogin: updateMode ? false : startOnLogin,
           isUpdate,
           preserveUserData: mode.preserveUserData || isUpdate,
-          launchAfterInstall: mode.launchAfterInstall,
+          launchAfterInstall: false,
           parentPid: mode.parentPid ?? null,
         },
       });
@@ -194,7 +194,8 @@ function App() {
   }
 
   async function finish() {
-    if (!isUninstall && !(mode.isUpdate && mode.launchAfterInstall) && launchAfterInstall && installOutcome) {
+    const shouldLaunchAfterFinish = mode.isUpdate ? mode.launchAfterInstall : launchAfterInstall;
+    if (!isUninstall && shouldLaunchAfterFinish && installOutcome) {
       try {
         await invoke("launch_cliply", { installDir: installOutcome.installDir });
       } catch (reason) {
@@ -273,7 +274,6 @@ function App() {
           <CompleteScreen
             isUninstall={isUninstall}
             isUpdate={isUpdate}
-            launchHandledByInstaller={mode.isUpdate && mode.launchAfterInstall}
             launchAfterInstall={launchAfterInstall}
             userDataRemoved={uninstallOutcome?.userDataRemoved ?? false}
             error={error}
@@ -527,7 +527,6 @@ function WorkingScreen({
 type CompleteScreenProps = {
   isUninstall: boolean;
   isUpdate: boolean;
-  launchHandledByInstaller: boolean;
   launchAfterInstall: boolean;
   userDataRemoved: boolean;
   error: string | null;
@@ -538,7 +537,6 @@ type CompleteScreenProps = {
 function CompleteScreen({
   isUninstall,
   isUpdate,
-  launchHandledByInstaller,
   launchAfterInstall,
   userDataRemoved,
   error,
@@ -561,7 +559,7 @@ function CompleteScreen({
           : "使用 Ctrl + Shift + V 打开剪贴板历史。"}
       </p>
 
-      {!isUninstall && !launchHandledByInstaller && (
+      {!isUninstall && !isUpdate && (
         <div className="finish-option">
           <CheckOption
             checked={launchAfterInstall}
