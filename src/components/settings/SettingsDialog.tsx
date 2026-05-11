@@ -60,7 +60,9 @@ import {
   checkCliplyUpdate,
   downloadCliplyUpdate,
   launchModernUpdateInstaller,
+  openCliplyGitHubPage,
   openCliplyReleasePage,
+  CLIPLY_GITHUB_PAGE_URL,
   type CliplyUpdateInfo,
 } from "@/lib/updateService";
 import {
@@ -2101,6 +2103,22 @@ function AboutSettingsTab({
             </div>
           </div>
           <Badge tone="accent">v{appVersion}</Badge>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-2">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold text-[color:var(--cliply-muted)]">GitHub</div>
+            <div className="cliply-code-font mt-1 cursor-text select-text truncate text-[12px] font-semibold text-[color:var(--cliply-text)]">
+              {CLIPLY_GITHUB_PAGE_URL}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void openCliplyGitHubPage()}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-2.5 text-[12px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
+          >
+            <ExternalLink className="size-3.5 text-[color:var(--cliply-accent)]" />
+            打开
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <DiagnosticStat label="数据库大小" value={formatBytes(debugInfo?.databaseSizeBytes)} />

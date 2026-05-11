@@ -59,6 +59,7 @@ pub fn run() {
             commands::download_modern_update_installer,
             commands::launch_modern_update_installer,
             commands::open_cliply_release_page,
+            commands::open_cliply_github_page,
             commands::log_update_install_failed,
             commands::check_global_shortcut,
             commands::set_monitoring_paused,

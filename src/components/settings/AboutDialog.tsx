@@ -1,9 +1,10 @@
-import { X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import cliplyLogo from "@/assets/cliply-logo.png";
 import { Badge } from "@/components/common/Badge";
 import { IconButton } from "@/components/common/IconButton";
 import { getCliplyDebugInfo, type CliplyDebugInfo } from "@/lib/debugInfo";
+import { CLIPLY_GITHUB_PAGE_URL, openCliplyGitHubPage } from "@/lib/updateService";
 
 type AboutDialogProps = {
   open: boolean;
@@ -72,6 +73,14 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <Badge tone="teal">SQLite</Badge>
             <Badge>Local-first</Badge>
           </div>
+          <button
+            type="button"
+            onClick={() => void openCliplyGitHubPage()}
+            className="mt-4 inline-flex max-w-full items-center gap-2 rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
+          >
+            <ExternalLink className="size-4 shrink-0 text-[color:var(--cliply-accent)]" />
+            <span className="cliply-code-font min-w-0 truncate">{CLIPLY_GITHUB_PAGE_URL}</span>
+          </button>
           <div className="mt-5 w-full rounded-xl border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] p-3 text-left">
             <div className="mb-2 text-sm font-semibold text-[color:var(--cliply-text)]">Debug</div>
             <dl className="grid gap-2 text-xs leading-5 text-[color:var(--cliply-muted)]">

@@ -17,6 +17,7 @@ use std::process::Command;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
+const CLIPLY_GITHUB_PAGE_URL: &str = "https://github.com/Earl9/cliply";
 const CLIPLY_RELEASE_PAGE_URL: &str = "https://github.com/Earl9/cliply/releases/latest";
 const CLIPLY_UPDATE_MANIFEST_URL: &str =
     "https://github.com/Earl9/cliply/releases/latest/download/latest.json";
@@ -489,7 +490,10 @@ pub async fn fetch_cliply_update_manifest(app: AppHandle) -> Result<serde_json::
             logger::error(
                 &app,
                 "update_check_failed",
-                format!("kind=network error={}", sanitize_log_value(&error.to_string())),
+                format!(
+                    "kind=network error={}",
+                    sanitize_log_value(&error.to_string())
+                ),
             );
             return Err("检查更新失败，请检查网络后重试".to_string());
         }
@@ -511,7 +515,10 @@ pub async fn fetch_cliply_update_manifest(app: AppHandle) -> Result<serde_json::
             logger::error(
                 &app,
                 "update_check_failed",
-                format!("kind=parse error={}", sanitize_log_value(&error.to_string())),
+                format!(
+                    "kind=parse error={}",
+                    sanitize_log_value(&error.to_string())
+                ),
             );
             return Err("更新清单格式不正确，请稍后重试".to_string());
         }
@@ -617,6 +624,14 @@ pub async fn open_cliply_release_page(app: AppHandle) -> Result<(), String> {
     open_url(CLIPLY_RELEASE_PAGE_URL)
         .map_err(|error| command_error(&app, "open_cliply_release_page.open", error))?;
     logger::info(&app, "command.open_cliply_release_page", "ok");
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn open_cliply_github_page(app: AppHandle) -> Result<(), String> {
+    open_url(CLIPLY_GITHUB_PAGE_URL)
+        .map_err(|error| command_error(&app, "open_cliply_github_page.open", error))?;
+    logger::info(&app, "command.open_cliply_github_page", "ok");
     Ok(())
 }
 

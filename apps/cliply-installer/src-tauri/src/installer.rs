@@ -141,12 +141,13 @@ pub fn detect_installation() -> InstallResult<InstallDetection> {
 
 pub fn detect_mode() -> InstallerMode {
     let args: Vec<String> = std::env::args().collect();
-    let is_update = arg_value(&args, "--mode")
-        .is_some_and(|value| value.eq_ignore_ascii_case("update"))
-        || args.iter().any(|arg| arg == "--update");
+    let is_uninstall = args.iter().any(|arg| arg == "--uninstall") || running_as_uninstaller();
+    let is_update = !is_uninstall
+        && (arg_value(&args, "--mode").is_some_and(|value| value.eq_ignore_ascii_case("update"))
+            || args.iter().any(|arg| arg == "--update"));
 
     InstallerMode {
-        is_uninstall: args.iter().any(|arg| arg == "--uninstall"),
+        is_uninstall,
         is_update,
         install_dir: arg_value(&args, "--install-dir"),
         source_version: arg_value(&args, "--source-version"),
@@ -155,6 +156,16 @@ pub fn detect_mode() -> InstallerMode {
         launch_after_install: args.iter().any(|arg| arg == "--launch-after-install"),
         parent_pid: arg_value(&args, "--parent-pid").and_then(|value| value.parse().ok()),
     }
+}
+
+fn running_as_uninstaller() -> bool {
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_string())
+        })
+        .is_some_and(|name| name.eq_ignore_ascii_case(PRODUCT_UNINSTALLER))
 }
 
 pub fn install<F>(options: InstallOptions, mut on_progress: F) -> InstallResult<InstallOutcome>

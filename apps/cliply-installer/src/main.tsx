@@ -352,18 +352,20 @@ function SetupScreen({
           </div>
         )}
 
-        <div className="option-grid">
-          <CheckOption
-            checked={desktopShortcut}
-            label="创建桌面快捷方式"
-            onChange={onDesktopShortcutChange}
-          />
-          <CheckOption
-            checked={startOnLogin}
-            label="开机自动启动"
-            onChange={onStartOnLoginChange}
-          />
-        </div>
+        {!isUpdate && (
+          <div className="option-grid">
+            <CheckOption
+              checked={desktopShortcut}
+              label="创建桌面快捷方式"
+              onChange={onDesktopShortcutChange}
+            />
+            <CheckOption
+              checked={startOnLogin}
+              label="开机自动启动"
+              onChange={onStartOnLoginChange}
+            />
+          </div>
+        )}
       </div>
 
       {error && <div className="error-banner">{error}</div>}

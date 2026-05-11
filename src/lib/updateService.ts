@@ -2,7 +2,8 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
 
-export const CLIPLY_RELEASE_PAGE_URL = "https://github.com/Earl9/cliply/releases/latest";
+export const CLIPLY_GITHUB_PAGE_URL = "https://github.com/Earl9/cliply";
+export const CLIPLY_RELEASE_PAGE_URL = `${CLIPLY_GITHUB_PAGE_URL}/releases/latest`;
 const CLIPLY_UPDATE_MANIFEST_URL =
   "https://github.com/Earl9/cliply/releases/latest/download/latest.json";
 
@@ -168,6 +169,15 @@ export async function openCliplyReleasePage(): Promise<void> {
   }
 
   await invoke<void>("open_cliply_release_page");
+}
+
+export async function openCliplyGitHubPage(): Promise<void> {
+  if (!isTauri()) {
+    window.open(CLIPLY_GITHUB_PAGE_URL, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  await invoke<void>("open_cliply_github_page");
 }
 
 async function fetchUpdateManifest(): Promise<CliplyUpdateManifest> {
