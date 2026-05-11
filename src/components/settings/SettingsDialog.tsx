@@ -118,7 +118,7 @@ const SETTINGS_TABS: Array<{
   { id: "about", label: "关于", description: "版本、数据目录和调试信息。", icon: CircleHelp },
 ];
 
-const CLIPLY_VERSION = "0.4.1-beta.1";
+const CLIPLY_VERSION = "0.4.1-beta.8";
 const ACCENT_PRESET_COLORS = [
   "#6D4CFF",
   "#3B82F6",

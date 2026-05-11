@@ -4,8 +4,11 @@ mod commands;
 mod installer;
 mod payload;
 mod platform;
+mod webview2;
 
 fn main() {
+    webview2::ensure_runtime_or_exit();
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::detect_mode,
