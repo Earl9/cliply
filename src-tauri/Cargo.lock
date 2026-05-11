@@ -557,7 +557,7 @@ dependencies = [
 
 [[package]]
 name = "cliply"
-version = "0.4.1-beta.1"
+version = "0.4.1-beta.2"
 dependencies = [
  "aes-gcm",
  "argon2",

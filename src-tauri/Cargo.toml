@@ -1,6 +1,6 @@
 [package]
 name = "cliply"
-version = "0.4.1-beta.1"
+version = "0.4.1-beta.2"
 description = "A local-first clipboard manager"
 authors = ["Cliply"]
 edition = "2021"
