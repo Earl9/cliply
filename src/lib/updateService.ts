@@ -171,6 +171,14 @@ export async function openCliplyReleasePage(): Promise<void> {
 }
 
 async function fetchUpdateManifest(): Promise<CliplyUpdateManifest> {
+  if (isTauri()) {
+    try {
+      return await invoke<CliplyUpdateManifest>("fetch_cliply_update_manifest");
+    } catch (error) {
+      throw new Error(errorMessage(error, "检查更新失败，请检查网络后重试"));
+    }
+  }
+
   const response = await fetch(CLIPLY_UPDATE_MANIFEST_URL, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("无法获取更新清单");
@@ -180,7 +188,7 @@ async function fetchUpdateManifest(): Promise<CliplyUpdateManifest> {
 
 async function getCurrentVersion(): Promise<string> {
   if (!isTauri()) {
-    return "0.4.1-beta.1";
+    return "0.4.1-beta.4";
   }
   return getVersion();
 }

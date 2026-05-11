@@ -55,6 +55,7 @@ pub fn run() {
             commands::get_cliply_settings,
             commands::update_cliply_settings,
             commands::get_current_install_dir,
+            commands::fetch_cliply_update_manifest,
             commands::download_modern_update_installer,
             commands::launch_modern_update_installer,
             commands::open_cliply_release_page,

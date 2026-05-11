@@ -18,6 +18,8 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 const CLIPLY_RELEASE_PAGE_URL: &str = "https://github.com/Earl9/cliply/releases/latest";
+const CLIPLY_UPDATE_MANIFEST_URL: &str =
+    "https://github.com/Earl9/cliply/releases/latest/download/latest.json";
 const MODERN_INSTALLER_FILE_NAME: &str = "cliply-modern-installer.exe";
 
 #[tauri::command]
@@ -465,6 +467,62 @@ pub struct ModernUpdateDownloadResult {
 pub struct ModernUpdateDownloadProgress {
     pub downloaded_bytes: u64,
     pub total_bytes: Option<u64>,
+}
+
+#[tauri::command]
+pub async fn fetch_cliply_update_manifest(app: AppHandle) -> Result<serde_json::Value, String> {
+    logger::info(
+        &app,
+        "update_check_started",
+        "source=github_latest_manifest",
+    );
+
+    let response = match ureq::get(CLIPLY_UPDATE_MANIFEST_URL)
+        .set("Accept", "application/json")
+        .set("Cache-Control", "no-cache")
+        .set("Pragma", "no-cache")
+        .timeout(Duration::from_secs(30))
+        .call()
+    {
+        Ok(response) => response,
+        Err(error) => {
+            logger::error(
+                &app,
+                "update_check_failed",
+                format!("kind=network error={}", sanitize_log_value(&error.to_string())),
+            );
+            return Err("检查更新失败，请检查网络后重试".to_string());
+        }
+    };
+
+    let mut body = String::new();
+    if let Err(error) = response.into_reader().read_to_string(&mut body) {
+        logger::error(
+            &app,
+            "update_check_failed",
+            format!("kind=read error={}", sanitize_log_value(&error.to_string())),
+        );
+        return Err("无法读取更新清单，请稍后重试".to_string());
+    }
+
+    let manifest = match serde_json::from_str::<serde_json::Value>(&body) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            logger::error(
+                &app,
+                "update_check_failed",
+                format!("kind=parse error={}", sanitize_log_value(&error.to_string())),
+            );
+            return Err("更新清单格式不正确，请稍后重试".to_string());
+        }
+    };
+
+    logger::info(
+        &app,
+        "update_check_success",
+        "source=github_latest_manifest",
+    );
+    Ok(manifest)
 }
 
 #[tauri::command]

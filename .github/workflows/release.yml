@@ -47,7 +47,7 @@ jobs:
             `Cliply_*_x64-setup.exe` and `.sig` are retained as signed NSIS fallback assets.
 
             See CHANGELOG.md for release notes.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           args: --bundles nsis
           includeUpdaterJson: true
@@ -82,6 +82,7 @@ jobs:
                 "",
                 "See CHANGELOG.md for release notes.",
               ].join("\n"),
+              draft: true,
               prerelease: false,
             });
 
@@ -265,4 +266,69 @@ jobs:
                 "content-type": "application/json",
                 "content-length": latestBytes.length,
               },
+            });
+
+      - name: Publish GitHub Release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ steps.tauri.outputs.releaseId }}
+        with:
+          script: |
+            const releaseId = Number(process.env.RELEASE_ID);
+            if (!releaseId) {
+              throw new Error("Missing release id from tauri-action");
+            }
+
+            const { owner, repo } = context.repo;
+            const tagName = process.env.GITHUB_REF_NAME;
+            const version = tagName.replace(/^v/i, "");
+            const requiredAssets = [
+              `Cliply_${version}_x64-modern-installer.exe`,
+              `Cliply_${version}_x64-setup.exe`,
+              `Cliply_${version}_x64-setup.exe.sig`,
+              "latest.json",
+            ];
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner,
+              repo,
+              release_id: releaseId,
+            });
+            const assetNames = new Set(assets.map((asset) => asset.name));
+
+            for (const assetName of requiredAssets) {
+              if (!assetNames.has(assetName)) {
+                throw new Error(`Missing release asset: ${assetName}`);
+              }
+            }
+
+            const latestAsset = assets.find((asset) => asset.name === "latest.json");
+            const latestResponse = await github.request({
+              method: "GET",
+              url: `/repos/${owner}/${repo}/releases/assets/${latestAsset.id}`,
+              headers: {
+                accept: "application/octet-stream",
+              },
+            });
+            const latestRaw =
+              typeof latestResponse.data === "string"
+                ? latestResponse.data
+                : Buffer.from(
+                    latestResponse.data instanceof ArrayBuffer
+                      ? new Uint8Array(latestResponse.data)
+                      : latestResponse.data,
+                  ).toString("utf8");
+            const latestJson = JSON.parse(latestRaw);
+            if (!latestJson.modernInstaller?.url || !latestJson.modernInstaller?.sha256) {
+              throw new Error("latest.json is missing modernInstaller url or sha256");
+            }
+
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: releaseId,
+              tag_name: tagName,
+              target_commitish: context.sha,
+              name: `Cliply ${tagName}`,
+              draft: false,
+              prerelease: false,
             });
