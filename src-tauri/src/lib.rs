@@ -72,6 +72,7 @@ pub fn run() {
             logger::info(app.handle(), "app_start", "Cliply setup started");
             db::initialize_storage(app.handle())?;
             logger::info(app.handle(), "storage_initialized", "SQLite storage ready");
+            services::settings_service::reconcile_startup_setting(app.handle());
             let cleanup = services::clipboard_service::enforce_history_retention(app.handle())?;
             if cleanup.deleted_items > 0 {
                 let _ = app.handle().emit("clipboard-items-changed", ());

@@ -175,6 +175,18 @@ pub fn set_launch_at_startup(enabled: bool, start_minimized: bool) -> Result<(),
     }
 }
 
+pub fn read_launch_at_startup() -> Result<Option<bool>, CliplyError> {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::startup::read_launch_at_startup();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(None)
+    }
+}
+
 pub fn read_install_dir_from_registry() -> Option<String> {
     #[cfg(target_os = "windows")]
     {

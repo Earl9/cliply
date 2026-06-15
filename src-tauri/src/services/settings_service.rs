@@ -51,18 +51,43 @@ pub fn update_settings(
         || previous_settings.start_minimized != settings.start_minimized
     {
         platform::set_launch_at_startup(settings.launch_at_startup, settings.start_minimized)?;
-        logger::info(
-            app,
-            "startup_setting",
-            format!(
-                "launch_at_startup={} start_minimized={}",
-                settings.launch_at_startup, settings.start_minimized
-            ),
-        );
+        log_startup_setting_synced(app, &settings, "settings_changed");
+    } else if settings.launch_at_startup {
+        match platform::set_launch_at_startup(settings.launch_at_startup, settings.start_minimized)
+        {
+            Ok(()) => log_startup_setting_synced(app, &settings, "settings_repaired"),
+            Err(error) => logger::error(app, "startup_setting_repair_failed", error),
+        }
     }
     save_settings(&connection, &settings)?;
     let _ = app.emit("cliply-settings-changed", &settings);
     Ok(settings)
+}
+
+pub fn reconcile_startup_setting(app: &AppHandle) {
+    let settings = match get_settings(app) {
+        Ok(settings) => settings,
+        Err(error) => {
+            logger::error(app, "startup_setting_reconcile_failed", error);
+            return;
+        }
+    };
+
+    match platform::set_launch_at_startup(settings.launch_at_startup, settings.start_minimized) {
+        Ok(()) => log_startup_setting_synced(app, &settings, "app_start"),
+        Err(error) => logger::error(app, "startup_setting_reconcile_failed", error),
+    }
+}
+
+fn log_startup_setting_synced(app: &AppHandle, settings: &CliplySettings, source: &str) {
+    logger::info(
+        app,
+        "startup_setting",
+        format!(
+            "source={} launch_at_startup={} start_minimized={}",
+            source, settings.launch_at_startup, settings.start_minimized
+        ),
+    );
 }
 
 pub fn set_monitoring_paused(app: &AppHandle, paused: bool) -> Result<CliplySettings, CliplyError> {
@@ -79,6 +104,14 @@ pub fn is_monitoring_paused(app: &AppHandle) -> bool {
 
 fn load_settings(connection: &Connection) -> Result<CliplySettings, CliplyError> {
     let default = default_settings();
+    let stored_launch_at_startup = get_value(connection, KEY_LAUNCH_AT_STARTUP)?;
+    let stored_start_minimized = get_value(connection, KEY_START_MINIMIZED)?;
+    let registry_start_minimized = if stored_launch_at_startup.is_none() {
+        platform::read_launch_at_startup().ok().flatten()
+    } else {
+        None
+    };
+
     Ok(CliplySettings {
         max_history_items: get_value(connection, KEY_MAX_HISTORY_ITEMS)?
             .unwrap_or(default.max_history_items),
@@ -86,9 +119,11 @@ fn load_settings(connection: &Connection) -> Result<CliplySettings, CliplyError>
             .unwrap_or(default.auto_delete_days),
         pause_monitoring: get_value(connection, KEY_PAUSE_MONITORING)?
             .unwrap_or(default.pause_monitoring),
-        launch_at_startup: get_value(connection, KEY_LAUNCH_AT_STARTUP)?
+        launch_at_startup: stored_launch_at_startup
+            .or_else(|| registry_start_minimized.map(|_| true))
             .unwrap_or(default.launch_at_startup),
-        start_minimized: get_value(connection, KEY_START_MINIMIZED)?
+        start_minimized: stored_start_minimized
+            .or(registry_start_minimized)
             .unwrap_or(default.start_minimized),
         focus_search_on_open: get_value(connection, KEY_FOCUS_SEARCH_ON_OPEN)?
             .unwrap_or(default.focus_search_on_open),
