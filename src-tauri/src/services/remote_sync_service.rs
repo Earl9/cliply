@@ -304,7 +304,12 @@ fn export_remote_snapshot(
     record_imported_snapshot(&connection, &snapshot_path)?;
 
     let mut snapshot_paths = list_snapshot_paths(provider.as_ref())?;
-    match prune_device_snapshots(provider.as_ref(), &snapshot_paths, &device_id, &snapshot_path) {
+    match prune_device_snapshots(
+        provider.as_ref(),
+        &snapshot_paths,
+        &device_id,
+        &snapshot_path,
+    ) {
         Ok(removed) if !removed.is_empty() => {
             snapshot_paths.retain(|path| !removed.contains(path));
             logger::info(
@@ -1059,7 +1064,10 @@ fn prune_device_snapshots(
         .filter(|path| path.ends_with(&device_suffix))
         .collect();
 
-    if !device_snapshots.iter().any(|path| *path == just_written_path) {
+    if !device_snapshots
+        .iter()
+        .any(|path| *path == just_written_path)
+    {
         // The listing missed the file we just wrote (eventual consistency);
         // skip pruning this round rather than risk deleting the newest data.
         return Ok(Vec::new());
