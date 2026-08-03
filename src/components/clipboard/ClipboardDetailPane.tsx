@@ -1,6 +1,5 @@
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Pin, ShieldAlert } from "lucide-react";
 import type { MouseEvent } from "react";
-import { Badge } from "@/components/common/Badge";
 import { IconButton } from "@/components/common/IconButton";
 import { ClipboardActions } from "@/components/clipboard/ClipboardActions";
 import { ClipboardMetadata } from "@/components/clipboard/ClipboardMetadata";
@@ -23,23 +22,33 @@ export function ClipboardDetailPane({
 }: ClipboardDetailPaneProps) {
   return (
     <section
-      className="cliply-detail-pane grid min-h-0 min-w-0 grid-rows-[50px_1fr_auto] overflow-hidden rounded-[12px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]"
+      className="cliply-detail-pane grid min-h-0 min-w-0 grid-rows-[44px_1fr_auto] border-l border-[color:var(--cliply-border)]"
       onContextMenu={(event) => onContextMenu(event, item)}
     >
-      <header className="flex h-[50px] shrink-0 items-center justify-between border-b border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-4">
-        <div>
-          <h2 className="text-base font-semibold text-[color:var(--cliply-text)]">
-            {item ? `${typeLabel[item.type]} · ${item.sourceApp}` : "内容详情"}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
+      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[color:var(--cliply-border-soft)] px-3.5">
+        <h2 className="cliply-title min-w-0 truncate text-[14px] font-semibold text-[color:var(--cliply-text)]">
+          {item ? item.sourceApp : "内容详情"}
+        </h2>
+        <div className="flex shrink-0 items-center gap-1">
           {item?.isRedacted ? (
-            <Badge tone="amber">隐私保护</Badge>
+            <span
+              title="敏感内容已隐藏"
+              className="grid size-7 place-items-center text-[color:var(--cliply-warning)]"
+            >
+              <ShieldAlert className="size-4" />
+            </span>
           ) : null}
-          {item?.isPinned ? <Badge tone="accent">已固定</Badge> : null}
+          {item?.isPinned ? (
+            <span
+              title="已固定"
+              className="grid size-7 place-items-center text-[color:var(--cliply-accent)]"
+            >
+              <Pin className="size-4 fill-current" />
+            </span>
+          ) : null}
           <IconButton
             label="更多"
-            className="size-8"
+            className="size-7"
             disabled={!item}
             onClick={(event) => onContextMenu(event, item)}
           >
@@ -49,24 +58,17 @@ export function ClipboardDetailPane({
       </header>
       {item ? (
         <>
-          <div className="cliply-scrollbar min-h-0 overflow-y-auto bg-[color:var(--cliply-card)] px-4 pb-3 pt-3">
+          <div className="cliply-scrollbar min-h-0 overflow-y-auto px-3.5 py-3.5">
             <ClipboardPreview item={item} onOpenImage={onOpenImage} />
             <ClipboardMetadata item={item} />
           </div>
           <ClipboardActions item={item} onAction={onAction} />
         </>
       ) : (
-        <div className="min-h-0 p-5">
-          <EmptyState title="没有选中内容" description="从左侧历史列表选择一条记录。" />
+        <div className="min-h-0">
+          <EmptyState title="没有选中内容" description="从左侧列表选择一条记录。" />
         </div>
       )}
     </section>
   );
 }
-
-const typeLabel = {
-  code: "代码",
-  image: "图片",
-  link: "链接",
-  text: "文本",
-} satisfies Record<ClipboardItem["type"], string>;

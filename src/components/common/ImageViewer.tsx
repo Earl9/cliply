@@ -33,7 +33,7 @@ export function ImageViewer({ item, onClose }: ImageViewerProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] grid grid-rows-[48px_1fr] bg-slate-950/72 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] grid grid-rows-[48px_1fr] bg-black/75"
       onPointerDown={onClose}
     >
       <header

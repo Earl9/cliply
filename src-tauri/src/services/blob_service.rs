@@ -15,6 +15,8 @@ pub struct StoredImageBlob {
     pub image_path: PathBuf,
     pub thumbnail_path: PathBuf,
     pub size_bytes: i64,
+    pub extension: String,
+    pub mime_type: String,
 }
 
 #[derive(Debug, Clone)]
@@ -32,18 +34,43 @@ pub fn store_image(
 ) -> Result<StoredImageBlob, CliplyError> {
     let image_dir = blob_dir(app, "images")?;
     let thumbnail_dir = blob_dir(app, "thumbnails")?;
-
-    let image_path = image_dir.join(format!("{id}.{}", image.extension));
-    fs::write(&image_path, &image.bytes)?;
-
     let thumbnail_path = thumbnail_dir.join(format!("{id}.png"));
-    write_thumbnail(&image_path, &thumbnail_path)?;
 
-    Ok(StoredImageBlob {
-        image_path,
-        thumbnail_path,
-        size_bytes: image.bytes.len() as i64,
-    })
+    // Decode once from memory: the same decoded image feeds both the PNG on
+    // disk (a fraction of the raw BMP size) and the thumbnail, instead of
+    // writing the BMP and re-reading it from disk to thumbnail it.
+    match image::load_from_memory(&image.bytes) {
+        Ok(decoded) => {
+            let image_path = image_dir.join(format!("{id}.png"));
+            decoded
+                .save(&image_path)
+                .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
+            let size_bytes = fs::metadata(&image_path)
+                .map(|metadata| metadata.len() as i64)
+                .unwrap_or(image.bytes.len() as i64);
+            write_thumbnail_from_image(&decoded, &thumbnail_path)?;
+            Ok(StoredImageBlob {
+                image_path,
+                thumbnail_path,
+                size_bytes,
+                extension: "png".to_string(),
+                mime_type: "image/png".to_string(),
+            })
+        }
+        // Unknown encoding: keep the original bytes untouched so nothing is lost.
+        Err(_) => {
+            let image_path = image_dir.join(format!("{id}.{}", image.extension));
+            fs::write(&image_path, &image.bytes)?;
+            write_thumbnail(&image_path, &thumbnail_path)?;
+            Ok(StoredImageBlob {
+                image_path,
+                thumbnail_path,
+                size_bytes: image.bytes.len() as i64,
+                extension: image.extension.clone(),
+                mime_type: image.mime_type.clone(),
+            })
+        }
+    }
 }
 
 pub fn prepare_image_sync_blobs(
@@ -115,7 +142,16 @@ fn blob_dir(app: &AppHandle, child: &str) -> Result<PathBuf, CliplyError> {
 fn write_thumbnail(image_path: &Path, thumbnail_path: &Path) -> Result<(), CliplyError> {
     let image = image::open(image_path)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
-    let thumbnail = image.resize(360, 260, FilterType::Lanczos3);
+    write_thumbnail_from_image(&image, thumbnail_path)
+}
+
+fn write_thumbnail_from_image(
+    image: &DynamicImage,
+    thumbnail_path: &Path,
+) -> Result<(), CliplyError> {
+    // Triangle is visually equivalent at thumbnail size and much cheaper than
+    // Lanczos3 for multi-megapixel screenshots.
+    let thumbnail = image.resize(360, 260, FilterType::Triangle);
     thumbnail
         .save(thumbnail_path)
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;

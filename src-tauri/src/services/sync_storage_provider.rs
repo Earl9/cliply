@@ -5,6 +5,7 @@ use std::fs;
 use std::io::{Cursor, Read};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::Duration;
 use suppaftp::native_tls::TlsConnector;
 use suppaftp::{FtpStream, NativeTlsConnector, NativeTlsFtpStream};
@@ -456,7 +457,6 @@ impl SyncStorageProvider for WebdavSyncProvider {
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct FtpSyncProvider {
     host: String,
     port: u16,
@@ -465,11 +465,26 @@ pub struct FtpSyncProvider {
     secure: bool,
     remote_path: String,
     timeout: Duration,
+    // One sync cycle issues dozens of small FTP operations; reusing the
+    // logged-in control connection avoids a TCP connect + login + QUIT per
+    // operation. The session is returned here only after a successful
+    // operation — any error drops it so the next call reconnects cleanly.
+    session: Mutex<Option<FtpConnection>>,
 }
 
 enum FtpConnection {
     Plain(FtpStream),
     Secure(NativeTlsFtpStream),
+}
+
+impl Drop for FtpSyncProvider {
+    fn drop(&mut self) {
+        if let Ok(mut session) = self.session.lock() {
+            if let Some(mut connection) = session.take() {
+                connection.quit();
+            }
+        }
+    }
 }
 
 impl FtpSyncProvider {
@@ -489,6 +504,27 @@ impl FtpSyncProvider {
             secure,
             remote_path,
             timeout: Duration::from_secs(12),
+            session: Mutex::new(None),
+        }
+    }
+
+    fn take_session(&self) -> Result<FtpConnection, CliplyError> {
+        if let Ok(mut session) = self.session.lock() {
+            if let Some(mut connection) = session.take() {
+                // NOOP verifies the cached connection is still alive.
+                if connection.noop().is_ok() {
+                    return Ok(connection);
+                }
+                connection.quit();
+            }
+        }
+
+        self.connect()
+    }
+
+    fn store_session(&self, connection: FtpConnection) {
+        if let Ok(mut session) = self.session.lock() {
+            *session = Some(connection);
         }
     }
 
@@ -529,7 +565,7 @@ impl FtpSyncProvider {
         &self,
         relative_path: &str,
     ) -> Result<(FtpConnection, String), CliplyError> {
-        let connection = self.connect()?;
+        let connection = self.take_session()?;
         let remote_path = self.resolve(relative_path)?;
         Ok((connection, remote_path))
     }
@@ -606,7 +642,7 @@ impl SyncStorageProvider for FtpSyncProvider {
         let names = match connection.nlst(Some(&remote_path)) {
             Ok(names) => names,
             Err(_) => {
-                connection.quit();
+                self.store_session(connection);
                 return Ok(Vec::new());
             }
         };
@@ -646,7 +682,7 @@ impl SyncStorageProvider for FtpSyncProvider {
                 modified_at: None,
             });
         }
-        connection.quit();
+        self.store_session(connection);
         entries.sort_by(|left, right| left.path.cmp(&right.path));
         Ok(entries)
     }
@@ -657,7 +693,7 @@ impl SyncStorageProvider for FtpSyncProvider {
             .retr_as_buffer(&remote_path)
             .map_err(|error| CliplyError::Sync(format!("FTP 读取失败: {error}")))?
             .into_inner();
-        connection.quit();
+        self.store_session(connection);
         Ok(bytes)
     }
 
@@ -668,7 +704,7 @@ impl SyncStorageProvider for FtpSyncProvider {
         connection
             .put_file(&remote_path, &mut cursor)
             .map_err(|error| CliplyError::Sync(format!("FTP 写入失败: {error}")))?;
-        connection.quit();
+        self.store_session(connection);
         Ok(())
     }
 
@@ -676,20 +712,20 @@ impl SyncStorageProvider for FtpSyncProvider {
         let (mut connection, remote_path) = self.connect_with_path(path)?;
         if connection.is_dir(&remote_path)? {
             let _ = connection.rmdir(&remote_path);
-            connection.quit();
+            self.store_session(connection);
             return Ok(());
         }
         if connection.file_exists(&remote_path) {
             let _ = connection.rm(&remote_path);
         }
-        connection.quit();
+        self.store_session(connection);
         Ok(())
     }
 
     fn exists(&self, path: &str) -> Result<bool, CliplyError> {
         let (mut connection, remote_path) = self.connect_with_path(path)?;
         let exists = connection.exists(&remote_path)?;
-        connection.quit();
+        self.store_session(connection);
         Ok(exists)
     }
 }
@@ -804,6 +840,13 @@ impl FtpConnection {
             return Ok(true);
         }
         Ok(false)
+    }
+
+    fn noop(&mut self) -> Result<(), suppaftp::FtpError> {
+        match self {
+            Self::Plain(stream) => stream.noop(),
+            Self::Secure(stream) => stream.noop(),
+        }
     }
 
     fn quit(&mut self) {

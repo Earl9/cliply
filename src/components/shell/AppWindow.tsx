@@ -366,33 +366,46 @@ export function AppWindow() {
           onClearHistory={requestClearHistory}
           onToggleMonitoring={toggleMonitoring}
         />
-        <ClipboardSearchBar ref={searchInputRef} query={state.query} onQueryChange={setQuery} />
+        <div className="shrink-0 px-3 pb-2.5 pt-2">
+          <ClipboardSearchBar ref={searchInputRef} query={state.query} onQueryChange={setQuery} />
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <ClipboardFilterTabs filter={state.filter} counts={counts} onFilterChange={setFilter} />
+            <span className="cliply-caption shrink-0 text-[11px] tabular-nums text-[color:var(--cliply-faint)]">
+              {resultSummary({
+                query: state.query,
+                filter: state.filter,
+                shownCount: filteredItems.length,
+                totalCount: state.items.length,
+              })}
+            </span>
+          </div>
+        </div>
         <PrivacyBanner
           monitoringPaused={settings.pauseMonitoring}
           errorMessage={state.monitoringErrorMessage}
           onResumeMonitoring={toggleMonitoring}
         />
-        <ClipboardFilterTabs filter={state.filter} counts={counts} onFilterChange={setFilter} />
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(310px,0.86fr)_minmax(420px,1.14fr)] gap-4 px-5 pb-4 pt-4">
-          <ClipboardList
-            items={filteredItems}
-            totalCount={state.items.length}
-            selectedId={state.selectedId}
-            query={state.query}
-            filter={state.filter}
-            loading={state.loading}
-            errorMessage={state.listErrorMessage}
-            onSelectItem={selectItem}
-            onTogglePin={togglePinItem}
-            onPasteItem={(id) => runMockAction("paste", id)}
-            onItemContextMenu={showContextMenu}
-          />
-          <ClipboardDetailPane
-            item={selectedItem}
-            onAction={runMockAction}
-            onContextMenu={showContextMenu}
-            onOpenImage={openImageViewer}
-          />
+        <div className="min-h-0 flex-1 px-3 pb-3">
+          <div className="grid h-full min-h-0 grid-cols-[minmax(280px,0.8fr)_minmax(400px,1.2fr)] overflow-hidden rounded-[10px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]">
+            <ClipboardList
+              items={filteredItems}
+              selectedId={state.selectedId}
+              query={state.query}
+              filter={state.filter}
+              loading={state.loading}
+              errorMessage={state.listErrorMessage}
+              onSelectItem={selectItem}
+              onTogglePin={togglePinItem}
+              onPasteItem={(id) => runMockAction("paste", id)}
+              onItemContextMenu={showContextMenu}
+            />
+            <ClipboardDetailPane
+              item={selectedItem}
+              onAction={runMockAction}
+              onContextMenu={showContextMenu}
+              onOpenImage={openImageViewer}
+            />
+          </div>
         </div>
         <FooterShortcuts monitoringPaused={settings.pauseMonitoring} />
         <GlobalToast
@@ -678,6 +691,28 @@ const typeLabel = {
 
 function getSystemPrefersDark() {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+}
+
+function resultSummary({
+  query,
+  filter,
+  shownCount,
+  totalCount,
+}: {
+  query: string;
+  filter: ClipboardFilter;
+  shownCount: number;
+  totalCount: number;
+}) {
+  if (query.trim()) {
+    return `找到 ${shownCount} 条`;
+  }
+
+  if (filter !== "all") {
+    return `${shownCount} 条`;
+  }
+
+  return `共 ${totalCount} 条`;
 }
 
 function actionStatusToToast(actionStatus: NonNullable<ReturnType<typeof useClipboardStore>["actionStatus"]>): ToastMessage {

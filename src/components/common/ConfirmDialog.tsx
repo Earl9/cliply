@@ -27,34 +27,35 @@ export function ConfirmDialog({
   }
 
   return (
-    <div className="absolute inset-0 z-40 grid place-items-center bg-black/30 px-6 backdrop-blur-sm">
+    <div className="cliply-overlay absolute inset-0 z-40 grid place-items-center bg-black/35 px-6">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="cliply-confirm-title"
-        className="w-full max-w-[420px] rounded-2xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-5 shadow-2xl"
+        className="cliply-dialog w-full max-w-[400px] rounded-[10px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-4 shadow-[var(--cliply-shadow-dialog)]"
       >
         <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color:var(--cliply-warning-soft)] text-[color:var(--cliply-warning)]">
-              <AlertTriangle className="size-5" />
-            </span>
+          <div className="flex min-w-0 items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[color:var(--cliply-warning)]" />
             <div className="min-w-0">
-              <h2 id="cliply-confirm-title" className="text-[15px] font-semibold text-[color:var(--cliply-text)]">
+              <h2
+                id="cliply-confirm-title"
+                className="cliply-title text-[15px] font-semibold text-[color:var(--cliply-text)]"
+              >
                 {title}
               </h2>
-              <p className="mt-1 text-sm leading-6 text-[color:var(--cliply-muted)]">{description}</p>
+              <p className="mt-1 text-[13px] leading-5 text-[color:var(--cliply-muted)]">{description}</p>
             </div>
           </div>
           <IconButton label="关闭" onClick={onClose}>
             <X className="size-4" />
           </IconButton>
         </div>
-        <div className="mt-5 flex justify-end gap-3">
+        <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-4 text-sm font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)]"
+            className="cliply-interactive h-8 rounded-[6px] border border-[color:var(--cliply-border)] px-3 text-[13px] font-medium text-[color:var(--cliply-text)] hover:bg-[color:var(--cliply-muted-bg)]"
           >
             {cancelLabel}
           </button>
@@ -63,8 +64,8 @@ export function ConfirmDialog({
             onClick={onConfirm}
             className={
               danger
-                ? "h-10 rounded-xl bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-700"
-                : "h-10 rounded-xl bg-[color:var(--cliply-accent-strong)] px-4 text-sm font-semibold text-white transition hover:bg-[color:var(--cliply-accent-dark)]"
+                ? "cliply-interactive h-8 rounded-[6px] bg-[color:var(--cliply-danger)] px-3 text-[13px] font-medium text-white hover:opacity-90"
+                : "cliply-interactive h-8 rounded-[6px] bg-[color:var(--cliply-accent)] px-3 text-[13px] font-medium text-[color:var(--cliply-primary-text)] hover:bg-[color:var(--cliply-accent-dark)]"
             }
           >
             {confirmLabel}

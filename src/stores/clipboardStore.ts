@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
@@ -76,7 +76,8 @@ export function useClipboardStore() {
     initialClipboardItems[0]?.id ?? null,
   );
   const [detail, setDetail] = useState<ClipboardItem | null>(initialClipboardItems[0] ?? null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isTauri());
+  const allItemsLoadedRef = useRef(!isTauri());
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [settings, setSettingsState] = useState<CliplySettings>(defaultSettingsState);
@@ -119,13 +120,16 @@ export function useClipboardStore() {
     listClipboardItems({ query: "", filter: "all", limit: settings.maxHistoryItems })
       .then((items) => {
         if (!cancelled) {
+          allItemsLoadedRef.current = true;
           setAllItems(items);
           setListErrorMessage(null);
         }
       })
       .catch(() => {
         if (!cancelled) {
+          allItemsLoadedRef.current = true;
           setListErrorMessage(storeErrorLabels.list);
+          setLoading(false);
         }
       });
 
@@ -134,7 +138,30 @@ export function useClipboardStore() {
     };
   }, [refreshToken, settings.maxHistoryItems]);
 
+  // The default view ("all", no query) shows exactly the allItems result, so
+  // it mirrors that list instead of issuing a second identical query on every
+  // clipboard change.
   useEffect(() => {
+    if (debouncedQuery !== "" || filter !== "all" || !allItemsLoadedRef.current) {
+      return;
+    }
+
+    setVisibleItems(allItems);
+    setLoading(false);
+    setSelectedId((currentSelectedId) => {
+      if (allItems.some((item) => item.id === currentSelectedId)) {
+        return currentSelectedId;
+      }
+
+      return allItems[0]?.id ?? null;
+    });
+  }, [allItems, debouncedQuery, filter]);
+
+  useEffect(() => {
+    if (debouncedQuery === "" && filter === "all") {
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
 

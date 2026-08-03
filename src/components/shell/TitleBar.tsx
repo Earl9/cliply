@@ -82,21 +82,21 @@ export function TitleBar({
 
   return (
     <header
-      className="flex h-12 shrink-0 select-none items-center justify-between px-5"
+      className="flex h-10 shrink-0 select-none items-center justify-between border-b border-[color:var(--cliply-border-soft)] pl-3 pr-1"
       data-tauri-drag-region
       onDoubleClick={() => void toggleMaximize()}
     >
-      <div className="flex min-w-0 items-center gap-3" data-tauri-drag-region>
+      <div className="flex min-w-0 items-center gap-2" data-tauri-drag-region>
         <img
           src={cliplyLogo}
           alt="Cliply"
-          className="size-8 rounded-[10px] object-contain shadow-sm"
+          className="size-5 rounded-[4px] object-contain"
           draggable={false}
           data-tauri-drag-region
         />
         <div className="min-w-0" data-tauri-drag-region>
           <div
-            className="truncate text-xl font-semibold tracking-normal text-[color:var(--cliply-text)]"
+            className="truncate text-[13px] font-medium text-[color:var(--cliply-text)]"
             data-tauri-drag-region
           >
             Cliply
@@ -105,7 +105,7 @@ export function TitleBar({
       </div>
 
       <div
-        className="flex items-center gap-1 rounded-xl border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] p-0.5"
+        className="flex items-center"
         onMouseDown={(event) => event.stopPropagation()}
         onDoubleClick={(event) => event.stopPropagation()}
       >
@@ -134,7 +134,7 @@ export function TitleBar({
             <MoreHorizontal className="size-4" />
           </TitleBarButton>
           {menuOpen ? (
-            <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] p-1.5 shadow-[0_18px_44px_rgba(15,23,42,0.16)]">
+            <div className="absolute right-0 top-9 z-20 w-40 overflow-hidden rounded-[8px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]">
               <MenuButton onClick={() => runMenuAction(onToggleMonitoring)}>
                 {monitoringPaused ? "恢复监听" : "暂停监听"}
               </MenuButton>
@@ -194,14 +194,11 @@ function TitleBarButton({
       onMouseDown={onMouseDown}
       onClick={onClick}
       className={clsx(
-        "grid size-8 place-items-center rounded-[10px] border border-transparent text-[color:var(--cliply-muted)] transition",
-        "hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] hover:text-[color:var(--cliply-text)] hover:shadow-[0_8px_18px_rgba(15,23,42,0.08)]",
-        "active:scale-95 active:bg-[color:var(--cliply-muted-bg)]",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
-        active &&
-          "border-[color:var(--cliply-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-[0_8px_18px_rgba(15,23,42,0.06)]",
-        variant === "danger" &&
-          "hover:border-transparent hover:bg-[color:var(--cliply-danger-soft)] hover:text-[color:var(--cliply-danger)]",
+        "cliply-interactive grid h-8 w-9 place-items-center text-[color:var(--cliply-muted)]",
+        "hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
+        "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
+        active && "text-[color:var(--cliply-accent)]",
+        variant === "danger" && "hover:bg-[color:var(--cliply-danger)] hover:text-white",
       )}
     >
       {children}
@@ -220,7 +217,7 @@ function MenuButton({
     <button
       type="button"
       onClick={onClick}
-      className="h-8 w-full rounded-lg px-3 text-left text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)]"
+      className="h-8 w-full px-3 text-left text-[13px] text-[color:var(--cliply-text)] hover:bg-[color:var(--cliply-muted-bg)]"
     >
       {children}
     </button>

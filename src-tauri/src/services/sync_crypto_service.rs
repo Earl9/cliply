@@ -7,6 +7,9 @@ use base64::Engine;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 pub const KDF_ALGORITHM: &str = "argon2id";
 pub const CIPHER_ALGORITHM: &str = "AES-256-GCM";
@@ -17,6 +20,78 @@ pub const KEY_LEN: usize = 32;
 const ARGON2_MEMORY_KIB: u32 = 19_456;
 const ARGON2_ITERATIONS: u32 = 2;
 const ARGON2_PARALLELISM: u32 = 1;
+
+// Argon2id with 19 MiB memory takes tens of milliseconds per derivation and
+// runs on every encrypt/decrypt. Auto sync encrypts every cycle and imports
+// several snapshots per cycle, so derived keys are memoized per
+// (password, salt, params). Keys are keyed by a password digest, never the
+// password itself, and the cache is bounded.
+const KEY_CACHE_MAX_ENTRIES: usize = 32;
+static KEY_CACHE: Mutex<Option<HashMap<KeyCacheId, [u8; KEY_LEN]>>> = Mutex::new(None);
+
+// Exports reuse one process-lifetime salt so repeated auto-sync cycles hit the
+// key cache. The salt is still random per process and still written into every
+// envelope, so the on-disk format and old readers are unaffected.
+static EXPORT_SALT: Mutex<Option<[u8; SALT_LEN]>> = Mutex::new(None);
+
+type KeyCacheId = ([u8; 16], Vec<u8>, u32, u32, u32);
+
+fn key_cache_id(
+    password: &str,
+    salt: &[u8],
+    memory_kib: u32,
+    iterations: u32,
+    parallelism: u32,
+) -> KeyCacheId {
+    let digest = Sha256::digest(password.as_bytes());
+    let mut password_digest = [0_u8; 16];
+    password_digest.copy_from_slice(&digest[..16]);
+    (
+        password_digest,
+        salt.to_vec(),
+        memory_kib,
+        iterations,
+        parallelism,
+    )
+}
+
+fn cached_or_derive_key(
+    password: &str,
+    salt: &[u8],
+    memory_kib: u32,
+    iterations: u32,
+    parallelism: u32,
+) -> Result<[u8; KEY_LEN], CliplyError> {
+    let cache_id = key_cache_id(password, salt, memory_kib, iterations, parallelism);
+    if let Ok(cache) = KEY_CACHE.lock() {
+        if let Some(key) = cache.as_ref().and_then(|map| map.get(&cache_id)) {
+            return Ok(*key);
+        }
+    }
+
+    let key = derive_key_uncached(password, salt, memory_kib, iterations, parallelism)?;
+    if let Ok(mut cache) = KEY_CACHE.lock() {
+        let map = cache.get_or_insert_with(HashMap::new);
+        if map.len() >= KEY_CACHE_MAX_ENTRIES {
+            map.clear();
+        }
+        map.insert(cache_id, key);
+    }
+    Ok(key)
+}
+
+fn export_salt() -> [u8; SALT_LEN] {
+    if let Ok(mut slot) = EXPORT_SALT.lock() {
+        if let Some(salt) = *slot {
+            return salt;
+        }
+        let salt = random_bytes::<SALT_LEN>();
+        *slot = Some(salt);
+        return salt;
+    }
+
+    random_bytes::<SALT_LEN>()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -36,7 +111,7 @@ pub fn encrypt_payload(
 ) -> Result<(SyncEncryptionMetadata, String), CliplyError> {
     validate_password(password)?;
 
-    let salt = random_bytes::<SALT_LEN>();
+    let salt = export_salt();
     let nonce = random_bytes::<NONCE_LEN>();
     let key = derive_key(password, &salt)?;
     let cipher = Aes256Gcm::new_from_slice(&key)
@@ -122,6 +197,16 @@ fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; KEY_LEN], CliplyError>
 }
 
 fn derive_key_with_params(
+    password: &str,
+    salt: &[u8],
+    memory_kib: u32,
+    iterations: u32,
+    parallelism: u32,
+) -> Result<[u8; KEY_LEN], CliplyError> {
+    cached_or_derive_key(password, salt, memory_kib, iterations, parallelism)
+}
+
+fn derive_key_uncached(
     password: &str,
     salt: &[u8],
     memory_kib: u32,

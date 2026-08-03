@@ -6,6 +6,9 @@ use tauri::{AppHandle, Manager};
 use time::OffsetDateTime;
 
 const LOG_FILE_NAME: &str = "cliply.log";
+const LOG_ROTATED_FILE_NAME: &str = "cliply.log.old";
+// Rotate before the log grows unbounded (the previous generation is kept once).
+const LOG_MAX_BYTES: u64 = 5 * 1024 * 1024;
 
 pub fn log_path(app: &AppHandle) -> Result<PathBuf, CliplyError> {
     let app_data_dir = app
@@ -14,6 +17,19 @@ pub fn log_path(app: &AppHandle) -> Result<PathBuf, CliplyError> {
         .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
     fs::create_dir_all(&app_data_dir)?;
     Ok(app_data_dir.join(LOG_FILE_NAME))
+}
+
+fn rotate_if_needed(path: &std::path::Path) {
+    let Ok(metadata) = fs::metadata(path) else {
+        return;
+    };
+    if metadata.len() < LOG_MAX_BYTES {
+        return;
+    }
+
+    let rotated = path.with_file_name(LOG_ROTATED_FILE_NAME);
+    let _ = fs::remove_file(&rotated);
+    let _ = fs::rename(path, &rotated);
 }
 
 pub fn info(app: &AppHandle, event: &str, message: impl AsRef<str>) {
@@ -32,6 +48,8 @@ fn write(app: &AppHandle, level: &str, event: &str, message: &str) {
     let Ok(path) = log_path(app) else {
         return;
     };
+
+    rotate_if_needed(&path);
 
     let timestamp = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)

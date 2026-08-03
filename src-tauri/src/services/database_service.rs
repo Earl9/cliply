@@ -8,6 +8,7 @@ const INIT_MIGRATION: &str = include_str!("../db/migrations/001_init.sql");
 const FTS_MIGRATION: &str = include_str!("../db/migrations/002_fts.sql");
 const SYNC_MIGRATION: &str = include_str!("../db/migrations/003_sync.sql");
 const SYNC_BLOBS_MIGRATION: &str = include_str!("../db/migrations/004_sync_blobs.sql");
+const PERF_INDEX_MIGRATION: &str = include_str!("../db/migrations/005_perf_indexes.sql");
 
 pub fn initialize(app: &AppHandle) -> Result<(), CliplyError> {
     let connection = connect(app)?;
@@ -15,6 +16,7 @@ pub fn initialize(app: &AppHandle) -> Result<(), CliplyError> {
     connection.execute_batch(FTS_MIGRATION)?;
     apply_sync_migration(&connection)?;
     apply_sync_blobs_migration(&connection)?;
+    connection.execute_batch(PERF_INDEX_MIGRATION)?;
     let device = sync_service::initialize_device(&connection)?;
     logger::info(
         app,
@@ -30,14 +32,107 @@ pub fn initialize(app: &AppHandle) -> Result<(), CliplyError> {
         );
     }
     seed_mock_data(&connection)?;
+    migrate_default_theme(&connection)?;
+    Ok(())
+}
+
+/// One-time migrations that move installs still sitting on a previous
+/// *untouched default* onto the current one. Each step has its own marker so a
+/// user who deliberately picks a colour afterwards is never overridden again.
+fn migrate_default_theme(connection: &Connection) -> Result<(), CliplyError> {
+    // purple-default/#6D4CFF -> system-blue/#0067C0
+    migrate_default_accent(
+        connection,
+        "theme_default_migrated_v1",
+        Some("\"purple-default\""),
+        "\"#6D4CFF\"",
+        Some("\"system-blue\""),
+        "\"#0067C0\"",
+    )?;
+    // The system-blue theme itself moved to the lighter #1F74CC accent.
+    migrate_default_accent(
+        connection,
+        "theme_default_migrated_v2",
+        Some("\"system-blue\""),
+        "\"#0067C0\"",
+        None,
+        "\"#1F74CC\"",
+    )?;
+    Ok(())
+}
+
+fn migrate_default_accent(
+    connection: &Connection,
+    marker_key: &str,
+    expected_theme: Option<&str>,
+    expected_accent: &str,
+    next_theme: Option<&str>,
+    next_accent: &str,
+) -> Result<(), CliplyError> {
+    use rusqlite::OptionalExtension;
+
+    let migrated: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM settings WHERE key = ?1",
+        params![marker_key],
+        |row| row.get(0),
+    )?;
+    if migrated > 0 {
+        return Ok(());
+    }
+
+    let theme_name: Option<String> = connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'theme_name'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let accent_color: Option<String> = connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'accent_color'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    if theme_name.as_deref() == expected_theme && accent_color.as_deref() == Some(expected_accent) {
+        if let Some(next_theme) = next_theme {
+            connection.execute(
+                "UPDATE settings SET value = ?1 WHERE key = 'theme_name'",
+                params![next_theme],
+            )?;
+        }
+        connection.execute(
+            "UPDATE settings SET value = ?1 WHERE key = 'accent_color'",
+            params![next_accent],
+        )?;
+    }
+
+    connection.execute(
+        "INSERT OR IGNORE INTO settings (key, value, updated_at)
+         VALUES (?1, 'true', datetime('now'))",
+        params![marker_key],
+    )?;
     Ok(())
 }
 
 pub fn connect(app: &AppHandle) -> Result<Connection, CliplyError> {
     let path = db::database_path(app)?;
     let connection = Connection::open(path)?;
-    connection.pragma_update(None, "foreign_keys", "ON")?;
+    configure_connection(&connection)?;
     Ok(connection)
+}
+
+/// Shared connection setup: WAL keeps readers unblocked while the clipboard
+/// worker or sync thread writes, and busy_timeout absorbs short lock windows
+/// instead of surfacing "database is locked" to the user.
+fn configure_connection(connection: &Connection) -> Result<(), CliplyError> {
+    connection.pragma_update(None, "foreign_keys", "ON")?;
+    connection.pragma_update(None, "journal_mode", "WAL")?;
+    connection.pragma_update(None, "synchronous", "NORMAL")?;
+    connection.pragma_update(None, "busy_timeout", "5000")?;
+    connection.pragma_update(None, "cache_size", "-8000")?;
+    Ok(())
 }
 
 fn seed_mock_data(connection: &Connection) -> Result<(), CliplyError> {

@@ -14,6 +14,17 @@ pub const SYNC_PACKAGE_EXTENSION: &str = "cliply-sync";
 const LAST_EXPORTED_AT_KEY: &str = "last_sync_package_exported_at";
 const LAST_IMPORTED_AT_KEY: &str = "last_sync_package_imported_at";
 
+// Tombstones and already-synced events only exist to propagate state to other
+// devices; after this window every device is assumed to have seen them, so
+// exports stop carrying them and the payload stops growing with history.
+pub const SYNC_EXPORT_WINDOW_DAYS: i64 = 30;
+
+fn export_cutoff_timestamp() -> Result<String, CliplyError> {
+    (OffsetDateTime::now_utc() - time::Duration::days(SYNC_EXPORT_WINDOW_DAYS))
+        .format(&time::format_description::well_known::Rfc3339)
+        .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SyncPackageEnvelope {
@@ -285,6 +296,9 @@ fn load_current_device(connection: &Connection) -> Result<SyncPackageDevice, Cli
 }
 
 fn load_export_items(connection: &Connection) -> Result<Vec<SyncPackageItem>, CliplyError> {
+    let cutoff = export_cutoff_timestamp()?;
+    // Live items always export; tombstones only inside the export window so old
+    // deletions stop being re-shipped in every snapshot forever.
     let mut statement = connection.prepare(
         "SELECT id, type, title, preview_text, normalized_text, source_app, source_window,
                 hash, COALESCE(size_bytes, 0), COALESCE(is_pinned, 0),
@@ -293,9 +307,13 @@ fn load_export_items(connection: &Connection) -> Result<Vec<SyncPackageItem>, Cl
                 COALESCE(revision, 1), deleted_at, sync_status, last_synced_at
          FROM clipboard_items
          WHERE sync_id IS NOT NULL
+           AND (
+             deleted_at IS NULL
+             OR datetime(deleted_at) >= datetime(?1)
+           )
          ORDER BY datetime(updated_at) ASC, id ASC",
     )?;
-    let rows = statement.query_map([], |row| {
+    let rows = statement.query_map(params![cutoff], |row| {
         Ok(SyncPackageItem {
             id: row.get(0)?,
             item_type: row.get(1)?,
@@ -381,11 +399,14 @@ fn load_export_tags(connection: &Connection, item_id: &str) -> Result<Vec<String
 }
 
 fn load_export_sync_blobs(connection: &Connection) -> Result<Vec<SyncPackageBlob>, CliplyError> {
+    let cutoff = export_cutoff_timestamp()?;
     let mut statement = match connection.prepare(
         "SELECT id, item_id, blob_type, remote_path, COALESCE(size_bytes, 0),
                 hash, COALESCE(encrypted, 0), sync_status, created_at,
                 uploaded_at, deleted_at
          FROM sync_blobs
+         WHERE deleted_at IS NULL
+            OR datetime(deleted_at) >= datetime(?1)
          ORDER BY datetime(created_at) ASC, id ASC
          LIMIT 10000",
     ) {
@@ -393,7 +414,7 @@ fn load_export_sync_blobs(connection: &Connection) -> Result<Vec<SyncPackageBlob
         Err(error) if is_missing_sync_blobs_table(&error) => return Ok(Vec::new()),
         Err(error) => return Err(error.into()),
     };
-    let rows = statement.query_map([], |row| {
+    let rows = statement.query_map(params![cutoff], |row| {
         Ok(SyncPackageBlob {
             id: row.get(0)?,
             item_id: row.get(1)?,
@@ -417,13 +438,17 @@ fn load_export_sync_blobs(connection: &Connection) -> Result<Vec<SyncPackageBlob
 }
 
 fn load_export_events(connection: &Connection) -> Result<Vec<SyncPackageEvent>, CliplyError> {
+    let cutoff = export_cutoff_timestamp()?;
+    // Pending events always ship; synced history only within the window.
     let mut statement = connection.prepare(
         "SELECT id, item_id, event_type, payload_json, created_at, synced_at
          FROM sync_events
+         WHERE synced_at IS NULL
+            OR created_at >= ?1
          ORDER BY datetime(created_at) ASC, id ASC
          LIMIT 10000",
     )?;
-    let rows = statement.query_map([], |row| {
+    let rows = statement.query_map(params![cutoff], |row| {
         Ok(SyncPackageEvent {
             id: row.get(0)?,
             item_id: row.get(1)?,

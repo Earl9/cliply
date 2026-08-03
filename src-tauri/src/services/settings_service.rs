@@ -2,8 +2,23 @@ use crate::models::settings::CliplySettings;
 use crate::{error::CliplyError, logger, platform, services::database_service, shortcuts};
 use rusqlite::{params, Connection};
 use serde::{de::DeserializeOwned, Serialize};
+use std::sync::RwLock;
 use tauri::{AppHandle, Emitter};
 use time::OffsetDateTime;
+
+// Settings are read on every clipboard event and paste but written only through
+// update_settings, so a process-wide cache avoids re-running 19 queries per read.
+static SETTINGS_CACHE: RwLock<Option<CliplySettings>> = RwLock::new(None);
+
+fn cached_settings() -> Option<CliplySettings> {
+    SETTINGS_CACHE.read().ok().and_then(|cache| cache.clone())
+}
+
+fn store_cached_settings(settings: &CliplySettings) {
+    if let Ok(mut cache) = SETTINGS_CACHE.write() {
+        *cache = Some(settings.clone());
+    }
+}
 
 const KEY_MAX_HISTORY_ITEMS: &str = "max_history_items";
 const KEY_AUTO_DELETE_DAYS: &str = "auto_delete_days";
@@ -30,8 +45,14 @@ pub fn default_settings() -> CliplySettings {
 }
 
 pub fn get_settings(app: &AppHandle) -> Result<CliplySettings, CliplyError> {
+    if let Some(settings) = cached_settings() {
+        return Ok(settings);
+    }
+
     let connection = database_service::connect(app)?;
-    Ok(load_settings(&connection)?)
+    let settings = load_settings(&connection)?;
+    store_cached_settings(&settings);
+    Ok(settings)
 }
 
 pub fn update_settings(
@@ -60,6 +81,7 @@ pub fn update_settings(
         }
     }
     save_settings(&connection, &settings)?;
+    store_cached_settings(&settings);
     let _ = app.emit("cliply-settings-changed", &settings);
     Ok(settings)
 }

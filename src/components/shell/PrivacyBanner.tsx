@@ -21,8 +21,8 @@ export function PrivacyBanner({
     <div
       className={
         tone === "error"
-          ? "mx-7 mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-danger-soft)] px-4 py-2 text-sm text-[color:var(--cliply-danger)]"
-          : "mx-7 mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[color:var(--cliply-border)] bg-[color:var(--cliply-warning-soft)] px-4 py-2 text-sm text-[color:var(--cliply-warning)]"
+          ? "mx-3 mt-2 flex min-h-9 items-center justify-between gap-3 rounded-[6px] border border-[color:var(--cliply-danger)]/30 bg-[color:var(--cliply-danger-soft)] px-3 py-1.5 text-[13px] text-[color:var(--cliply-danger)]"
+          : "mx-3 mt-2 flex min-h-9 items-center justify-between gap-3 rounded-[6px] border border-[color:var(--cliply-warning)]/30 bg-[color:var(--cliply-warning-soft)] px-3 py-1.5 text-[13px] text-[color:var(--cliply-warning)]"
       }
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -31,7 +31,7 @@ export function PrivacyBanner({
         ) : (
           <ShieldCheck className="size-4 shrink-0" />
         )}
-        <span className="truncate font-medium">
+        <span className="truncate">
           {errorMessage ?? "监听已暂停，新的复制内容暂时不会被保存。"}
         </span>
       </div>
@@ -39,7 +39,7 @@ export function PrivacyBanner({
         <button
           type="button"
           onClick={onResumeMonitoring}
-          className="shrink-0 rounded-lg bg-[color:var(--cliply-card)] px-3 py-1.5 text-xs font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-warning)]"
+          className="shrink-0 rounded-[4px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 py-1 text-xs font-medium text-[color:var(--cliply-text)] hover:bg-[color:var(--cliply-muted-bg)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[color:var(--cliply-warning)]"
         >
           恢复监听
         </button>

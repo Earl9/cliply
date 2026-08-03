@@ -707,9 +707,25 @@ fn get_sync_state_value(
 }
 
 fn read_recent_error(log_path: &Path) -> Option<String> {
-    let content = fs::read_to_string(log_path).ok()?;
-    content
-        .lines()
+    // Only inspect the log tail; the file can be megabytes of history and the
+    // caller just wants the most recent ERROR line.
+    const TAIL_BYTES: u64 = 64 * 1024;
+
+    let mut file = File::open(log_path).ok()?;
+    let len = file.metadata().ok()?.len();
+    let start = len.saturating_sub(TAIL_BYTES);
+    std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(start)).ok()?;
+    let mut tail = String::new();
+    file.read_to_string(&mut tail).ok()?;
+
+    let mut lines = tail.lines();
+    if start > 0 {
+        // Drop the first line: it is almost certainly truncated mid-line.
+        lines.next();
+    }
+    lines
+        .collect::<Vec<_>>()
+        .into_iter()
         .rev()
         .find(|line| line.contains(" ERROR "))
         .map(redact_diagnostic_message)

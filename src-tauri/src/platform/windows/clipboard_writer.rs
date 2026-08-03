@@ -110,6 +110,7 @@ fn image_to_dib(image: &DynamicImage) -> Result<Vec<u8>, CliplyError> {
         .checked_mul(height)
         .and_then(|pixels| pixels.checked_mul(4))
         .ok_or_else(|| CliplyError::PlatformUnavailable("image is too large".into()))?;
+    let row_bytes = (width as usize) * 4;
     let mut dib = Vec::with_capacity(40 + pixel_bytes as usize);
 
     dib.extend_from_slice(&40u32.to_le_bytes());
@@ -124,11 +125,20 @@ fn image_to_dib(image: &DynamicImage) -> Result<Vec<u8>, CliplyError> {
     dib.extend_from_slice(&0u32.to_le_bytes());
     dib.extend_from_slice(&0u32.to_le_bytes());
 
-    for y in (0..height).rev() {
-        for x in 0..width {
-            let pixel = rgba.get_pixel(x, y);
-            let [red, green, blue, alpha] = pixel.0;
-            dib.extend_from_slice(&[blue, green, red, alpha]);
+    // Copy row-by-row (DIB is bottom-up) and swizzle RGBA -> BGRA in place,
+    // avoiding a per-pixel get_pixel call for multi-megapixel images.
+    let raw = rgba.as_raw();
+    let header_len = dib.len();
+    dib.resize(header_len + pixel_bytes as usize, 0);
+    let pixels = &mut dib[header_len..];
+    for (dib_row, src_y) in (0..height).rev().enumerate() {
+        let src_start = (src_y as usize) * row_bytes;
+        let dst_start = dib_row * row_bytes;
+        let src_row = &raw[src_start..src_start + row_bytes];
+        let dst_row = &mut pixels[dst_start..dst_start + row_bytes];
+        dst_row.copy_from_slice(src_row);
+        for pixel in dst_row.chunks_exact_mut(4) {
+            pixel.swap(0, 2);
         }
     }
 

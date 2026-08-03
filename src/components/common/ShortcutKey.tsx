@@ -8,19 +8,21 @@ type ShortcutKeyProps = {
 
 export function ShortcutKey({ keys, compact, tone = "default" }: ShortcutKeyProps) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap align-middle">
+    <span className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap align-middle">
       {keys.map((key, index) => (
-        <span key={`${key}-${index}`} className="inline-flex shrink-0 items-center gap-1">
+        <span key={`${key}-${index}`} className="inline-flex shrink-0 items-center gap-0.5">
           {index > 0 ? (
-            <span className={clsx("text-xs", tone === "onPrimary" ? "text-white/65" : "text-[color:var(--cliply-faint)]")}>+</span>
+            <span className={clsx("text-[11px]", tone === "onPrimary" ? "opacity-60" : "text-[color:var(--cliply-faint)]")}>+</span>
           ) : null}
           <kbd
             className={clsx(
-              "inline-flex min-w-4 shrink-0 items-center justify-center rounded-md px-1.5 font-medium",
-              compact ? "h-[18px] text-[11px]" : "h-6 text-xs",
+              "inline-flex min-w-4 shrink-0 items-center justify-center rounded-[3px] px-1 font-sans",
+              compact ? "h-4 text-[11px]" : "h-5 text-xs",
               tone === "onPrimary"
-                ? "border border-transparent bg-white/18 text-white"
-                : "border border-[color:var(--cliply-border)] bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-muted)]",
+                // Inherit the button's own text colour: bright accents use dark
+                // text, so a hard-coded white would be unreadable there.
+                ? "opacity-75"
+                : "border border-[color:var(--cliply-border)] text-[color:var(--cliply-faint)]",
             )}
           >
             {key}

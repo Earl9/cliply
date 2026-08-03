@@ -1,4 +1,4 @@
-import { Clipboard, Copy, Pin, Trash2, Type } from "lucide-react";
+import { Clipboard, Copy, Pin, PinOff, Trash2, Type } from "lucide-react";
 import { clsx } from "clsx";
 import { ShortcutKey } from "@/components/common/ShortcutKey";
 import { getClipboardActionAvailability } from "@/lib/clipboardCapabilities";
@@ -11,23 +11,14 @@ type ClipboardActionsProps = {
 
 export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
   const availability = getClipboardActionAvailability(item);
-  const actions: Array<{
+  const secondary: Array<{
     label: string;
     keys: string[];
-    icon: typeof Clipboard;
-    primary?: boolean;
+    icon: typeof Copy;
     kind: ClipboardActionKind;
     disabled?: boolean;
     danger?: boolean;
   }> = [
-    {
-      label: "粘贴",
-      keys: ["Enter"],
-      icon: Clipboard,
-      primary: true,
-      kind: "paste",
-      disabled: !availability.paste,
-    },
     { label: "复制", keys: ["Ctrl", "C"], icon: Copy, kind: "copy", disabled: !availability.copy },
     {
       label: "无格式",
@@ -36,13 +27,35 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
       kind: "pastePlain",
       disabled: !availability.pastePlain,
     },
-    { label: item.isPinned ? "取消固定" : "固定", keys: ["Ctrl", "P"], icon: Pin, kind: "togglePin" },
-    { label: "删除", keys: ["Del"], icon: Trash2, kind: "delete", danger: true },
+    {
+      label: item.isPinned ? "取消固定" : "固定",
+      keys: ["Ctrl", "P"],
+      icon: item.isPinned ? PinOff : Pin,
+      kind: "togglePin",
+    },
   ];
 
   return (
-    <footer className="cliply-action-bar grid shrink-0 grid-cols-[1.18fr_repeat(4,minmax(0,1fr))] gap-2 border-t border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-4 py-2">
-      {actions.map((action) => {
+    <footer className="cliply-action-bar flex h-12 shrink-0 items-center gap-1 border-t border-[color:var(--cliply-border-soft)] px-3.5">
+      <button
+        type="button"
+        disabled={!availability.paste}
+        onClick={() => onAction("paste")}
+        data-primary="true"
+        title="粘贴 (Enter)"
+        className={clsx(
+          "cliply-action-button cliply-interactive flex h-8 shrink-0 items-center gap-2 rounded-[6px] px-3 text-[13px] font-medium",
+          "bg-[color:var(--cliply-accent)] text-[color:var(--cliply-primary-text)] hover:bg-[color:var(--cliply-accent-dark)]",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
+          "disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-disabled-bg)] disabled:text-[color:var(--cliply-disabled)]",
+        )}
+      >
+        <Clipboard className="size-3.5 shrink-0" />
+        <span>粘贴</span>
+        <ShortcutKey keys={["Enter"]} compact tone="onPrimary" />
+      </button>
+
+      {secondary.map((action) => {
         const Icon = action.icon;
         return (
           <button
@@ -50,31 +63,32 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
             type="button"
             disabled={action.disabled}
             onClick={() => onAction(action.kind)}
-            data-primary={action.primary ? "true" : undefined}
+            title={`${action.label} (${action.keys.join("+")})`}
             className={clsx(
-              "cliply-action-button flex h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:border-[color:var(--cliply-border-soft)] disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled)] disabled:opacity-100",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]",
-              action.primary
-                ? "border-transparent bg-[color:var(--cliply-accent-strong)] text-white shadow-[0_6px_14px_rgba(100,65,232,0.22)] hover:bg-[color:var(--cliply-accent-dark)]"
-                : action.danger
-                  ? "border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-text)] hover:border-[color:var(--cliply-danger)] hover:bg-[color:var(--cliply-danger-soft)] hover:text-[color:var(--cliply-danger)]"
-                : "border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-text)] hover:border-[color:var(--cliply-border-strong)] hover:bg-[color:var(--cliply-card)] hover:shadow-[0_4px_12px_rgba(15,23,42,0.045)]",
+              "cliply-action-button cliply-interactive flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[6px] px-2.5 text-[13px] text-[color:var(--cliply-body-text)]",
+              "hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
+              "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
+              "disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled)] disabled:hover:bg-transparent",
             )}
           >
-            <span className="cliply-action-label flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-              <Icon className={clsx("shrink-0", action.primary ? "size-4" : "size-[15px]")} />
-              <span className="shrink-0">{action.label}</span>
-            </span>
-            <span className="cliply-action-shortcut max-w-full overflow-hidden">
-              <ShortcutKey
-                keys={action.keys}
-                compact
-                tone={action.primary ? "onPrimary" : "default"}
-              />
-            </span>
+            <Icon className="size-3.5 shrink-0" />
+            <span className="cliply-action-label truncate">{action.label}</span>
           </button>
         );
       })}
+
+      <button
+        type="button"
+        onClick={() => onAction("delete")}
+        title="删除 (Del)"
+        className={clsx(
+          "cliply-action-button cliply-interactive ml-auto flex size-8 shrink-0 items-center justify-center rounded-[6px] text-[color:var(--cliply-muted)]",
+          "hover:bg-[color:var(--cliply-danger-soft)] hover:text-[color:var(--cliply-danger)]",
+          "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-danger)]",
+        )}
+      >
+        <Trash2 className="size-4" />
+      </button>
     </footer>
   );
 }

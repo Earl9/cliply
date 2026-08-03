@@ -107,7 +107,7 @@ export function ContextMenu({ menu, onClose }: ContextMenuProps) {
     >
       <div
         ref={menuRef}
-        className="cliply-scrollbar absolute w-[250px] overflow-auto rounded-[12px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[0_18px_48px_rgba(15,23,42,0.28)] ring-1 ring-[color:var(--cliply-border-soft)]"
+        className="cliply-scrollbar absolute w-[250px] overflow-auto rounded-[8px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]"
         style={{
           left,
           top,

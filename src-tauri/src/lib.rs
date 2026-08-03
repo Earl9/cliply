@@ -95,6 +95,7 @@ pub fn run() {
                 "auto_sync_scheduler_started",
                 "scheduler ready",
             );
+            services::blob_cleanup_service::start_blob_cleanup_task(app.handle().clone());
             if let Some(window) = app.get_webview_window("main") {
                 set_main_window_icon(app.handle(), &window);
 

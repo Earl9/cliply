@@ -303,7 +303,21 @@ fn export_remote_snapshot(
     mark_sync_exported(&connection, &exported_at)?;
     record_imported_snapshot(&connection, &snapshot_path)?;
 
-    let snapshot_count = list_snapshot_paths(provider.as_ref())?.len();
+    let mut snapshot_paths = list_snapshot_paths(provider.as_ref())?;
+    match prune_device_snapshots(provider.as_ref(), &snapshot_paths, &device_id, &snapshot_path) {
+        Ok(removed) if !removed.is_empty() => {
+            snapshot_paths.retain(|path| !removed.contains(path));
+            logger::info(
+                app,
+                "remote_snapshots_pruned",
+                format!("count={}", removed.len()),
+            );
+        }
+        Ok(_) => {}
+        // Pruning is best-effort; a failed delete must not fail the export.
+        Err(error) => logger::error(app, "remote_snapshot_prune_failed", error),
+    }
+    let snapshot_count = snapshot_paths.len();
     set_remote_success(&connection, &exported_at, snapshot_count)?;
     Ok(RemoteSyncResult {
         exported_count: 1,
@@ -659,6 +673,24 @@ fn mark_sync_exported(connection: &Connection, exported_at: &str) -> Result<(), 
         params![exported_at],
     )?;
     sync_blob_service::mark_pending_blob_tombstones_exported(connection, exported_at)?;
+    prune_synced_events(connection)?;
+    Ok(())
+}
+
+/// Events already shipped and older than the export window are dead weight:
+/// exports skip them and merges treat their items by revision, so dropping the
+/// rows keeps sync_events from growing forever.
+fn prune_synced_events(connection: &Connection) -> Result<(), CliplyError> {
+    let cutoff = (OffsetDateTime::now_utc()
+        - time::Duration::days(sync_package_service::SYNC_EXPORT_WINDOW_DAYS))
+    .format(&time::format_description::well_known::Rfc3339)
+    .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
+    connection.execute(
+        "DELETE FROM sync_events
+         WHERE synced_at IS NOT NULL
+           AND created_at < ?1",
+        params![cutoff],
+    )?;
     Ok(())
 }
 
@@ -1006,6 +1038,50 @@ fn set_sync_state_value(
         params![key, value, now],
     )?;
     Ok(())
+}
+
+// Each device keeps only its most recent snapshots on the remote. Every
+// snapshot is a full export, so older ones from the same device carry no extra
+// information; a couple are kept as insurance against a corrupt upload.
+const REMOTE_SNAPSHOTS_KEPT_PER_DEVICE: usize = 3;
+
+fn prune_device_snapshots(
+    provider: &dyn SyncStorageProvider,
+    snapshot_paths: &[String],
+    device_id: &str,
+    just_written_path: &str,
+) -> Result<Vec<String>, CliplyError> {
+    let device_suffix = format!("-{device_id}.cliply-sync");
+    // list_snapshot_paths sorts lexicographically and the file name starts
+    // with the sanitized RFC3339 timestamp, so order equals age.
+    let mut device_snapshots: Vec<&String> = snapshot_paths
+        .iter()
+        .filter(|path| path.ends_with(&device_suffix))
+        .collect();
+
+    if !device_snapshots.iter().any(|path| *path == just_written_path) {
+        // The listing missed the file we just wrote (eventual consistency);
+        // skip pruning this round rather than risk deleting the newest data.
+        return Ok(Vec::new());
+    }
+
+    if device_snapshots.len() <= REMOTE_SNAPSHOTS_KEPT_PER_DEVICE {
+        return Ok(Vec::new());
+    }
+
+    let excess = device_snapshots.len() - REMOTE_SNAPSHOTS_KEPT_PER_DEVICE;
+    let stale: Vec<String> = device_snapshots
+        .drain(..excess)
+        .filter(|path| *path != just_written_path)
+        .cloned()
+        .collect();
+
+    let mut removed = Vec::new();
+    for path in stale {
+        provider.delete(&path)?;
+        removed.push(path);
+    }
+    Ok(removed)
 }
 
 fn snapshot_file_name(device_id: &str, exported_at: &str) -> String {

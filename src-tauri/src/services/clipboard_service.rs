@@ -9,6 +9,8 @@ use crate::services::{
     blob_service, database_service, hash_service, settings_service, sync_blob_service, sync_service,
 };
 use rusqlite::{params, Connection, Row};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicI64, Ordering};
 use tauri::AppHandle;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
@@ -16,6 +18,25 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RetentionCleanupResult {
     pub deleted_items: usize,
+}
+
+// Retention scans the whole table; running it on every single copy is wasted
+// work, so ingest paths only re-run it after this interval. Explicit callers
+// (startup, settings change) bypass the throttle.
+const RETENTION_MIN_INTERVAL_SECS: i64 = 300;
+static LAST_RETENTION_AT: AtomicI64 = AtomicI64::new(0);
+
+fn maybe_enforce_history_retention(
+    connection: &mut Connection,
+    settings: &CliplySettings,
+) -> Result<RetentionCleanupResult, CliplyError> {
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+    let last = LAST_RETENTION_AT.load(Ordering::Relaxed);
+    if now.saturating_sub(last) < RETENTION_MIN_INTERVAL_SECS {
+        return Ok(RetentionCleanupResult::default());
+    }
+
+    enforce_history_retention_for_connection(connection, settings)
 }
 
 pub fn list_clipboard_items(
@@ -268,7 +289,7 @@ pub fn ingest_clipboard_snapshot(
             )?;
 
             let item = load_item(&connection, &existing_id)?;
-            enforce_history_retention_for_connection(&mut connection, &settings)?;
+            maybe_enforce_history_retention(&mut connection, &settings)?;
             logger::info(
                 app,
                 "clipboard_duplicate",
@@ -344,7 +365,7 @@ pub fn ingest_clipboard_snapshot(
     sync_service::mark_item_created(&connection, &id, item_type, &sync_id, &device_id, &now)?;
 
     let item = load_item(&connection, &id)?;
-    enforce_history_retention_for_connection(&mut connection, &settings)?;
+    maybe_enforce_history_retention(&mut connection, &settings)?;
     logger::info(
         app,
         "clipboard_stored",
@@ -391,7 +412,7 @@ fn ingest_image_snapshot(
             )?;
 
             let item = load_item(&connection, &existing_id)?;
-            enforce_history_retention_for_connection(&mut connection, settings)?;
+            maybe_enforce_history_retention(&mut connection, settings)?;
             logger::info(
                 app,
                 "clipboard_duplicate",
@@ -409,7 +430,7 @@ fn ingest_image_snapshot(
         "图片 {} x {} {}",
         image.width,
         image.height,
-        image.extension.to_uppercase()
+        stored_blob.extension.to_uppercase()
     );
 
     connection.execute(
@@ -440,8 +461,8 @@ fn ingest_image_snapshot(
         params![
             format!("{id}-format-image"),
             id,
-            format!("image/{}", image.extension),
-            image.mime_type,
+            format!("image/{}", stored_blob.extension),
+            stored_blob.mime_type,
             stored_blob.image_path.to_string_lossy().to_string(),
             stored_blob.size_bytes,
             now
@@ -509,7 +530,7 @@ fn ingest_image_snapshot(
     }
 
     let item = load_item(&connection, &id)?;
-    enforce_history_retention_for_connection(&mut connection, settings)?;
+    maybe_enforce_history_retention(&mut connection, settings)?;
     logger::info(app, "clipboard_stored", format!("item_id={id} type=image"));
     Ok(Some(item))
 }
@@ -518,6 +539,10 @@ fn enforce_history_retention_for_connection(
     connection: &mut Connection,
     settings: &CliplySettings,
 ) -> Result<RetentionCleanupResult, CliplyError> {
+    LAST_RETENTION_AT.store(
+        OffsetDateTime::now_utc().unix_timestamp(),
+        Ordering::Relaxed,
+    );
     let now = current_timestamp()?;
     let auto_delete_before = if settings.auto_delete_days == 0 {
         None
@@ -912,11 +937,14 @@ fn search_items(
     offset: i64,
 ) -> Result<Vec<ClipboardItemDto>, CliplyError> {
     let pinned_only = if pinned_only { 1 } else { 0 };
+    // The stored columns keep their original casing, but SQLite LIKE is already
+    // case-insensitive for ASCII and CJK has no case, so the query (lowercased
+    // by normalize_query) can match directly without per-row lower() calls.
     let like_query = format!("%{}%", escape_like(query));
 
     if let Some(fts_query) = build_fts_query(query) {
         let mut statement = connection.prepare(
-            "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
+            "SELECT ci.id, ci.type, COALESCE(ci.title, ''),
                     COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
                     ci.source_window, ci.copied_at, ci.created_at,
                     COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0),
@@ -941,16 +969,16 @@ fn search_items(
                         FROM clipboard_items_fts
                         WHERE clipboard_items_fts MATCH ?1
                     )
-                    OR lower(COALESCE(ci.title, '')) LIKE ?2 ESCAPE '\\'
-                    OR lower(COALESCE(ci.preview_text, '')) LIKE ?2 ESCAPE '\\'
-                    OR lower(COALESCE(ci.normalized_text, '')) LIKE ?2 ESCAPE '\\'
-                    OR lower(COALESCE(ci.source_app, '')) LIKE ?2 ESCAPE '\\'
-                    OR lower(COALESCE(ci.source_window, '')) LIKE ?2 ESCAPE '\\'
+                    OR COALESCE(ci.title, '') LIKE ?2 ESCAPE '\\'
+                    OR COALESCE(ci.preview_text, '') LIKE ?2 ESCAPE '\\'
+                    OR COALESCE(ci.normalized_text, '') LIKE ?2 ESCAPE '\\'
+                    OR COALESCE(ci.source_app, '') LIKE ?2 ESCAPE '\\'
+                    OR COALESCE(ci.source_window, '') LIKE ?2 ESCAPE '\\'
                     OR EXISTS (
                         SELECT 1
                         FROM clipboard_tags tag
                         WHERE tag.item_id = ci.id
-                          AND lower(tag.tag) LIKE ?2 ESCAPE '\\'
+                          AND tag.tag LIKE ?2 ESCAPE '\\'
                     )
                )
              ORDER BY ci.is_pinned DESC, ci.copied_at DESC
@@ -966,7 +994,7 @@ fn search_items(
     }
 
     let mut statement = connection.prepare(
-        "SELECT DISTINCT ci.id, ci.type, COALESCE(ci.title, ''),
+        "SELECT ci.id, ci.type, COALESCE(ci.title, ''),
                 COALESCE(ci.preview_text, ''), COALESCE(ci.source_app, ''),
                 ci.source_window, ci.copied_at, ci.created_at,
                 COALESCE(ci.size_bytes, 0), ci.is_pinned, COALESCE(ci.sensitive_score, 0),
@@ -986,16 +1014,16 @@ fn search_items(
            AND (?2 = '' OR ci.type = ?2)
            AND (?3 = 0 OR ci.is_pinned = 1)
            AND (
-                lower(COALESCE(ci.title, '')) LIKE ?1 ESCAPE '\\'
-                OR lower(COALESCE(ci.preview_text, '')) LIKE ?1 ESCAPE '\\'
-                OR lower(COALESCE(ci.normalized_text, '')) LIKE ?1 ESCAPE '\\'
-                OR lower(COALESCE(ci.source_app, '')) LIKE ?1 ESCAPE '\\'
-                OR lower(COALESCE(ci.source_window, '')) LIKE ?1 ESCAPE '\\'
+                COALESCE(ci.title, '') LIKE ?1 ESCAPE '\\'
+                OR COALESCE(ci.preview_text, '') LIKE ?1 ESCAPE '\\'
+                OR COALESCE(ci.normalized_text, '') LIKE ?1 ESCAPE '\\'
+                OR COALESCE(ci.source_app, '') LIKE ?1 ESCAPE '\\'
+                OR COALESCE(ci.source_window, '') LIKE ?1 ESCAPE '\\'
                 OR EXISTS (
                     SELECT 1
                     FROM clipboard_tags tag
                     WHERE tag.item_id = ci.id
-                      AND lower(tag.tag) LIKE ?1 ESCAPE '\\'
+                      AND tag.tag LIKE ?1 ESCAPE '\\'
                 )
            )
          ORDER BY ci.is_pinned DESC, ci.copied_at DESC
@@ -1016,14 +1044,236 @@ where
 {
     let mut items = Vec::new();
     for row in rows {
-        let mut item = row?;
-        item.tags = load_tags(connection, &item.id)?;
-        item.thumbnail_path = load_image_path(connection, &item.id, true)?;
-        hydrate_image_display_size(connection, &mut item)?;
-        items.push(item);
+        items.push(row?);
     }
 
+    hydrate_items_batch(connection, &mut items)?;
     Ok(items)
+}
+
+/// Fills tags, thumbnail paths, and image display sizes for a whole page of
+/// items with three batched queries instead of 3-5 queries per row.
+fn hydrate_items_batch(
+    connection: &Connection,
+    items: &mut [ClipboardItemDto],
+) -> Result<(), CliplyError> {
+    if items.is_empty() {
+        return Ok(());
+    }
+
+    let ids: Vec<&str> = items.iter().map(|item| item.id.as_str()).collect();
+    let mut tags_by_item = load_tags_batch(connection, &ids)?;
+    let format_paths = load_image_format_paths_batch(connection, &ids)?;
+    let blob_paths = load_sync_blob_paths_batch(connection, &ids)?;
+
+    for item in items.iter_mut() {
+        item.tags = tags_by_item.remove(item.id.as_str()).unwrap_or_default();
+        let formats = format_paths.get(item.id.as_str());
+        let blobs = blob_paths.get(item.id.as_str());
+        item.thumbnail_path = resolve_thumbnail_path(formats, blobs);
+        if item.item_type == ClipboardItemType::Image {
+            if let Some(size_bytes) = resolve_image_display_size(formats, blobs) {
+                item.size_bytes = size_bytes;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Default)]
+struct ItemImagePaths {
+    thumbnail_paths: Vec<String>,
+    image_paths: Vec<(String, i64)>,
+}
+
+#[derive(Default)]
+struct ItemBlobPaths {
+    // (blob_type, local_path, size_bytes) ordered preview -> compressed -> original
+    blobs: Vec<(String, String, i64)>,
+}
+
+fn in_clause_chunks<'a>(ids: &'a [&'a str]) -> impl Iterator<Item = &'a [&'a str]> {
+    ids.chunks(200)
+}
+
+fn load_tags_batch(
+    connection: &Connection,
+    ids: &[&str],
+) -> Result<HashMap<String, Vec<String>>, CliplyError> {
+    let mut tags_by_item: HashMap<String, Vec<String>> = HashMap::new();
+    for chunk in in_clause_chunks(ids) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT item_id, tag FROM clipboard_tags
+             WHERE item_id IN ({placeholders})
+             ORDER BY tag ASC"
+        );
+        let mut statement = connection.prepare(&sql)?;
+        let rows = statement.query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            let (item_id, tag) = row?;
+            tags_by_item.entry(item_id).or_default().push(tag);
+        }
+    }
+
+    Ok(tags_by_item)
+}
+
+fn load_image_format_paths_batch(
+    connection: &Connection,
+    ids: &[&str],
+) -> Result<HashMap<String, ItemImagePaths>, CliplyError> {
+    let mut paths_by_item: HashMap<String, ItemImagePaths> = HashMap::new();
+    for chunk in in_clause_chunks(ids) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT item_id, format_name, data_path, COALESCE(size_bytes, 0)
+             FROM clipboard_formats
+             WHERE item_id IN ({placeholders})
+               AND data_kind = 'image_file'
+               AND data_path IS NOT NULL
+             ORDER BY priority DESC, created_at ASC"
+        );
+        let mut statement = connection.prepare(&sql)?;
+        let rows = statement.query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+            ))
+        })?;
+        for row in rows {
+            let (item_id, format_name, data_path, size_bytes) = row?;
+            let entry = paths_by_item.entry(item_id).or_default();
+            if format_name == "thumbnail/png" {
+                entry.thumbnail_paths.push(data_path);
+            } else {
+                entry.image_paths.push((data_path, size_bytes));
+            }
+        }
+    }
+
+    Ok(paths_by_item)
+}
+
+fn load_sync_blob_paths_batch(
+    connection: &Connection,
+    ids: &[&str],
+) -> Result<HashMap<String, ItemBlobPaths>, CliplyError> {
+    let mut blobs_by_item: HashMap<String, ItemBlobPaths> = HashMap::new();
+    for chunk in in_clause_chunks(ids) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT item_id, blob_type, local_path, COALESCE(size_bytes, 0)
+             FROM sync_blobs
+             WHERE item_id IN ({placeholders})
+               AND blob_type IN ('preview', 'compressed', 'original')
+               AND local_path IS NOT NULL
+               AND COALESCE(local_path, '') <> ''
+               AND deleted_at IS NULL
+             ORDER BY CASE blob_type
+               WHEN 'preview' THEN 0
+               WHEN 'compressed' THEN 1
+               ELSE 2
+             END,
+             created_at DESC"
+        );
+        let mut statement = match connection.prepare(&sql) {
+            Ok(statement) => statement,
+            Err(error) if is_missing_sync_blobs_table_prepare(&error) => return Ok(blobs_by_item),
+            Err(error) => return Err(error.into()),
+        };
+        let rows = statement.query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+            ))
+        })?;
+        for row in rows {
+            let (item_id, blob_type, local_path, size_bytes) = row?;
+            blobs_by_item
+                .entry(item_id)
+                .or_default()
+                .blobs
+                .push((blob_type, local_path, size_bytes));
+        }
+    }
+
+    Ok(blobs_by_item)
+}
+
+fn is_missing_sync_blobs_table_prepare(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(_, Some(message))
+            if message.contains("no such table: sync_blobs")
+    )
+}
+
+fn resolve_thumbnail_path(
+    formats: Option<&ItemImagePaths>,
+    blobs: Option<&ItemBlobPaths>,
+) -> Option<String> {
+    if let Some(formats) = formats {
+        for path in &formats.thumbnail_paths {
+            if std::path::Path::new(path).exists() {
+                return Some(path.clone());
+            }
+        }
+    }
+
+    // Fallback: smallest available sync blob (already ordered preview-first).
+    if let Some(blobs) = blobs {
+        for (_, path, _) in &blobs.blobs {
+            if std::path::Path::new(path).exists() {
+                return Some(path.clone());
+            }
+        }
+    }
+
+    None
+}
+
+fn resolve_image_display_size(
+    formats: Option<&ItemImagePaths>,
+    blobs: Option<&ItemBlobPaths>,
+) -> Option<i64> {
+    if let Some(formats) = formats {
+        for (path, stored_size) in &formats.image_paths {
+            if std::path::Path::new(path).exists() {
+                let actual = std::fs::metadata(path)
+                    .map(|metadata| metadata.len() as i64)
+                    .unwrap_or(*stored_size);
+                return Some(actual.max(0));
+            }
+        }
+    }
+
+    if let Some(blobs) = blobs {
+        // Display size prefers original -> compressed -> preview.
+        let mut ordered: Vec<&(String, String, i64)> = blobs.blobs.iter().collect();
+        ordered.sort_by_key(|(blob_type, _, _)| match blob_type.as_str() {
+            "original" => 0,
+            "compressed" => 1,
+            _ => 2,
+        });
+        for (_, path, stored_size) in ordered {
+            if std::path::Path::new(path).exists() {
+                let actual = std::fs::metadata(path)
+                    .map(|metadata| metadata.len() as i64)
+                    .unwrap_or(*stored_size);
+                return Some(actual.max(0));
+            }
+        }
+    }
+
+    None
 }
 
 fn source_app_from_snapshot(snapshot: &ClipboardSnapshot) -> String {

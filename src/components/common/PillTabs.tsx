@@ -14,7 +14,7 @@ type PillTabsProps<T extends string> = {
 
 export function PillTabs<T extends string>({ options, value, onValueChange }: PillTabsProps<T>) {
   return (
-    <div className="flex h-8 min-w-0 items-center gap-2 overflow-x-auto">
+    <div className="cliply-scrollbar flex h-7 min-w-0 items-center gap-0.5 overflow-x-auto">
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -23,21 +23,19 @@ export function PillTabs<T extends string>({ options, value, onValueChange }: Pi
             type="button"
             onClick={() => onValueChange(option.value)}
             className={clsx(
-              "inline-flex h-8 min-w-20 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border px-3 text-sm font-semibold leading-none transition",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
+              "cliply-interactive inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[6px] px-2.5 text-[12.5px] leading-none",
+              "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
               selected
-                ? "cliply-pill-tab-active border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)] shadow-none"
-                : "border-transparent bg-transparent text-[color:var(--cliply-muted)] hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
+                ? "cliply-pill-tab-active bg-[color:var(--cliply-accent-soft)] font-medium text-[color:var(--cliply-accent-on-soft)]"
+                : "text-[color:var(--cliply-faint)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
             )}
           >
             <span>{option.label}</span>
             {typeof option.count === "number" ? (
               <span
                 className={clsx(
-                  "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold leading-none",
-                  selected
-                    ? "bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-accent-strong)]"
-                    : "bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-muted)]",
+                  "cliply-caption text-[11px] tabular-nums",
+                  selected ? "opacity-75" : "opacity-60",
                 )}
               >
                 {option.count}

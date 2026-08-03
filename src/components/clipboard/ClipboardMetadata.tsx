@@ -1,4 +1,3 @@
-import { Badge } from "@/components/common/Badge";
 import type { ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
 import { formatBytes, formatFullCopiedTime } from "@/lib/formatTime";
 
@@ -14,54 +13,43 @@ const typeLabels: Record<ClipboardItemType, string> = {
 };
 
 export function ClipboardMetadata({ item }: ClipboardMetadataProps) {
-  const metadata = [
-    ["来源应用", item.sourceApp],
-    ["复制时间", formatFullCopiedTime(item.copiedAt)],
-    ["类型", typeLabels[item.type]],
-    ["大小", formatBytes(item.sizeBytes)],
-    ["来源窗口", item.sourceWindow ?? "未知"],
-    ["固定状态", item.isPinned ? "已固定" : "未固定"],
-  ];
   const imageDimensions =
     item.type === "image" && item.imageWidth && item.imageHeight
       ? `${item.imageWidth} × ${item.imageHeight}`
       : null;
+  const metadata: Array<[string, string]> = [
+    ["类型", typeLabels[item.type]],
+    ["复制时间", formatFullCopiedTime(item.copiedAt)],
+    ["大小", formatBytes(item.sizeBytes)],
+    ["来源窗口", item.sourceWindow ?? "未知"],
+  ];
+  if (imageDimensions) {
+    metadata.push(["尺寸", imageDimensions]);
+  }
 
   return (
-    <div className="mt-3 rounded-[12px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-4 py-3 shadow-[0_3px_10px_rgba(15,23,42,0.035)]">
-      <h3 className="mb-3 text-sm font-semibold text-[color:var(--cliply-text)]">元信息</h3>
-      <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-4 gap-y-2.5">
+    <div className="mt-4 border-t border-[color:var(--cliply-border-soft)] pt-3.5">
+      <dl className="grid grid-cols-[76px_minmax(0,1fr)] gap-x-3 gap-y-2">
         {metadata.map(([label, value]) => (
           <div key={label} className="contents">
-            <dt className="text-xs font-normal text-[color:var(--cliply-muted)]">{label}</dt>
-            <dd className="min-w-0 truncate text-[13px] font-medium text-[color:var(--cliply-body-text)]">
-              {label === "类型" ? (
-                <Badge tone="accent" className="h-5 rounded-md px-1.5 text-xs">
-                  {value}
-                </Badge>
-              ) : label === "固定状态" ? (
-                <Badge
-                  tone={item.isPinned ? "accent" : "neutral"}
-                  className="h-5 rounded-md px-1.5 text-xs"
-                >
-                  {value}
-                </Badge>
-              ) : (
-                value
-              )}
+            <dt className="cliply-caption text-[11px] leading-5 text-[color:var(--cliply-faint)]">
+              {label}
+            </dt>
+            <dd className="min-w-0 truncate text-[12.5px] leading-5 text-[color:var(--cliply-body-text)]">
+              {value}
             </dd>
           </div>
         ))}
       </dl>
-      {imageDimensions ? (
-        <div className="mt-3 rounded-lg bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-xs text-[color:var(--cliply-muted)]">
-          图片尺寸：<span className="font-medium text-[color:var(--cliply-text)]">{imageDimensions}</span>
-        </div>
-      ) : null}
       {item.tags.length ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {item.tags.map((tag) => (
-            <Badge key={tag}>#{tag}</Badge>
+            <span
+              key={tag}
+              className="cliply-caption rounded-[4px] bg-[color:var(--cliply-muted-bg)] px-1.5 py-0.5 text-[11px] text-[color:var(--cliply-muted)]"
+            >
+              #{tag}
+            </span>
           ))}
         </div>
       ) : null}

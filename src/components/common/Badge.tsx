@@ -9,12 +9,13 @@ type BadgeProps = {
   className?: string;
 };
 
+// Quiet status labels: tone lives in the text color only, no filled chip.
 const toneClass: Record<BadgeTone, string> = {
-  neutral: "bg-[color:var(--cliply-muted-bg)] text-[color:var(--cliply-muted)]",
-  accent: "bg-[color:var(--cliply-accent-soft)] text-[color:var(--cliply-accent-strong)]",
-  teal: "bg-[color:var(--cliply-info-soft)] text-[color:var(--cliply-info)]",
-  amber: "bg-[color:var(--cliply-warning-soft)] text-[color:var(--cliply-warning)]",
-  rose: "bg-[color:var(--cliply-danger-soft)] text-[color:var(--cliply-danger)]",
+  neutral: "text-[color:var(--cliply-muted)]",
+  accent: "text-[color:var(--cliply-accent)]",
+  teal: "text-[color:var(--cliply-info)]",
+  amber: "text-[color:var(--cliply-warning)]",
+  rose: "text-[color:var(--cliply-danger)]",
 };
 
 export function Badge({ children, tone = "neutral", className }: BadgeProps) {
@@ -22,7 +23,7 @@ export function Badge({ children, tone = "neutral", className }: BadgeProps) {
     <span
       data-tone={tone}
       className={clsx(
-        "cliply-badge inline-flex h-6 items-center rounded-md px-2 text-xs font-medium",
+        "cliply-badge inline-flex items-center text-xs",
         toneClass[tone],
         className,
       )}

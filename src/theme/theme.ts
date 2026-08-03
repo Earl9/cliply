@@ -4,12 +4,17 @@
 //   applyCliplyTheme(DEFAULT_THEME_NAME);
 
 export type CliplyThemeName =
-  | "purple-default"
-  | "mint-green"
+  | "system-blue"
   | "lake-blue"
-  | "teal-fresh"
+  | "indigo-spark"
+  | "purple-default"
+  | "magenta-pop"
+  | "rose-violet"
   | "coral-orange"
-  | "rose-violet";
+  | "amber-glow"
+  | "lime-punch"
+  | "mint-green"
+  | "teal-fresh";
 
 export type CliplyThemeTokens = {
   name: CliplyThemeName;
@@ -23,7 +28,13 @@ export type CliplyThemeTokens = {
   primarySoft: string;
   primaryBorder: string;
   primaryBorderSelected?: string;
+  /// Text drawn on top of a `primary` fill. Vivid accents are often too light
+  /// for white, so each theme states what actually passes contrast.
   primaryText: string;
+  /// Accent darkened enough to be readable as *text* on `primarySoft`.
+  /// Separate from `primaryHover`, which is a hover background — for light
+  /// accents the two requirements pull in opposite directions.
+  primaryOnSoft?: string;
 
   // Neutral surfaces
   appBg: string;
@@ -85,7 +96,7 @@ export type CliplyAutoThemeColorSources = {
   systemAccent?: string | null;
 };
 
-export const DEFAULT_THEME_NAME: CliplyThemeName = "purple-default";
+export const DEFAULT_THEME_NAME: CliplyThemeName = "system-blue";
 
 export const CLIPLY_THEME_STORAGE_KEY = "cliply.theme.name";
 
@@ -97,304 +108,572 @@ export const DEFAULT_AUTO_THEME_SETTINGS: CliplyAutoThemeSettings = {
 };
 
 const AUTO_THEME_FALLBACK_COLORS: Record<CliplyAutoThemeSource, string> = {
-  "system-accent": "#6D4CFF",
+  "system-accent": "#1F74CC",
   wallpaper: "#3B82F6",
 };
 
 let themeTransitionResetTimer: number | undefined;
 
 export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
-  "purple-default": {
-    name: "purple-default",
-    label: "默认紫",
-    description: "Cliply 默认主题，现代、稳定、适合生产力工具。",
+  "system-blue": {
+    name: "system-blue",
+    label: "浅蓝",
+    description: "明亮通透的浅蓝，安静中性，默认主题。",
 
-    primary: "#6D4CFF",
-    primaryHover: "#5B3FE6",
-    primaryActive: "#4D34C7",
-    primarySoft: "#F3F0FF",
-    primaryBorder: "#D9D0FF",
+    primary: "#1F74CC",
+    primaryHover: "#1B66B4",
+    primaryActive: "#185A9F",
+    primarySoft: "#EBF2FA",
+    primaryBorder: "#C7DCF2",
     primaryText: "#FFFFFF",
+    primaryOnSoft: "#1D6DC0",
 
-    appBg: "#F5F7FB",
-    windowBg: "#F8FAFC",
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#F3F5F8",
+    mutedBg: "#EFF5FA",
 
-    border: "#E7EAF1",
-    borderStrong: "#D8DEE8",
-    divider: "#EEF1F5",
-    focusRing: "rgba(109, 76, 255, 0.16)",
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(31, 116, 204, 0.15)",
 
-    text: "#1F2937",
-    textSecondary: "#667085",
-    muted: "#98A2B3",
-    placeholder: "#7B8496",
-    disabledText: "#B6BEC9",
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
 
-    success: "#22C55E",
+    success: "#15803D",
     successSoft: "#ECFDF3",
-    warning: "#F59E0B",
+    warning: "#B45309",
     warningSoft: "#FFF7E6",
-    danger: "#EF4444",
+    danger: "#DC2626",
     dangerSoft: "#FEF2F2",
-    info: "#2563EB",
-    infoSoft: "#EFF6FF",
+    info: "#1F74CC",
+    infoSoft: "#EBF2FA",
 
-    shadowWindow: "0 24px 80px rgba(15, 23, 42, 0.16)",
-    shadowPanel: "0 8px 24px rgba(15, 23, 42, 0.045)",
-    shadowCardHover: "0 8px 20px rgba(15, 23, 42, 0.06)",
-    shadowSelected: "0 0 0 1px #6D4CFF, 0 8px 22px rgba(109, 76, 255, 0.12)",
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
 
-    swatch: "#6D4CFF",
-  },
-
-  "mint-green": {
-    name: "mint-green",
-    label: "薄荷绿",
-    description: "清爽、轻盈，适合偏自然和安全感的界面。",
-
-    primary: "#6FCF7B",
-    primaryHover: "#5FBD6C",
-    primaryActive: "#4EA85A",
-    primarySoft: "#EDF9EF",
-    primaryBorder: "#CFEFD5",
-    primaryText: "#FFFFFF",
-
-    appBg: "#F5F8F6",
-    windowBg: "#F8FBF9",
-    panelBg: "#FFFFFF",
-    cardBg: "#FFFFFF",
-    inputBg: "#FFFFFF",
-    mutedBg: "#F3F7F4",
-
-    border: "#E6EEE8",
-    borderStrong: "#D5E2D8",
-    divider: "#EEF4EF",
-    focusRing: "rgba(111, 207, 123, 0.20)",
-
-    text: "#1F2937",
-    textSecondary: "#667085",
-    muted: "#98A2B3",
-    placeholder: "#7B8496",
-    disabledText: "#B6BEC9",
-
-    success: "#22C55E",
-    successSoft: "#ECFDF3",
-    warning: "#F59E0B",
-    warningSoft: "#FFF7E6",
-    danger: "#EF4444",
-    dangerSoft: "#FEF2F2",
-    info: "#2563EB",
-    infoSoft: "#EFF6FF",
-
-    shadowWindow: "0 24px 80px rgba(15, 23, 42, 0.15)",
-    shadowPanel: "0 8px 24px rgba(15, 23, 42, 0.04)",
-    shadowCardHover: "0 8px 20px rgba(15, 23, 42, 0.055)",
-    shadowSelected: "0 0 0 1px #6FCF7B, 0 8px 22px rgba(111, 207, 123, 0.14)",
-
-    swatch: "#6FCF7B",
+    swatch: "#1F74CC",
   },
 
   "lake-blue": {
     name: "lake-blue",
-    label: "湖蓝色",
-    description: "克制、专业，偏系统工具气质。",
+    label: "湖蓝",
+    description: "饱和的宝蓝，清晰有力。",
 
-    primary: "#3B82F6",
-    primaryHover: "#2F74E6",
-    primaryActive: "#2563EB",
-    primarySoft: "#EFF6FF",
-    primaryBorder: "#CFE1FF",
+    primary: "#1D5FD6",
+    primaryHover: "#1A54BC",
+    primaryActive: "#174AA7",
+    primarySoft: "#EDF2FC",
+    primaryBorder: "#C7D7F5",
     primaryText: "#FFFFFF",
+    primaryOnSoft: "#1D5FD6",
 
-    appBg: "#F4F7FB",
-    windowBg: "#F8FAFC",
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#F3F6FA",
+    mutedBg: "#EFF5FA",
 
-    border: "#E5EAF1",
-    borderStrong: "#D7E0EC",
-    divider: "#EEF2F6",
-    focusRing: "rgba(59, 130, 246, 0.16)",
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(29, 95, 214, 0.15)",
 
-    text: "#1F2937",
-    textSecondary: "#667085",
-    muted: "#98A2B3",
-    placeholder: "#7B8496",
-    disabledText: "#B6BEC9",
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
 
-    success: "#22C55E",
+    success: "#15803D",
     successSoft: "#ECFDF3",
-    warning: "#F59E0B",
+    warning: "#B45309",
     warningSoft: "#FFF7E6",
-    danger: "#EF4444",
+    danger: "#DC2626",
     dangerSoft: "#FEF2F2",
-    info: "#2563EB",
-    infoSoft: "#EFF6FF",
+    info: "#1D5FD6",
+    infoSoft: "#EDF2FC",
 
-    shadowWindow: "0 24px 80px rgba(15, 23, 42, 0.16)",
-    shadowPanel: "0 8px 24px rgba(15, 23, 42, 0.045)",
-    shadowCardHover: "0 8px 20px rgba(15, 23, 42, 0.06)",
-    shadowSelected: "0 0 0 1px #3B82F6, 0 8px 22px rgba(59, 130, 246, 0.12)",
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
 
-    swatch: "#3B82F6",
+    swatch: "#1D5FD6",
   },
 
-  "teal-fresh": {
-    name: "teal-fresh",
-    label: "清爽青",
-    description: "比绿色更科技、更稳，适合安全和工具场景。",
+  "indigo-spark": {
+    name: "indigo-spark",
+    label: "电光靛",
+    description: "冷冽的电光靛蓝，年轻、有速度感。",
 
-    primary: "#14B8A6",
-    primaryHover: "#0FA595",
-    primaryActive: "#0D9488",
-    primarySoft: "#ECFDF8",
-    primaryBorder: "#BFEFE7",
+    primary: "#4F46E5",
+    primaryHover: "#463ECA",
+    primaryActive: "#3E37B3",
+    primarySoft: "#F1F0FD",
+    primaryBorder: "#D3D1F9",
     primaryText: "#FFFFFF",
+    primaryOnSoft: "#4F46E5",
 
-    appBg: "#F3F8F8",
-    windowBg: "#F8FBFB",
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#F2F7F7",
+    mutedBg: "#EFF5FA",
 
-    border: "#E4EEEE",
-    borderStrong: "#D2E2E2",
-    divider: "#EDF4F4",
-    focusRing: "rgba(20, 184, 166, 0.18)",
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(79, 70, 229, 0.15)",
 
-    text: "#1F2937",
-    textSecondary: "#667085",
-    muted: "#98A2B3",
-    placeholder: "#7B8496",
-    disabledText: "#B6BEC9",
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
 
-    success: "#22C55E",
+    success: "#15803D",
     successSoft: "#ECFDF3",
-    warning: "#F59E0B",
+    warning: "#B45309",
     warningSoft: "#FFF7E6",
-    danger: "#EF4444",
+    danger: "#DC2626",
     dangerSoft: "#FEF2F2",
-    info: "#2563EB",
-    infoSoft: "#EFF6FF",
+    info: "#4F46E5",
+    infoSoft: "#F1F0FD",
 
-    shadowWindow: "0 24px 80px rgba(15, 23, 42, 0.15)",
-    shadowPanel: "0 8px 24px rgba(15, 23, 42, 0.04)",
-    shadowCardHover: "0 8px 20px rgba(15, 23, 42, 0.055)",
-    shadowSelected: "0 0 0 1px #14B8A6, 0 8px 22px rgba(20, 184, 166, 0.13)",
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
 
-    swatch: "#14B8A6",
+    swatch: "#4F46E5",
+  },
+
+  "purple-default": {
+    name: "purple-default",
+    label: "霓虹紫",
+    description: "明快的紫色，创意工具的气质。",
+
+    primary: "#6D4CFF",
+    primaryHover: "#6043E0",
+    primaryActive: "#553BC7",
+    primarySoft: "#F2EFFF",
+    primaryBorder: "#DBD2FF",
+    primaryText: "#FFFFFF",
+    primaryOnSoft: "#6B4AFA",
+
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5FA",
+
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(109, 76, 255, 0.15)",
+
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
+
+    success: "#15803D",
+    successSoft: "#ECFDF3",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#6D4CFF",
+    infoSoft: "#F2EFFF",
+
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#6D4CFF",
+  },
+
+  "magenta-pop": {
+    name: "magenta-pop",
+    label: "荧光洋红",
+    description: "高饱和洋红，最张扬的一款。",
+
+    primary: "#D6218C",
+    primaryHover: "#BC1D7B",
+    primaryActive: "#A71A6D",
+    primarySoft: "#FCEDF6",
+    primaryBorder: "#F5C8E2",
+    primaryText: "#FFFFFF",
+    primaryOnSoft: "#C91F84",
+
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5FA",
+
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(214, 33, 140, 0.15)",
+
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
+
+    success: "#15803D",
+    successSoft: "#ECFDF3",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#D6218C",
+    infoSoft: "#FCEDF6",
+
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#D6218C",
+  },
+
+  "rose-violet": {
+    name: "rose-violet",
+    label: "玫红",
+    description: "明亮的玫红，柔中带锐。",
+
+    primary: "#DB2777",
+    primaryHover: "#C12269",
+    primaryActive: "#AB1E5D",
+    primarySoft: "#FCEEF4",
+    primaryBorder: "#F6C9DD",
+    primaryText: "#FFFFFF",
+    primaryOnSoft: "#C9246D",
+
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5FA",
+
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(219, 39, 119, 0.15)",
+
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
+
+    success: "#15803D",
+    successSoft: "#ECFDF3",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#DB2777",
+    infoSoft: "#FCEEF4",
+
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#DB2777",
   },
 
   "coral-orange": {
     name: "coral-orange",
     label: "珊瑚橙",
-    description: "更活泼，适合个性化主题，不建议作为默认。",
+    description: "热烈的珊瑚橙，暖而醒目。",
 
-    primary: "#FF7A59",
-    primaryHover: "#F16847",
-    primaryActive: "#DD5A3C",
-    primarySoft: "#FFF3EF",
-    primaryBorder: "#FFD8CC",
-    primaryText: "#FFFFFF",
+    primary: "#E8552D",
+    primaryHover: "#CC4B28",
+    primaryActive: "#B54223",
+    primarySoft: "#FDEEEA",
+    primaryBorder: "#F9D5CB",
+    primaryText: "#14161A",
+    primaryOnSoft: "#BA4424",
 
-    appBg: "#FAF7F5",
-    windowBg: "#FBF8F6",
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#F7F2EF",
+    mutedBg: "#EFF5FA",
 
-    border: "#EEE6E1",
-    borderStrong: "#E2D4CC",
-    divider: "#F2EAE5",
-    focusRing: "rgba(255, 122, 89, 0.18)",
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(232, 85, 45, 0.15)",
 
-    text: "#1F2937",
-    textSecondary: "#667085",
-    muted: "#98A2B3",
-    placeholder: "#7B8496",
-    disabledText: "#B6BEC9",
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
 
-    success: "#22C55E",
+    success: "#15803D",
     successSoft: "#ECFDF3",
-    warning: "#F59E0B",
+    warning: "#B45309",
     warningSoft: "#FFF7E6",
-    danger: "#EF4444",
+    danger: "#DC2626",
     dangerSoft: "#FEF2F2",
-    info: "#2563EB",
-    infoSoft: "#EFF6FF",
+    info: "#E8552D",
+    infoSoft: "#FDEEEA",
 
-    shadowWindow: "0 24px 80px rgba(15, 23, 42, 0.15)",
-    shadowPanel: "0 8px 24px rgba(15, 23, 42, 0.04)",
-    shadowCardHover: "0 8px 20px rgba(15, 23, 42, 0.055)",
-    shadowSelected: "0 0 0 1px #FF7A59, 0 8px 22px rgba(255, 122, 89, 0.13)",
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
 
-    swatch: "#FF7A59",
+    swatch: "#E8552D",
   },
 
-  "rose-violet": {
-    name: "rose-violet",
-    label: "玫紫色",
-    description: "柔和、精致，设计感更强。",
+  "amber-glow": {
+    name: "amber-glow",
+    label: "暖阳金",
+    description: "温暖的琥珀金，明亮不刺眼。",
 
-    primary: "#E856B6",
-    primaryHover: "#D946A7",
-    primaryActive: "#C73696",
-    primarySoft: "#FFF0FA",
-    primaryBorder: "#F7CDE9",
-    primaryText: "#FFFFFF",
+    primary: "#C2820A",
+    primaryHover: "#AB7209",
+    primaryActive: "#976508",
+    primarySoft: "#F9F3E7",
+    primaryBorder: "#F0E0C2",
+    primaryText: "#14161A",
+    primaryOnSoft: "#936308",
 
-    appBg: "#FAF6FA",
-    windowBg: "#FCF8FC",
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#F8F1F7",
+    mutedBg: "#EFF5FA",
 
-    border: "#EEE5EE",
-    borderStrong: "#E2D4E2",
-    divider: "#F2EAF2",
-    focusRing: "rgba(232, 86, 182, 0.17)",
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(194, 130, 10, 0.15)",
 
-    text: "#1F2937",
-    textSecondary: "#667085",
-    muted: "#98A2B3",
-    placeholder: "#7B8496",
-    disabledText: "#B6BEC9",
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
 
-    success: "#22C55E",
+    success: "#15803D",
     successSoft: "#ECFDF3",
-    warning: "#F59E0B",
+    warning: "#B45309",
     warningSoft: "#FFF7E6",
-    danger: "#EF4444",
+    danger: "#DC2626",
     dangerSoft: "#FEF2F2",
-    info: "#2563EB",
-    infoSoft: "#EFF6FF",
+    info: "#C2820A",
+    infoSoft: "#F9F3E7",
 
-    shadowWindow: "0 24px 80px rgba(15, 23, 42, 0.15)",
-    shadowPanel: "0 8px 24px rgba(15, 23, 42, 0.04)",
-    shadowCardHover: "0 8px 20px rgba(15, 23, 42, 0.055)",
-    shadowSelected: "0 0 0 1px #E856B6, 0 8px 22px rgba(232, 86, 182, 0.13)",
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
 
-    swatch: "#E856B6",
+    swatch: "#C2820A",
+  },
+
+  "lime-punch": {
+    name: "lime-punch",
+    label: "青柠绿",
+    description: "鲜亮的青柠绿，轻快有生气。",
+
+    primary: "#4E9F0D",
+    primaryHover: "#458C0B",
+    primaryActive: "#3D7C0A",
+    primarySoft: "#EDF5E7",
+    primaryBorder: "#D3E7C3",
+    primaryText: "#14161A",
+    primaryOnSoft: "#3D7C0A",
+
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5FA",
+
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(78, 159, 13, 0.15)",
+
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
+
+    success: "#15803D",
+    successSoft: "#ECFDF3",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#4E9F0D",
+    infoSoft: "#EDF5E7",
+
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#4E9F0D",
+  },
+
+  "mint-green": {
+    name: "mint-green",
+    label: "薄荷绿",
+    description: "清新的薄荷绿，自然舒展。",
+
+    primary: "#1BA36B",
+    primaryHover: "#188F5E",
+    primaryActive: "#157F53",
+    primarySoft: "#E8F6F0",
+    primaryBorder: "#C6E8DA",
+    primaryText: "#14161A",
+    primaryOnSoft: "#157C51",
+
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5FA",
+
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(27, 163, 107, 0.15)",
+
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
+
+    success: "#15803D",
+    successSoft: "#ECFDF3",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#1BA36B",
+    infoSoft: "#E8F6F0",
+
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#1BA36B",
+  },
+
+  "teal-fresh": {
+    name: "teal-fresh",
+    label: "清爽青",
+    description: "沉稳的青绿，专业感更强。",
+
+    primary: "#0D9488",
+    primaryHover: "#0B8278",
+    primaryActive: "#0A736A",
+    primarySoft: "#E7F4F3",
+    primaryBorder: "#C3E4E1",
+    primaryText: "#14161A",
+    primaryOnSoft: "#0B7970",
+
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5FA",
+
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(13, 148, 136, 0.15)",
+
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
+
+    success: "#15803D",
+    successSoft: "#ECFDF3",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#0D9488",
+    infoSoft: "#E7F4F3",
+
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#0D9488",
   },
 };
 
 export const CLIPLY_THEME_OPTIONS = Object.values(CLIPLY_THEMES);
 
-// 推荐首屏只展示这 4 个，Coral / Rose 可放到“更多主题”里。
+// 推荐首屏展示这几个，其余在“更多主题”里。
 export const RECOMMENDED_THEME_NAMES: CliplyThemeName[] = [
-  "purple-default",
-  "mint-green",
-  "lake-blue",
-  "teal-fresh",
+  "system-blue",
+  "indigo-spark",
+  "magenta-pop",
+  "lime-punch",
 ];
 
 export function isCliplyThemeName(value: unknown): value is CliplyThemeName {
@@ -585,6 +864,7 @@ export function cssVarsFromCliplyTheme(theme: CliplyThemeTokens): Record<string,
     "--cliply-primary-border": theme.primaryBorder,
     "--cliply-primary-border-selected": theme.primaryBorderSelected ?? theme.primaryBorder,
     "--cliply-primary-text": theme.primaryText,
+    "--cliply-accent-on-soft": theme.primaryOnSoft ?? theme.primaryHover,
 
     "--cliply-app-bg": theme.appBg,
     "--cliply-window-bg": theme.windowBg,
@@ -757,33 +1037,36 @@ function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
     primaryBorderSelected: isDefaultPurple
       ? "rgba(167, 139, 250, 0.75)"
       : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.72)`,
-    primaryText: "#FFFFFF",
+    // Dark accents are light, so filled controls take dark text (Fluent).
+    primaryText: "#10151A",
+    primaryOnSoft: darkAccent,
     swatch: darkAccent,
-    appBg: "#0B1120",
-    windowBg: "#0F172A",
-    panelBg: "#111C2E",
-    cardBg: "#152238",
-    inputBg: "#101A2D",
-    mutedBg: "#111D31",
-    border: "rgba(148, 163, 184, 0.18)",
-    borderStrong: "rgba(148, 163, 184, 0.28)",
-    divider: "rgba(148, 163, 184, 0.12)",
-    text: "#F8FAFC",
-    bodyText: "#E5E7EB",
-    textSecondary: "#CBD5E1",
-    muted: "#94A3B8",
-    placeholder: "#64748B",
-    disabledText: "#64748B",
-    focusBorder: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.65)`,
-    focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
+    appBg: "#141719",
+    windowBg: "#17191C",
+    panelBg: "#1E2125",
+    cardBg: "#1E2125",
+    inputBg: "#1A1D21",
+    mutedBg: "#25292E",
+    border: "rgba(255, 255, 255, 0.09)",
+    borderStrong: "rgba(255, 255, 255, 0.16)",
+    divider: "rgba(255, 255, 255, 0.055)",
+    text: "#F2F4F6",
+    bodyText: "#DFE3E8",
+    textSecondary: "#9BA5B1",
+    muted: "#79838F",
+    placeholder: "#79838F",
+    disabledText: "#5D666F",
+    focusBorder: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`,
+    focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`,
     successSoft: "rgba(34, 197, 94, 0.14)",
     warningSoft: "rgba(245, 158, 11, 0.16)",
     dangerSoft: "rgba(239, 68, 68, 0.16)",
     infoSoft: "rgba(37, 99, 235, 0.18)",
-    shadowWindow: "0 24px 80px rgba(0, 0, 0, 0.48)",
-    shadowPanel: "0 14px 36px rgba(0, 0, 0, 0.28)",
-    shadowCardHover: "0 12px 28px rgba(0, 0, 0, 0.32)",
-    shadowSelected: `0 0 0 1px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`,
+    shadowWindow:
+      "0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3)",
+    shadowPanel: "0 1px 2px rgba(0, 0, 0, 0.28)",
+    shadowCardHover: "0 1px 2px rgba(0, 0, 0, 0.34)",
+    shadowSelected: "none",
   };
 }
 
@@ -815,12 +1098,52 @@ function withDarkAccent(theme: CliplyThemeTokens, accent: string): CliplyThemeTo
   };
 }
 
+/// True WCAG relative luminance (gamma-corrected), unlike the cheap weighted
+/// average used for rough accent-tone checks.
+function wcagLuminance(rgb: { r: number; g: number; b: number }) {
+  const channel = (value: number) => {
+    const c = value / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return (
+    0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
+  );
+}
+
+function contrastRatio(a: string, b: string) {
+  const rgbA = hexToRgb(a);
+  const rgbB = hexToRgb(b);
+  if (!rgbA || !rgbB) {
+    return 1;
+  }
+  const lumA = wcagLuminance(rgbA);
+  const lumB = wcagLuminance(rgbB);
+  return (Math.max(lumA, lumB) + 0.05) / (Math.min(lumA, lumB) + 0.05);
+}
+
+// Reference surface the dark-mode accent has to stay legible against: the dark
+// card colour, warmed slightly to stand in for the translucent accent wash.
+const DARK_SURFACE_REFERENCE = "#262A30";
+
 function normalizeDefaultDarkAccent(accent: string) {
   const normalized = normalizeHexColor(accent);
   if (!normalized) {
-    return "#7C5CFF";
+    return "#5FA8EE";
   }
-  return normalized === "#6D4CFF" ? "#7C5CFF" : normalized;
+
+  // On dark surfaces the accent is both a filled-button background (with dark
+  // text) and an on-surface text colour, so lighten any hue until it clears
+  // both. Hardcoding a couple of hues left every other theme broken in dark.
+  if (contrastRatio(normalized, DARK_SURFACE_REFERENCE) >= 4.8) {
+    return normalized;
+  }
+  for (let amount = 0.04; amount <= 0.9; amount += 0.04) {
+    const candidate = mixHex(normalized, "#FFFFFF", amount);
+    if (contrastRatio(candidate, DARK_SURFACE_REFERENCE) >= 4.8) {
+      return candidate;
+    }
+  }
+  return mixHex(normalized, "#FFFFFF", 0.9);
 }
 
 function isDarkTheme(theme: CliplyThemeTokens) {

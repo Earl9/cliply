@@ -120,7 +120,7 @@ function ToastCard({
   return (
     <div
       className={clsx(
-        "cliply-toast pointer-events-auto grid min-w-[280px] max-w-[340px] grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-2xl px-4 py-3.5 text-left",
+        "cliply-toast pointer-events-auto grid min-w-[260px] max-w-[340px] grid-cols-[auto_minmax(0,1fr)_auto] gap-2.5 rounded-[6px] px-3 py-2.5 text-left",
         contextual ? "w-[300px]" : "w-full",
       )}
       data-phase={phase}
@@ -129,23 +129,20 @@ function ToastCard({
     >
       <span
         className={clsx(
-          "mt-0.5 grid size-6 place-items-center rounded-full",
-          tone === "success" &&
-            "bg-[color:var(--cliply-success-soft)] text-[color:var(--cliply-success)]",
-          tone === "warning" &&
-            "bg-[color:var(--cliply-warning-soft)] text-[color:var(--cliply-warning)]",
-          tone === "error" &&
-            "bg-[color:var(--cliply-danger-soft)] text-[color:var(--cliply-danger)]",
+          "mt-0.5 grid size-5 place-items-center",
+          tone === "success" && "text-[color:var(--cliply-success)]",
+          tone === "warning" && "text-[color:var(--cliply-warning)]",
+          tone === "error" && "text-[color:var(--cliply-danger)]",
         )}
       >
         <Icon className="size-4" />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[13px] font-semibold text-[color:var(--cliply-text)]">
+        <span className="block truncate text-[13px] font-medium text-[color:var(--cliply-text)]">
           {toast.title}
         </span>
         {toast.description ? (
-          <span className="mt-0.5 block max-h-10 overflow-hidden break-words text-xs font-medium leading-5 text-[color:var(--cliply-muted)]">
+          <span className="mt-0.5 block max-h-10 overflow-hidden break-words text-xs leading-5 text-[color:var(--cliply-muted)]">
             {toast.description}
           </span>
         ) : null}
@@ -155,12 +152,12 @@ function ToastCard({
           type="button"
           aria-label="关闭提示"
           onClick={onClose}
-          className="-mr-1 -mt-1 grid size-7 place-items-center rounded-lg text-[color:var(--cliply-muted)] transition hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]"
+          className="-mr-1 -mt-0.5 grid size-6 place-items-center rounded-[4px] text-[color:var(--cliply-muted)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]"
         >
-          <X className="size-4" />
+          <X className="size-3.5" />
         </button>
       ) : (
-        <span className="size-7" aria-hidden="true" />
+        <span className="size-6" aria-hidden="true" />
       )}
     </div>
   );

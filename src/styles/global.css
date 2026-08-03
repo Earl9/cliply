@@ -1,94 +1,119 @@
 @import "tailwindcss";
 
+/*
+ * Type: Windows 11 ships the Segoe UI Variable optical-size family. Using the
+ * right cut per size (Small for captions, Text for UI, Display for titles) is
+ * what makes native Fluent surfaces read as crisp rather than generic. CJK has
+ * no coverage there and falls through to Microsoft YaHei UI, same as the OS.
+ */
 :root {
   font-family:
-    "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
-  color: #111827;
+    "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--cliply-text);
   background: var(--cliply-panel);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --cliply-bg: #f5f7fb;
-  --cliply-bg-soft: #fbfdff;
-  --cliply-panel: #fbfdff;
+  /* Fluent's standard decelerate curve; short enough to feel instant. */
+  --cliply-ease: cubic-bezier(0.2, 0, 0, 1);
+  --cliply-duration: 120ms;
+
+  --cliply-bg: #f5f9fd;
+  --cliply-bg-soft: #fafcfe;
+  --cliply-panel: #f5f9fd;
   --cliply-panel-strong: #ffffff;
   --cliply-card: #ffffff;
   --cliply-card-solid: #ffffff;
-  --cliply-border: #dfe6ef;
-  --cliply-border-soft: #edf1f6;
-  --cliply-border-strong: #d8e1ec;
-  --cliply-text: #111827;
-  --cliply-body-text: #1f2937;
-  --cliply-muted: #5f6b7a;
-  --cliply-faint: #7c8798;
-  --cliply-placeholder: #6f7b8d;
-  --cliply-disabled: #b6bec9;
-  --cliply-disabled-bg: #f3f5f8;
-  --cliply-disabled-border: #edf1f6;
+  --cliply-border: #e2eaf2;
+  --cliply-border-soft: #edf3f8;
+  --cliply-border-strong: #cedbe8;
+  --cliply-text: #1b2734;
+  --cliply-body-text: #2c3a49;
+  /* Note: `faint` is the darker secondary and `muted` the lighter tertiary —
+     that is the mapping theme.ts injects at runtime, so the static fallbacks
+     here have to agree with it. */
+  --cliply-faint: #5f6f80;
+  --cliply-muted: #64748b;
+  --cliply-placeholder: #7c8b9c;
+  --cliply-disabled: #b9c5d1;
+  --cliply-disabled-bg: #eff5fa;
+  --cliply-disabled-border: #edf3f8;
+  --cliply-input-bg: #ffffff;
+  --cliply-muted-bg: #eff5fa;
   --cliply-checker-color: rgba(148, 163, 184, 0.1);
   --cliply-checker-size: 14px;
   --cliply-checker-half: 7px;
-  --cliply-accent-50: #eff1ff;
-  --cliply-accent-100: #dee2ff;
-  --cliply-accent: #5b6cff;
-  --cliply-accent-strong: #5b6cff;
-  --cliply-accent-dark: #4b58d6;
-  --cliply-accent-soft: #eef0ff;
-  --cliply-accent-border: #d7dcff;
-  --cliply-success: #16a34a;
-  --cliply-warning: #f59e0b;
+  --cliply-accent-50: #e8f1fc;
+  --cliply-accent-100: #d3e5f9;
+  --cliply-accent: #1f74cc;
+  --cliply-accent-strong: #1f74cc;
+  --cliply-accent-dark: #1962b0;
+  --cliply-accent-soft: #e8f1fc;
+  --cliply-accent-border: #c2dbf5;
+  /* Accent darkened for text on `accent-soft`; themes override this per-hue. */
+  --cliply-accent-on-soft: #1962b0;
+  --cliply-primary-text: #ffffff;
+  --cliply-success: #15803d;
+  --cliply-warning: #b45309;
   --cliply-danger: #dc2626;
   --cliply-danger-soft: #fef2f2;
-  --cliply-info: #2563eb;
-  --cliply-info-soft: #eff6ff;
+  --cliply-info: #1f74cc;
+  --cliply-info-soft: #e8f1fc;
   --cliply-teal: #0f928b;
   --cliply-amber: #b7791f;
-  --cliply-shadow: 0 26px 84px rgba(15, 23, 42, 0.14);
-  --cliply-shadow-card: 0 12px 32px rgba(15, 23, 42, 0.055);
-  --cliply-shadow-card-hover: 0 10px 24px rgba(15, 23, 42, 0.07);
-  --cliply-shadow-selected:
-    0 0 0 1px #7c5cff,
-    0 8px 22px rgba(124, 92, 255, 0.14);
+  /* Elevation is a hairline plus a tight 1px lift, not a blurry drop shadow. */
+  --cliply-shadow-card: 0 1px 2px rgba(27, 39, 52, 0.04);
+  --cliply-shadow-card-hover: 0 1px 2px rgba(27, 39, 52, 0.06);
+  --cliply-shadow-popover: 0 8px 24px rgba(27, 39, 52, 0.12);
+  --cliply-shadow-dialog:
+    0 12px 32px rgba(27, 39, 52, 0.14),
+    0 2px 6px rgba(27, 39, 52, 0.07);
+  --cliply-shadow: var(--cliply-shadow-dialog);
+  --cliply-shadow-selected: none;
 }
 
 :root[data-theme="dark"] {
-  --cliply-bg: #0b1120;
-  --cliply-bg-soft: #0f172a;
-  --cliply-panel: #0f172a;
-  --cliply-panel-strong: #111c2e;
-  --cliply-card: #152238;
-  --cliply-card-solid: #152238;
-  --cliply-border: rgba(148, 163, 184, 0.18);
-  --cliply-border-soft: rgba(148, 163, 184, 0.12);
-  --cliply-border-strong: rgba(148, 163, 184, 0.28);
-  --cliply-primary: #7C5CFF;
-  --cliply-primary-hover: #8B6DFF;
-  --cliply-primary-active: #6D4CFF;
-  --cliply-primary-soft: rgba(124, 92, 255, 0.16);
-  --cliply-primary-border: rgba(167, 139, 250, 0.55);
-  --cliply-primary-border-selected: rgba(167, 139, 250, 0.75);
-  --cliply-accent: #7C5CFF;
-  --cliply-accent-strong: #7C5CFF;
-  --cliply-accent-dark: #8B6DFF;
-  --cliply-accent-50: rgba(124, 92, 255, 0.16);
-  --cliply-accent-100: rgba(124, 92, 255, 0.16);
-  --cliply-accent-soft: rgba(124, 92, 255, 0.16);
-  --cliply-accent-border: rgba(167, 139, 250, 0.55);
-  --cliply-accent-border-selected: rgba(167, 139, 250, 0.75);
-  --cliply-focus-border: rgba(124, 92, 255, 0.65);
-  --cliply-focus-ring: rgba(124, 92, 255, 0.18);
-  --cliply-text: #f8fafc;
-  --cliply-body-text: #e5e7eb;
-  --cliply-muted: #94a3b8;
-  --cliply-faint: #cbd5e1;
-  --cliply-placeholder: #64748b;
-  --cliply-disabled: #64748b;
-  --cliply-disabled-text: #64748b;
-  --cliply-disabled-bg: rgba(100, 116, 139, 0.16);
-  --cliply-disabled-border: rgba(148, 163, 184, 0.1);
+  --cliply-bg: #141719;
+  --cliply-bg-soft: #17191c;
+  --cliply-panel: #17191c;
+  --cliply-panel-strong: #1e2125;
+  --cliply-card: #1e2125;
+  --cliply-card-solid: #1e2125;
+  --cliply-border: rgba(255, 255, 255, 0.09);
+  --cliply-border-soft: rgba(255, 255, 255, 0.055);
+  --cliply-border-strong: rgba(255, 255, 255, 0.16);
+  --cliply-primary: #5fa8ee;
+  --cliply-primary-hover: #7cb8f2;
+  --cliply-primary-active: #4d97dd;
+  --cliply-primary-soft: rgba(95, 168, 238, 0.14);
+  --cliply-primary-border: rgba(95, 168, 238, 0.42);
+  --cliply-primary-border-selected: rgba(95, 168, 238, 0.6);
+  --cliply-accent: #5fa8ee;
+  --cliply-accent-strong: #5fa8ee;
+  --cliply-accent-dark: #7cb8f2;
+  --cliply-accent-50: rgba(95, 168, 238, 0.14);
+  --cliply-accent-100: rgba(95, 168, 238, 0.14);
+  --cliply-accent-soft: rgba(95, 168, 238, 0.14);
+  --cliply-accent-border: rgba(95, 168, 238, 0.42);
+  --cliply-accent-border-selected: rgba(95, 168, 238, 0.6);
+  --cliply-accent-on-soft: #5fa8ee;
+  --cliply-primary-text: #10151a;
+  --cliply-focus-border: rgba(95, 168, 238, 0.6);
+  --cliply-focus-ring: rgba(95, 168, 238, 0.16);
+  --cliply-text: #f2f4f6;
+  --cliply-body-text: #dfe3e8;
+  --cliply-muted: #9ba5b1;
+  --cliply-faint: #8a94a0;
+  --cliply-placeholder: #8a94a0;
+  --cliply-disabled: #5d666f;
+  --cliply-disabled-text: #5d666f;
+  --cliply-disabled-bg: rgba(255, 255, 255, 0.05);
+  --cliply-disabled-border: rgba(255, 255, 255, 0.05);
+  --cliply-input-bg: #1a1d21;
+  --cliply-muted-bg: #25292e;
   --cliply-checker-color: rgba(148, 163, 184, 0.045);
   --cliply-checker-size: 24px;
   --cliply-checker-half: 12px;
@@ -96,10 +121,14 @@
   --cliply-warning-soft: rgba(245, 158, 11, 0.16);
   --cliply-danger-soft: rgba(239, 68, 68, 0.16);
   --cliply-info-soft: rgba(37, 99, 235, 0.18);
-  --cliply-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
-  --cliply-shadow-card: 0 14px 36px rgba(0, 0, 0, 0.28);
-  --cliply-shadow-card-hover: 0 12px 28px rgba(0, 0, 0, 0.32);
-  --cliply-shadow-selected: 0 0 0 1px rgba(124, 92, 255, 0.28);
+  --cliply-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --cliply-shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.34);
+  --cliply-shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.44);
+  --cliply-shadow-dialog:
+    0 12px 32px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  --cliply-shadow: var(--cliply-shadow-dialog);
+  --cliply-shadow-selected: none;
 }
 
 * {
@@ -138,25 +167,38 @@ body {
   background: var(--cliply-panel);
   border: 0;
   border-radius: 0;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.28);
+  box-shadow: inset 0 0 0 1px var(--cliply-border);
   isolation: isolate;
   overflow: hidden;
+}
+
+/* Captions use the Small optical cut, which stays legible at 11px. */
+.cliply-caption {
+  font-family:
+    "Segoe UI Variable Small", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* Dialog and section titles use the Display cut. */
+.cliply-title {
+  font-family:
+    "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 @keyframes cliply-window-enter {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.985);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
 .cliply-window-enter {
-  animation: cliply-window-enter 160ms ease-out both;
+  animation: cliply-window-enter 120ms ease-out both;
 }
 
 button,
@@ -175,12 +217,16 @@ button {
 }
 
 ::selection {
-  background: rgba(101, 84, 246, 0.22);
+  background: rgba(31, 116, 204, 0.18);
+}
+
+:root[data-theme="dark"] ::selection {
+  background: rgba(95, 168, 238, 0.3);
 }
 
 .cliply-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.34) transparent;
+  scrollbar-color: rgba(100, 116, 139, 0.32) transparent;
 }
 
 .cliply-scrollbar::-webkit-scrollbar {
@@ -192,14 +238,14 @@ button {
 }
 
 .cliply-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.38);
+  background: rgba(148, 163, 184, 0.36);
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
 }
 
 .cliply-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.52);
+  background: rgba(100, 116, 139, 0.5);
   border: 3px solid transparent;
   background-clip: content-box;
 }
@@ -212,24 +258,43 @@ button {
   container-type: inline-size;
 }
 
-:root[data-theme="dark"] .cliply-list-item-selected {
-  background-color: var(--cliply-primary-soft) !important;
-  border-color: var(--cliply-primary-border-selected) !important;
-  box-shadow: var(--cliply-shadow-selected) !important;
-  color: var(--cliply-text);
+/*
+ * List rows: no dividers. Hover and selection are rounded inset blocks, and the
+ * selected row carries the Fluent left accent rail.
+ */
+.cliply-row {
+  transition: background-color var(--cliply-duration) var(--cliply-ease);
+}
+
+.cliply-row-selected {
+  background-color: var(--cliply-accent-soft);
+}
+
+.cliply-row-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 56%;
+  width: 3px;
+  transform: translateY(-50%);
+  border-radius: 0 3px 3px 0;
+  background: var(--cliply-accent);
+}
+
+.cliply-interactive {
+  transition:
+    background-color var(--cliply-duration) var(--cliply-ease),
+    border-color var(--cliply-duration) var(--cliply-ease),
+    color var(--cliply-duration) var(--cliply-ease);
 }
 
 :root[data-theme="dark"] .cliply-pin-button[data-pinned="true"] {
-  color: var(--cliply-primary) !important;
+  color: var(--cliply-accent) !important;
 }
 
 :root[data-theme="dark"] .cliply-pin-button[data-pinned="true"] svg {
-  fill: var(--cliply-primary) !important;
-}
-
-:root[data-theme="dark"] .cliply-badge[data-tone="accent"] {
-  background-color: var(--cliply-primary-soft) !important;
-  color: var(--cliply-primary) !important;
+  fill: var(--cliply-accent) !important;
 }
 
 :root[data-theme="dark"] .cliply-search-shell {
@@ -239,42 +304,30 @@ button {
 
 :root[data-theme="dark"] .cliply-search-shell:focus-within {
   border-color: var(--cliply-focus-border) !important;
-  box-shadow:
-    0 0 0 3px var(--cliply-focus-ring),
-    0 8px 24px rgba(0, 0, 0, 0.18) !important;
 }
 
 :root[data-theme="dark"] .cliply-pill-tab-active {
-  background-color: var(--cliply-primary-soft) !important;
-  border-color: var(--cliply-primary-border) !important;
-  color: var(--cliply-primary) !important;
+  background-color: var(--cliply-accent-soft) !important;
+  color: var(--cliply-accent) !important;
 }
 
+/* Fluent dark theme puts dark text on accent-filled buttons: the dark-mode
+   accent is light, so white text on it would not be readable. */
 :root[data-theme="dark"] .cliply-action-button[data-primary="true"] {
-  background-color: var(--cliply-primary) !important;
-  border-color: transparent !important;
-  color: var(--cliply-primary-text) !important;
+  background-color: var(--cliply-primary, var(--cliply-accent)) !important;
+  color: #10151a !important;
+}
+
+:root[data-theme="dark"] .cliply-action-button[data-primary="true"] kbd {
+  color: rgba(16, 21, 26, 0.72) !important;
 }
 
 :root[data-theme="dark"] .cliply-action-button[data-primary="true"]:hover {
-  background-color: var(--cliply-primary-hover) !important;
+  background-color: var(--cliply-primary-hover, var(--cliply-accent-dark)) !important;
 }
 
-@container (max-width: 540px) {
-  .cliply-detail-pane .cliply-action-bar {
-    gap: 6px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    padding-inline: 12px;
-  }
-
-  .cliply-detail-pane .cliply-action-button {
-    height: 44px;
-    flex-direction: row;
-    gap: 6px;
-    padding-inline: 6px;
-  }
-
-  .cliply-detail-pane .cliply-action-shortcut {
+@container (max-width: 520px) {
+  .cliply-detail-pane .cliply-action-label {
     display: none;
   }
 }
@@ -297,7 +350,7 @@ button {
 @keyframes cliply-toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(4px);
   }
 
   to {
@@ -309,35 +362,55 @@ button {
 @keyframes cliply-toast-out {
   from {
     opacity: 1;
-    transform: translateY(0);
   }
 
   to {
     opacity: 0;
-    transform: translateY(4px);
   }
 }
 
 .cliply-toast {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: var(--cliply-card);
+  border: 1px solid var(--cliply-border);
+  box-shadow: var(--cliply-shadow-popover);
 }
 
 .cliply-toast[data-phase="open"] {
-  animation: cliply-toast-in 200ms ease-out both;
+  animation: cliply-toast-in 140ms var(--cliply-ease) both;
 }
 
 .cliply-toast[data-phase="closing"] {
-  animation: cliply-toast-out 180ms ease-in both;
+  animation: cliply-toast-out 100ms ease-in both;
 }
 
-:root[data-theme="dark"] .cliply-toast {
-  background: rgba(15, 23, 42, 0.68);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+@keyframes cliply-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cliply-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cliply-overlay {
+  animation: cliply-overlay-in 100ms ease-out both;
+}
+
+.cliply-dialog {
+  animation: cliply-dialog-in 140ms var(--cliply-ease) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
