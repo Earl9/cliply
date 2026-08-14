@@ -98,13 +98,14 @@ Argument meanings:
 - `--target-version`: version being installed.
 - `--preserve-user-data`: never delete local history or settings during update.
 - `--launch-after-install`: start Cliply after a successful update.
-- `--parent-pid`: wait briefly for the launching Cliply process to exit before replacing files.
+- `--parent-pid`: wait for the launching Cliply process to exit before replacing files; terminate its process tree if graceful shutdown exceeds the limit.
 
 Modern Installer update mode:
 
 - Shows "正在更新 Cliply".
 - Waits for the parent Cliply process to exit.
 - Closes any remaining running `cliply.exe`.
+- Replaces program files atomically and retries transient Windows sharing locks for up to 30 seconds.
 - Preserves `%APPDATA%\com.cliply.app` and `%LOCALAPPDATA%\com.cliply.app`.
 - Overwrites program files from the embedded payload.
 - Updates registry information and shortcuts.
@@ -113,8 +114,8 @@ Modern Installer update mode:
 The NSIS setup is retained only as a fallback for manual installation or
 recovery. It is not the primary in-app update UI.
 
-If automatic installation fails, the UI should offer the GitHub Release page so
-users can download `Cliply_*_x64-modern-installer.exe` and run it manually.
+If automatic installation still fails, the update screen stops its progress
+animation and offers direct actions to retry or close the installer.
 
 ## Uninstall Behavior
 

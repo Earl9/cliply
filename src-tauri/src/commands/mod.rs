@@ -22,6 +22,7 @@ const CLIPLY_RELEASE_PAGE_URL: &str = "https://github.com/Earl9/cliply/releases/
 const CLIPLY_UPDATE_MANIFEST_URL: &str =
     "https://github.com/Earl9/cliply/releases/latest/download/latest.json";
 const MODERN_INSTALLER_FILE_NAME: &str = "cliply-modern-installer.exe";
+const UPDATE_EXIT_GRACE_PERIOD: Duration = Duration::from_secs(4);
 
 #[tauri::command]
 pub async fn initialize_storage(app: AppHandle) -> Result<(), String> {
@@ -625,8 +626,18 @@ pub async fn launch_modern_update_installer(
         ),
     );
 
+    arm_update_exit_watchdog();
     app.exit(0);
     Ok(())
+}
+
+fn arm_update_exit_watchdog() {
+    let _ = std::thread::Builder::new()
+        .name("cliply-update-exit".to_string())
+        .spawn(|| {
+            std::thread::sleep(UPDATE_EXIT_GRACE_PERIOD);
+            std::process::exit(0);
+        });
 }
 
 #[tauri::command]

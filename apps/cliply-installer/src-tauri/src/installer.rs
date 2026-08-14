@@ -18,6 +18,10 @@ const PRODUCT_UNINSTALLER: &str = "uninstall.exe";
 const PRODUCT_REG_KEY: &str = r"Software\cliply\Cliply";
 const PRODUCT_UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Cliply";
 const START_MENU_FOLDER: &str = "Cliply";
+const PARENT_EXIT_TIMEOUT: Duration = Duration::from_secs(12);
+const PROCESS_EXIT_TIMEOUT: Duration = Duration::from_secs(8);
+const FILE_REMOVE_TIMEOUT: Duration = Duration::from_secs(15);
+const FILE_REPLACE_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Error)]
 pub enum InstallError {
@@ -35,7 +39,9 @@ pub enum InstallError {
         path: String,
         source: std::io::Error,
     },
-    #[error("无法替换程序文件 {path}。Cliply 可能仍在运行，或该文件正在被安全软件扫描。请退出 Cliply 后重试；若问题仍然存在，请重新启动 Windows 后再次安装。详细信息：{source}")]
+    #[error(
+        "程序文件仍被占用，更新尚未完成。关闭 Cliply 后可重新尝试；如仍失败，请重启 Windows。"
+    )]
     ReplaceLockedFile {
         path: String,
         source: std::io::Error,
@@ -176,7 +182,12 @@ where
     let preserve_user_data = options.preserve_user_data || options.is_update;
     if let Some(parent_pid) = options.parent_pid {
         on_progress(progress(4, "正在等待 Cliply 退出"));
-        wait_for_process_exit(parent_pid, Duration::from_secs(10));
+        if !wait_for_process_exit(parent_pid, PARENT_EXIT_TIMEOUT) {
+            terminate_process_tree(parent_pid);
+            if !wait_for_process_exit(parent_pid, PROCESS_EXIT_TIMEOUT) {
+                return Err(InstallError::StopRunningCliply);
+            }
+        }
     }
 
     on_progress(progress(8, "正在关闭 Cliply"));
@@ -448,14 +459,17 @@ fn write_file_atomic(path: &Path, bytes: &[u8]) -> InstallResult<()> {
         source,
     })?;
 
-    if path.exists() {
-        remove_file_with_retry(path)?;
-    }
-
-    rename_file_with_retry(&temp_path, path).map_err(|error| {
+    replace_file_with_retry(&temp_path, path, FILE_REPLACE_TIMEOUT).inspect_err(|_| {
         let _ = fs::remove_file(&temp_path);
-        error
     })
+}
+
+fn terminate_process_tree(pid: u32) {
+    let pid = pid.to_string();
+    let _ = Command::new("taskkill")
+        .args(["/PID", &pid, "/F", "/T"])
+        .creation_flags_no_window()
+        .status();
 }
 
 fn stop_running_cliply() -> InstallResult<()> {
@@ -468,7 +482,7 @@ fn stop_running_cliply() -> InstallResult<()> {
         .creation_flags_no_window()
         .status();
 
-    wait_until_cliply_exits(Duration::from_secs(8))
+    wait_until_cliply_exits(PROCESS_EXIT_TIMEOUT)
         .then_some(())
         .ok_or(InstallError::StopRunningCliply)
 }
@@ -586,42 +600,102 @@ fn open_url(url: &str) -> std::io::Result<()> {
 fn remove_file_with_retry(path: &Path) -> InstallResult<()> {
     clear_readonly(path);
 
-    let mut last_error = None;
-    for _ in 0..12 {
-        match fs::remove_file(path) {
+    let deadline = Instant::now() + FILE_REMOVE_TIMEOUT;
+    let mut retry_delay = Duration::from_millis(200);
+    let last_error = loop {
+        let error = match fs::remove_file(path) {
             Ok(()) => return Ok(()),
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
-            Err(error) => {
-                last_error = Some(error);
-                thread::sleep(Duration::from_millis(300));
-            }
+            Err(error) => error,
+        };
+
+        if !sleep_before_retry(deadline, &mut retry_delay) {
+            break error;
         }
-    }
+    };
 
     Err(InstallError::ReplaceLockedFile {
         path: path.to_string_lossy().to_string(),
-        source: last_error
-            .unwrap_or_else(|| io::Error::new(io::ErrorKind::Other, "unknown remove error")),
+        source: last_error,
     })
 }
 
-fn rename_file_with_retry(from: &Path, to: &Path) -> InstallResult<()> {
-    let mut last_error = None;
-    for _ in 0..12 {
-        match fs::rename(from, to) {
+fn replace_file_with_retry(from: &Path, to: &Path, timeout: Duration) -> InstallResult<()> {
+    clear_readonly(to);
+
+    let deadline = Instant::now() + timeout;
+    let mut retry_delay = Duration::from_millis(200);
+    let last_error = loop {
+        let error = match replace_file_once(from, to) {
             Ok(()) => return Ok(()),
-            Err(error) => {
-                last_error = Some(error);
-                thread::sleep(Duration::from_millis(300));
-            }
+            Err(error) => error,
+        };
+
+        if !sleep_before_retry(deadline, &mut retry_delay) {
+            break error;
         }
-    }
+    };
 
     Err(InstallError::ReplaceLockedFile {
         path: to.to_string_lossy().to_string(),
-        source: last_error
-            .unwrap_or_else(|| io::Error::new(io::ErrorKind::Other, "unknown rename error")),
+        source: last_error,
     })
+}
+
+fn sleep_before_retry(deadline: Instant, retry_delay: &mut Duration) -> bool {
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    if remaining.is_zero() {
+        return false;
+    }
+
+    thread::sleep((*retry_delay).min(remaining));
+    *retry_delay = (*retry_delay + Duration::from_millis(150)).min(Duration::from_secs(1));
+    true
+}
+
+#[cfg(windows)]
+fn replace_file_once(from: &Path, to: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::{
+        core::PCWSTR,
+        Win32::Storage::FileSystem::{
+            MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+        },
+    };
+
+    let from = from
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let to = to
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    unsafe {
+        MoveFileExW(
+            PCWSTR(from.as_ptr()),
+            PCWSTR(to.as_ptr()),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    }
+    .map_err(|error| {
+        let raw_code = (error.code().0 as u32 & 0xffff) as i32;
+        if raw_code == 0 {
+            io::Error::other(error.to_string())
+        } else {
+            io::Error::from_raw_os_error(raw_code)
+        }
+    })
+}
+
+#[cfg(not(windows))]
+fn replace_file_once(from: &Path, to: &Path) -> io::Result<()> {
+    if to.exists() {
+        fs::remove_file(to)?;
+    }
+    fs::rename(from, to)
 }
 
 fn clear_readonly(path: &Path) {
@@ -701,5 +775,55 @@ impl CommandNoWindow for Command {
     #[cfg(not(windows))]
     fn creation_flags_no_window(&mut self) -> &mut Self {
         self
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+    use std::{
+        fs::OpenOptions,
+        os::windows::fs::OpenOptionsExt,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    const FILE_SHARE_READ: u32 = 0x0000_0001;
+
+    #[test]
+    fn atomic_replacement_waits_for_a_transient_file_lock() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "cliply-installer-replace-test-{}-{unique}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("test directory should be created");
+        let current = root.join("cliply.exe");
+        let replacement = root.join("cliply.new.exe");
+        fs::write(&current, b"old").expect("current file should be written");
+        fs::write(&replacement, b"new").expect("replacement file should be written");
+
+        let locked_file = OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ)
+            .open(&current)
+            .expect("current file should be locked for the test");
+        let release_lock = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(600));
+            drop(locked_file);
+        });
+
+        replace_file_with_retry(&replacement, &current, Duration::from_secs(3))
+            .expect("replacement should succeed after the lock is released");
+        release_lock.join().expect("lock release should finish");
+        assert_eq!(
+            fs::read(&current).expect("updated file should exist"),
+            b"new"
+        );
+        assert!(!replacement.exists());
+
+        fs::remove_dir_all(root).expect("test directory should be removed");
     }
 }

@@ -2,7 +2,7 @@
 
 > 文档版本：2.0
 >
-> 对应应用版本：0.4.1-beta.11
+> 对应应用版本：0.4.1-beta.12
 >
 > 基线与验收日期：2026-08-14
 >
@@ -290,18 +290,18 @@ Clippy 警告主要为 `needless_return`、`let_and_return`、`manual_div_ceil` 
 E:\Cliply\apps\cliply-installer\src-tauri\target\release\cliply-modern-installer.exe
 ```
 
-- 大小：18,442,240 B；
-- SHA256：`457904C9DBD830595B50CCD97C6848E9923E8CE0708F05879405DCFDE5B20BDD`；
+- 大小：18,452,992 B；
+- SHA256：`21E2E210C9F6A32FD80E33F70E8AF209EB920FC314D5BEDC012825EC673B22B3`；
 - Authenticode：未签名。
 
 ### 10.2 NSIS 备用安装包
 
 ```text
-E:\Cliply\src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.11_x64-setup.exe
+E:\Cliply\src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.12_x64-setup.exe
 ```
 
-- 大小：7,119,274 B；
-- SHA256：`2447A8E8CFCEB42F928DFDD31474C99CA6B37B3DF9A488CE84826082583DAF4C`；
+- 大小：7,128,384 B；
+- SHA256：`4CCE0D2D99403DE881B0508D165D781A3A601380B3BF44D6DF3BBEE3239D920B`；
 - Authenticode：未签名。
 
 未签名不影响本地性能验收，但正式发布前应通过发布证书完成签名，并在签名后重新生成 SHA256。

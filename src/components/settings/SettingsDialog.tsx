@@ -120,7 +120,7 @@ const SETTINGS_TABS: Array<{
   { id: "about", label: "关于", description: "版本信息、数据目录与诊断工具", icon: CircleHelp },
 ];
 
-const CLIPLY_VERSION = "0.4.1-beta.11";
+const CLIPLY_VERSION = "0.4.1-beta.12";
 const ACCENT_PRESET_COLORS = [
   "#2F69FA",
   "#1D5FD6",

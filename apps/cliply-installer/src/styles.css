@@ -724,6 +724,14 @@ p {
   animation: spin 900ms linear infinite;
 }
 
+.installing-mark.error {
+  color: var(--cliply-danger);
+}
+
+.installing-mark.error svg {
+  animation: none;
+}
+
 .process-heading {
   align-self: center;
 }
@@ -818,6 +826,13 @@ p {
   font-size: 11.5px;
 }
 
+.mini-actions .primary-button {
+  height: 34px;
+  min-width: 112px;
+  padding-inline: 15px;
+  font-size: 11.5px;
+}
+
 .result-shell {
   display: flex;
   justify-content: center;
@@ -907,6 +922,11 @@ p {
   color: var(--cliply-muted);
   font-size: 11px;
   font-weight: 650;
+}
+
+.trust-note.error,
+.trust-note.error svg {
+  color: var(--cliply-danger);
 }
 
 @keyframes spin {

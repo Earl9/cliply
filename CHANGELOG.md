@@ -7,6 +7,33 @@ semantic versioning where practical during the beta period.
 
 ## Unreleased
 
+## 0.4.1-beta.12 - 2026-08-14
+
+### Changed
+
+- Update failures now stop the progress animation and provide direct actions to
+  retry the operation or close the installer.
+- Installer error text now describes the recovery action without exposing a
+  long operating-system error sentence in the primary interface.
+
+### Fixed
+
+- The application now arms a bounded exit watchdog before handing control to
+  the update installer, preventing a stalled background sync operation from
+  keeping `cliply.exe` open indefinitely.
+- The update installer waits for the launching process, terminates its process
+  tree when graceful shutdown exceeds the limit, and verifies that it exited.
+- Program files are replaced atomically with the Windows file API and retry
+  transient sharing locks for up to 30 seconds, avoiding the `os error 32`
+  failure observed while security software briefly scans the executable.
+
+### Validation
+
+- Added a Windows regression test that holds the installed executable with a
+  delete-denying file lock and confirms replacement succeeds after release.
+- Main and installer frontend builds, both Rust checks, the installer lock
+  regression test, and the complete 54-test Rust suite pass.
+
 ## 0.4.1-beta.11 - 2026-08-14
 
 ### Added

@@ -198,7 +198,7 @@ async function fetchUpdateManifest(): Promise<CliplyUpdateManifest> {
 
 async function getCurrentVersion(): Promise<string> {
   if (!isTauri()) {
-    return "0.4.1-beta.11";
+    return "0.4.1-beta.12";
   }
   return getVersion();
 }

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
+  CircleAlert,
   CircleCheck,
   FolderOpen,
   HardDrive,
@@ -280,6 +281,8 @@ function App() {
             targetVersion={mode.targetVersion}
             progress={progress}
             error={error}
+            onRetry={() => void install()}
+            onClose={() => void getCurrentWindow().close()}
           />
         )}
 
@@ -564,6 +567,8 @@ type WorkingScreenProps = {
   targetVersion?: string | null;
   progress: InstallProgress;
   error: string | null;
+  onRetry: () => void;
+  onClose: () => void;
 };
 
 function WorkingScreen({
@@ -574,27 +579,45 @@ function WorkingScreen({
   targetVersion,
   progress,
   error,
+  onRetry,
+  onClose,
 }: WorkingScreenProps) {
-  const title = isUninstall
-    ? "正在卸载 Cliply"
-    : isUpdate
-      ? "正在更新 Cliply"
-      : "正在安装 Cliply";
+  const title = error
+    ? isUninstall
+      ? "Cliply 卸载未完成"
+      : isUpdate
+        ? "Cliply 更新未完成"
+        : "Cliply 安装未完成"
+    : isUninstall
+      ? "正在卸载 Cliply"
+      : isUpdate
+        ? "正在更新 Cliply"
+        : "正在安装 Cliply";
 
   return (
     <section className="screen process-screen">
       <div className="process-shell">
-        <div className={isUninstall ? "installing-mark danger" : "installing-mark"}>
-          <Loader2 size={29} />
+        <div
+          className={
+            error
+              ? "installing-mark error"
+              : isUninstall
+                ? "installing-mark danger"
+                : "installing-mark"
+          }
+        >
+          {error ? <CircleAlert size={30} /> : <Loader2 size={29} />}
         </div>
         <div className="process-heading">
           <h1>{title}</h1>
           <p>
-            {isUninstall
-              ? "正在移除程序文件、快捷方式和开机启动项。"
-              : isUpdate
-                ? "正在替换程序文件。剪贴板历史记录和应用设置不会更改。"
-                : "正在复制程序文件并应用安装选项。"}
+            {error
+              ? "处理未完成，请根据提示处理后重新尝试。"
+              : isUninstall
+                ? "正在移除程序文件、快捷方式和开机启动项。"
+                : isUpdate
+                  ? "正在替换程序文件。剪贴板历史记录和应用设置不会更改。"
+                  : "正在复制程序文件并应用安装选项。"}
           </p>
         </div>
 
@@ -613,16 +636,17 @@ function WorkingScreen({
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => void invoke("open_installer_log_directory")}
+                onClick={onClose}
               >
-                打开日志文件夹
+                退出安装程序
               </button>
               <button
                 type="button"
-                className="secondary-button"
-                onClick={() => void invoke("open_release_page")}
+                className="primary-button"
+                onClick={onRetry}
               >
-                查看发布页面
+                <RefreshCw size={14} />
+                重新尝试
               </button>
             </div>
           </div>
@@ -660,9 +684,15 @@ function WorkingScreen({
       </div>
 
       <div className="actions process-actions">
-        <div className="trust-note">
-          <LockKeyhole size={14} />
-          {isUninstall ? "正在移除程序文件" : isUpdate ? "正在更新程序文件" : "正在写入程序文件"}
+        <div className={error ? "trust-note error" : "trust-note"}>
+          {error ? <CircleAlert size={14} /> : <LockKeyhole size={14} />}
+          {error
+            ? "操作尚未完成"
+            : isUninstall
+              ? "正在移除程序文件"
+              : isUpdate
+                ? "正在更新程序文件"
+                : "正在写入程序文件"}
         </div>
         {!error && <div className="process-lock">请勿关闭安装程序</div>}
       </div>
