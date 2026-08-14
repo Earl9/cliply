@@ -2,7 +2,7 @@
 
 > 文档版本：2.0
 >
-> 对应应用版本：0.4.1-beta.10
+> 对应应用版本：0.4.1-beta.11
 >
 > 基线与验收日期：2026-08-14
 >
@@ -291,17 +291,17 @@ E:\Cliply\apps\cliply-installer\src-tauri\target\release\cliply-modern-installer
 ```
 
 - 大小：18,442,240 B；
-- SHA256：`0BAB2A45948115A1AD441EEFB005A452E702D1CDAC52486F58A8874A90BD99F7`；
+- SHA256：`457904C9DBD830595B50CCD97C6848E9923E8CE0708F05879405DCFDE5B20BDD`；
 - Authenticode：未签名。
 
 ### 10.2 NSIS 备用安装包
 
 ```text
-E:\Cliply\src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.10_x64-setup.exe
+E:\Cliply\src-tauri\target\release\bundle\nsis\Cliply_0.4.1-beta.11_x64-setup.exe
 ```
 
-- 大小：7,126,141 B；
-- SHA256：`91ED0B9960D3F118EE74BE4D62A761AE25D67D697BD2420E21804A023D5800F6`；
+- 大小：7,119,274 B；
+- SHA256：`2447A8E8CFCEB42F928DFDD31474C99CA6B37B3DF9A488CE84826082583DAF4C`；
 - Authenticode：未签名。
 
 未签名不影响本地性能验收，但正式发布前应通过发布证书完成签名，并在签名后重新生成 SHA256。
