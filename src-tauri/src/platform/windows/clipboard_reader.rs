@@ -142,10 +142,10 @@ fn dib_to_bmp_snapshot(dib: &[u8]) -> Result<Option<ImageSnapshot>, CliplyError>
     let pixel_offset = dib_pixel_offset(dib)?;
     let file_size = 14usize
         .checked_add(dib.len())
-        .ok_or_else(|| CliplyError::PlatformUnavailable("clipboard image is too large".into()))?;
-    let pixel_data_offset = 14usize.checked_add(pixel_offset).ok_or_else(|| {
-        CliplyError::PlatformUnavailable("clipboard image header is invalid".into())
-    })?;
+        .ok_or_else(|| CliplyError::PlatformUnavailable("剪贴板图片过大".into()))?;
+    let pixel_data_offset = 14usize
+        .checked_add(pixel_offset)
+        .ok_or_else(|| CliplyError::PlatformUnavailable("剪贴板图片数据格式不正确".into()))?;
 
     let mut bmp = Vec::with_capacity(file_size);
     bmp.extend_from_slice(b"BM");
@@ -167,7 +167,7 @@ fn dib_pixel_offset(dib: &[u8]) -> Result<usize, CliplyError> {
     let header_size = read_u32_le(dib, 0) as usize;
     if header_size == 0 || header_size > dib.len() {
         return Err(CliplyError::PlatformUnavailable(
-            "clipboard image header is invalid".into(),
+            "剪贴板图片数据格式不正确".into(),
         ));
     }
 
@@ -190,7 +190,7 @@ fn dib_pixel_offset(dib: &[u8]) -> Result<usize, CliplyError> {
     header_size
         .checked_add(mask_bytes)
         .and_then(|offset| offset.checked_add(colors.saturating_mul(4)))
-        .ok_or_else(|| CliplyError::PlatformUnavailable("clipboard image header is invalid".into()))
+        .ok_or_else(|| CliplyError::PlatformUnavailable("剪贴板图片数据格式不正确".into()))
 }
 
 fn read_u16_le(bytes: &[u8], offset: usize) -> u16 {
@@ -305,7 +305,7 @@ impl ClipboardGuard {
         }
 
         Err(CliplyError::PlatformUnavailable(
-            "windows clipboard is currently unavailable after retry".into(),
+            "Windows 剪贴板暂时不可用，请稍后重试".into(),
         ))
     }
 }

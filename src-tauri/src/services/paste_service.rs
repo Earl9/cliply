@@ -92,7 +92,7 @@ fn load_item_payload(app: &AppHandle, id: &str) -> Result<ClipboardWritePayload,
             image_path: None,
         }),
         Err(rusqlite::Error::QueryReturnedNoRows) => Err(CliplyError::PlatformUnavailable(
-            "selected clipboard item was not found".into(),
+            "所选剪贴板记录不存在或已被删除".into(),
         )),
         Err(error) => Err(error.into()),
     }
@@ -129,7 +129,7 @@ fn load_item_text_with_connection(
             "selected clipboard item has no text fallback".into(),
         )),
         Err(rusqlite::Error::QueryReturnedNoRows) => Err(CliplyError::PlatformUnavailable(
-            "selected clipboard item was not found".into(),
+            "所选剪贴板记录不存在或已被删除".into(),
         )),
         Err(error) => Err(error.into()),
     }

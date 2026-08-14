@@ -100,7 +100,7 @@ fn tray_tooltip(app: &AppHandle) -> String {
     if settings_service::is_monitoring_paused(app) {
         "Cliply - 监听已暂停".to_string()
     } else {
-        "Cliply - 本地保存".to_string()
+        "Cliply - 剪贴板监听中".to_string()
     }
 }
 

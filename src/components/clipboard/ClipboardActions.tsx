@@ -1,6 +1,5 @@
 import { Clipboard, Copy, Pin, PinOff, Trash2, Type } from "lucide-react";
 import { clsx } from "clsx";
-import { ShortcutKey } from "@/components/common/ShortcutKey";
 import { getClipboardActionAvailability } from "@/lib/clipboardCapabilities";
 import type { ClipboardActionKind, ClipboardItem } from "@/lib/clipboardTypes";
 
@@ -21,7 +20,7 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
   }> = [
     { label: "复制", keys: ["Ctrl", "C"], icon: Copy, kind: "copy", disabled: !availability.copy },
     {
-      label: "无格式",
+    label: "无格式粘贴",
       keys: ["Shift", "Enter"],
       icon: Type,
       kind: "pastePlain",
@@ -36,25 +35,7 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
   ];
 
   return (
-    <footer className="cliply-action-bar flex h-12 shrink-0 items-center gap-1 border-t border-[color:var(--cliply-border-soft)] px-3.5">
-      <button
-        type="button"
-        disabled={!availability.paste}
-        onClick={() => onAction("paste")}
-        data-primary="true"
-        title="粘贴 (Enter)"
-        className={clsx(
-          "cliply-action-button cliply-interactive flex h-8 shrink-0 items-center gap-2 rounded-[6px] px-3 text-[13px] font-medium",
-          "bg-[color:var(--cliply-accent)] text-[color:var(--cliply-primary-text)] hover:bg-[color:var(--cliply-accent-dark)]",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
-          "disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-disabled-bg)] disabled:text-[color:var(--cliply-disabled)]",
-        )}
-      >
-        <Clipboard className="size-3.5 shrink-0" />
-        <span>粘贴</span>
-        <ShortcutKey keys={["Enter"]} compact tone="onPrimary" />
-      </button>
-
+    <footer className="cliply-action-bar flex h-14 shrink-0 items-center gap-1.5 border-t border-[color:var(--cliply-border)] px-3.5">
       {secondary.map((action) => {
         const Icon = action.icon;
         return (
@@ -65,8 +46,8 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
             onClick={() => onAction(action.kind)}
             title={`${action.label} (${action.keys.join("+")})`}
             className={clsx(
-              "cliply-action-button cliply-interactive flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[6px] px-2.5 text-[13px] text-[color:var(--cliply-body-text)]",
-              "hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
+              "cliply-action-button cliply-interactive flex h-8 min-w-0 shrink items-center gap-1.5 rounded-md px-2.5 text-[12px] text-[color:var(--cliply-body-text)]",
+              "border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-surface-raised)] hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
               "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
               "disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled)] disabled:hover:bg-transparent",
             )}
@@ -77,17 +58,37 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
         );
       })}
 
+      <span aria-hidden="true" className="cliply-action-divider mx-1 h-4 w-px shrink-0 bg-[color:var(--cliply-border)]" />
+
       <button
         type="button"
         onClick={() => onAction("delete")}
         title="删除 (Del)"
         className={clsx(
-          "cliply-action-button cliply-interactive ml-auto flex size-8 shrink-0 items-center justify-center rounded-[6px] text-[color:var(--cliply-muted)]",
+          "cliply-action-button cliply-interactive flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent text-[color:var(--cliply-muted)]",
           "hover:bg-[color:var(--cliply-danger-soft)] hover:text-[color:var(--cliply-danger)]",
           "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-danger)]",
         )}
       >
         <Trash2 className="size-4" />
+      </button>
+
+      <button
+        type="button"
+        disabled={!availability.paste}
+        onClick={() => onAction("paste")}
+        data-primary="true"
+        title="粘贴 (Enter)"
+        className={clsx(
+          "cliply-action-button ml-auto flex h-9 shrink-0 items-center gap-2 rounded-md px-4 text-[12px] font-semibold",
+          "bg-[color:var(--cliply-primary)] text-[color:var(--cliply-primary-action-text)] hover:bg-[color:var(--cliply-primary-hover)] active:bg-[color:var(--cliply-primary-active)]",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
+          "disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-disabled-bg)] disabled:text-[color:var(--cliply-disabled)]",
+        )}
+      >
+        <Clipboard className="size-3.5 shrink-0" />
+        <span>粘贴</span>
+        <span className="cliply-primary-shortcut">Enter</span>
       </button>
     </footer>
   );

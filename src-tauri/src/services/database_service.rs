@@ -9,6 +9,10 @@ const FTS_MIGRATION: &str = include_str!("../db/migrations/002_fts.sql");
 const SYNC_MIGRATION: &str = include_str!("../db/migrations/003_sync.sql");
 const SYNC_BLOBS_MIGRATION: &str = include_str!("../db/migrations/004_sync_blobs.sql");
 const PERF_INDEX_MIGRATION: &str = include_str!("../db/migrations/005_perf_indexes.sql");
+const SYNC_QUEUE_CLEANUP_MIGRATION: &str =
+    include_str!("../db/migrations/006_sync_queue_cleanup.sql");
+const DATABASE_OPTIMIZE_STATE_KEY: &str = "database_last_optimized_at";
+const DATABASE_OPTIMIZE_INTERVAL_DAYS: i64 = 7;
 
 pub fn initialize(app: &AppHandle) -> Result<(), CliplyError> {
     let connection = connect(app)?;
@@ -17,6 +21,7 @@ pub fn initialize(app: &AppHandle) -> Result<(), CliplyError> {
     apply_sync_migration(&connection)?;
     apply_sync_blobs_migration(&connection)?;
     connection.execute_batch(PERF_INDEX_MIGRATION)?;
+    apply_sync_queue_cleanup_migration(&connection)?;
     let device = sync_service::initialize_device(&connection)?;
     logger::info(
         app,
@@ -33,7 +38,41 @@ pub fn initialize(app: &AppHandle) -> Result<(), CliplyError> {
     }
     seed_mock_data(&connection)?;
     migrate_default_theme(&connection)?;
+    if optimize_database_if_due(&connection)? {
+        logger::info(app, "database_optimize", "completed");
+    }
     Ok(())
+}
+
+fn optimize_database_if_due(connection: &Connection) -> Result<bool, CliplyError> {
+    let optimize_due = connection.query_row(
+        "SELECT CASE
+           WHEN EXISTS (
+             SELECT 1
+             FROM sync_state
+             WHERE key = ?1
+               AND julianday(value) IS NOT NULL
+               AND julianday('now') - julianday(value) < ?2
+           ) THEN 0
+           ELSE 1
+         END",
+        params![DATABASE_OPTIMIZE_STATE_KEY, DATABASE_OPTIMIZE_INTERVAL_DAYS],
+        |row| Ok(row.get::<_, i64>(0)? == 1),
+    )?;
+    if !optimize_due {
+        return Ok(false);
+    }
+
+    connection.execute_batch("PRAGMA optimize;")?;
+    connection.execute(
+        "INSERT INTO sync_state (key, value, updated_at)
+         VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+         ON CONFLICT(key) DO UPDATE SET
+           value = excluded.value,
+           updated_at = excluded.updated_at",
+        params![DATABASE_OPTIMIZE_STATE_KEY],
+    )?;
+    Ok(true)
 }
 
 /// One-time migrations that move installs still sitting on a previous
@@ -57,6 +96,24 @@ fn migrate_default_theme(connection: &Connection) -> Result<(), CliplyError> {
         "\"#0067C0\"",
         None,
         "\"#1F74CC\"",
+    )?;
+    // The youthful palette raises the untouched default to a clearer cobalt.
+    migrate_default_accent(
+        connection,
+        "theme_default_migrated_v3",
+        Some("\"system-blue\""),
+        "\"#1F74CC\"",
+        None,
+        "\"#2F69FA\"",
+    )?;
+    // The brand-led palette replaces the untouched blue default with coral.
+    migrate_default_accent(
+        connection,
+        "theme_default_migrated_v4",
+        Some("\"system-blue\""),
+        "\"#2F69FA\"",
+        Some("\"coral-pulse\""),
+        "\"#FF6257\"",
     )?;
     Ok(())
 }
@@ -323,6 +380,12 @@ fn apply_sync_blobs_migration(connection: &Connection) -> Result<(), CliplyError
     Ok(())
 }
 
+fn apply_sync_queue_cleanup_migration(connection: &Connection) -> Result<(), CliplyError> {
+    add_column_if_missing(connection, "sync_events", "abandoned_at", "TEXT NULL")?;
+    connection.execute_batch(SYNC_QUEUE_CLEANUP_MIGRATION)?;
+    Ok(())
+}
+
 fn hide_legacy_privacy_placeholder_items(connection: &Connection) -> Result<usize, CliplyError> {
     let changed = connection.execute(
         "UPDATE clipboard_items
@@ -407,8 +470,8 @@ struct SeedItem<'a> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_sync_blobs_migration, apply_sync_migration, hide_legacy_privacy_placeholder_items,
-        sync_service,
+        apply_sync_blobs_migration, apply_sync_migration, apply_sync_queue_cleanup_migration,
+        hide_legacy_privacy_placeholder_items, optimize_database_if_due, sync_service,
     };
     use rusqlite::{params, Connection};
 
@@ -499,6 +562,76 @@ mod tests {
         assert!(has_column(&connection, "sync_blobs", "blob_type"));
         assert!(has_column(&connection, "sync_blobs", "local_path"));
         assert!(has_column(&connection, "sync_blobs", "uploaded_at"));
+    }
+
+    #[test]
+    fn sync_queue_cleanup_migration_adds_event_abandonment_column() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(
+                "
+                CREATE TABLE clipboard_items (
+                  id TEXT PRIMARY KEY,
+                  type TEXT NOT NULL,
+                  hash TEXT NOT NULL,
+                  is_deleted INTEGER DEFAULT 0,
+                  copied_at TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL,
+                  sync_status TEXT DEFAULT 'pending',
+                  deleted_at TEXT NULL
+                );
+                CREATE TABLE sync_events (
+                  id TEXT PRIMARY KEY,
+                  item_id TEXT,
+                  event_type TEXT NOT NULL,
+                  payload_json TEXT,
+                  created_at TEXT NOT NULL,
+                  synced_at TEXT NULL
+                );
+                CREATE TABLE sync_blobs (
+                  id TEXT PRIMARY KEY,
+                  item_id TEXT NOT NULL,
+                  sync_status TEXT DEFAULT 'pending',
+                  deleted_at TEXT NULL
+                );
+                ",
+            )
+            .expect("legacy sync schema should initialize");
+
+        apply_sync_queue_cleanup_migration(&connection)
+            .expect("sync queue cleanup migration should apply");
+        apply_sync_queue_cleanup_migration(&connection)
+            .expect("sync queue cleanup migration should be idempotent");
+
+        assert!(has_column(&connection, "sync_events", "abandoned_at"));
+    }
+
+    #[test]
+    fn database_optimize_runs_at_most_once_per_week() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(
+                "CREATE TABLE sync_state (
+                   key TEXT PRIMARY KEY,
+                   value TEXT NOT NULL,
+                   updated_at TEXT NOT NULL
+                 );",
+            )
+            .expect("sync state should initialize");
+
+        assert!(optimize_database_if_due(&connection).expect("first optimize should run"));
+        assert!(!optimize_database_if_due(&connection).expect("recent optimize should skip"));
+
+        connection
+            .execute(
+                "UPDATE sync_state
+                 SET value = datetime('now', '-8 days')
+                 WHERE key = 'database_last_optimized_at'",
+                [],
+            )
+            .expect("optimize timestamp should age");
+        assert!(optimize_database_if_due(&connection).expect("old optimize should run again"));
     }
 
     #[test]

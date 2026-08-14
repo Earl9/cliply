@@ -1,7 +1,8 @@
 use crate::error::CliplyError;
 use crate::logger;
 use crate::services::{
-    database_service, sync_blob_service, sync_package_service, sync_secret_service, sync_service,
+    database_service, sync_blob_service, sync_package_service, sync_queue_service,
+    sync_secret_service, sync_service,
     sync_storage_provider::{
         FtpSyncProvider, LocalFolderSyncProvider, SyncProviderConfig, SyncStorageProvider,
         WebdavSyncProvider,
@@ -25,7 +26,6 @@ const LAST_AUTO_ATTEMPT_AT_KEY: &str = "remote_sync_last_auto_attempt_at";
 const MANIFEST_EXISTS_KEY: &str = "remote_sync_manifest_exists";
 const SNAPSHOT_COUNT_KEY: &str = "remote_sync_snapshot_count";
 const IMPORTED_SNAPSHOTS_KEY: &str = "remote_sync_imported_snapshots";
-const AUTO_SYNC_ENABLED_KEY: &str = "remote_sync_auto_enabled";
 const AUTO_SYNC_INTERVAL_MINUTES_KEY: &str = "remote_sync_auto_interval_minutes";
 const DEFAULT_AUTO_SYNC_INTERVAL_MINUTES: u64 = 5;
 const MIN_AUTO_SYNC_INTERVAL_MINUTES: u64 = 1;
@@ -51,6 +51,16 @@ pub struct RemoteSyncStatus {
     pub sync_password_saved: bool,
     pub sync_password_updated_at: Option<String>,
     pub last_auto_sync_at: Option<String>,
+    pub pending_item_count: usize,
+    pub pending_tombstone_count: usize,
+    pub pending_event_count: usize,
+    pub pending_blob_count: usize,
+    pub full_export_required: bool,
+    pub last_queue_abandoned_at: Option<String>,
+    pub last_abandoned_item_count: usize,
+    pub last_abandoned_tombstone_count: usize,
+    pub last_abandoned_event_count: usize,
+    pub last_abandoned_blob_count: usize,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -133,7 +143,7 @@ pub fn set_remote_sync_provider(
             | SyncProviderConfig::Ftp { .. }
     ) {
         return Err(CliplyError::Sync(
-            "当前版本只支持本地文件夹、WebDAV 和 FTP/FTPS provider".to_string(),
+            "当前版本仅支持本地文件夹、WebDAV 和 FTP/FTPS 同步。".to_string(),
         ));
     }
 
@@ -166,7 +176,7 @@ pub fn update_auto_sync_config(
     let password_status = sync_secret_service::get_sync_password_status(app)?;
     if enabled && !password_status.saved {
         return Err(CliplyError::Sync(
-            "开启自动同步前需要先保存同步密码到本机".to_string(),
+            "启用自动同步前，请先在本机保存同步密码。".to_string(),
         ));
     }
 
@@ -174,7 +184,7 @@ pub fn update_auto_sync_config(
     let interval_minutes = normalize_auto_sync_interval(interval_minutes);
     set_sync_state_value(
         &connection,
-        AUTO_SYNC_ENABLED_KEY,
+        sync_queue_service::AUTO_SYNC_ENABLED_KEY,
         if enabled { "true" } else { "false" },
     )?;
     set_sync_state_value(
@@ -189,7 +199,28 @@ pub fn update_auto_sync_config(
 pub fn clear_auto_sync_password(app: &AppHandle) -> Result<RemoteSyncStatus, CliplyError> {
     sync_secret_service::clear_sync_password(app)?;
     let connection = database_service::connect(app)?;
-    set_sync_state_value(&connection, AUTO_SYNC_ENABLED_KEY, "false")?;
+    set_sync_state_value(
+        &connection,
+        sync_queue_service::AUTO_SYNC_ENABLED_KEY,
+        "false",
+    )?;
+    get_remote_sync_status(app)
+}
+
+pub fn abandon_sync_queue(app: &AppHandle) -> Result<RemoteSyncStatus, CliplyError> {
+    let result = sync_queue_service::abandon_sync_queue(app)?;
+    logger::info(
+        app,
+        "sync_queue_abandoned",
+        format!(
+            "items={} tombstones={} events={} blobs={} total={}",
+            result.item_count,
+            result.tombstone_count,
+            result.event_count,
+            result.blob_count,
+            result.abandoned_change_count()
+        ),
+    );
     get_remote_sync_status(app)
 }
 
@@ -217,7 +248,7 @@ pub fn sync_with_remote_now(
 
 pub fn run_auto_sync_cycle(app: &AppHandle) -> Result<Option<RemoteSyncResult>, CliplyError> {
     let connection = database_service::connect(app)?;
-    if !get_bool_sync_state_value(&connection, AUTO_SYNC_ENABLED_KEY)? {
+    if !get_bool_sync_state_value(&connection, sync_queue_service::AUTO_SYNC_ENABLED_KEY)? {
         return Ok(None);
     }
 
@@ -233,7 +264,7 @@ pub fn run_auto_sync_cycle(app: &AppHandle) -> Result<Option<RemoteSyncResult>, 
 
     let Some(password) = sync_secret_service::load_sync_password(app)? else {
         set_sync_state_value(&connection, LAST_STATUS_KEY, "error")?;
-        set_sync_state_value(&connection, LAST_ERROR_KEY, "自动同步缺少本机同步密码")?;
+        set_sync_state_value(&connection, LAST_ERROR_KEY, "未在本机保存自动同步密码")?;
         return Ok(None);
     };
 
@@ -262,8 +293,11 @@ fn sync_with_remote(
 ) -> Result<RemoteSyncResult, CliplyError> {
     let import_result = import_remote_snapshots(app, password, only_new_snapshots)?;
     let connection = database_service::connect(app)?;
-    let pending_count = pending_sync_change_count(&connection)?;
-    let should_export = force_export || pending_count > 0 || import_result.snapshot_count == 0;
+    let queue_status = sync_queue_service::load_sync_queue_status(&connection)?;
+    let should_export = force_export
+        || queue_status.pending_change_count() > 0
+        || queue_status.full_export_required
+        || import_result.snapshot_count == 0;
 
     if !should_export {
         return Ok(import_result);
@@ -286,21 +320,34 @@ fn export_remote_snapshot(
     app: &AppHandle,
     password: &str,
 ) -> Result<RemoteSyncResult, CliplyError> {
-    let connection = database_service::connect(app)?;
+    let mut connection = database_service::connect(app)?;
     let provider_config = get_provider_config_from_connection(&connection)?;
     let provider = provider_from_config(&provider_config)?;
     ensure_remote_layout(provider.as_ref())?;
 
     let device_id = sync_service::current_device_id(&connection)?;
     let _ = upload_pending_image_blobs(app, provider.as_ref(), &connection, password)?;
-    let (package_bytes, exported_at) =
-        sync_package_service::build_sync_package_bytes(app, password)?;
-    let file_name = snapshot_file_name(&device_id, &exported_at);
+    let package = sync_package_service::build_sync_package_bytes(app, password)?;
+    let file_name = snapshot_file_name(&device_id, &package.exported_at);
     let snapshot_path = format!("{SNAPSHOTS_PATH}/{file_name}");
-    provider.write(&snapshot_path, &package_bytes)?;
-    write_device_marker(provider.as_ref(), &device_id, &exported_at)?;
-    write_manifest(provider.as_ref(), &exported_at)?;
-    mark_sync_exported(&connection, &exported_at)?;
+    provider.write(&snapshot_path, &package.bytes)?;
+    write_device_marker(provider.as_ref(), &device_id, &package.exported_at)?;
+    write_manifest(provider.as_ref(), &package.exported_at)?;
+    let mark_result = sync_queue_service::mark_sync_exported(
+        &mut connection,
+        &package.exported_at,
+        &package.queue_checkpoint,
+    )?;
+    if mark_result.full_baseline_applied {
+        logger::info(
+            app,
+            "sync_full_baseline_exported",
+            format!(
+                "remaining_abandoned={}",
+                mark_result.remaining_abandoned_count
+            ),
+        );
+    }
     record_imported_snapshot(&connection, &snapshot_path)?;
 
     let mut snapshot_paths = list_snapshot_paths(provider.as_ref())?;
@@ -323,7 +370,7 @@ fn export_remote_snapshot(
         Err(error) => logger::error(app, "remote_snapshot_prune_failed", error),
     }
     let snapshot_count = snapshot_paths.len();
-    set_remote_success(&connection, &exported_at, snapshot_count)?;
+    set_remote_success(&connection, &package.exported_at, snapshot_count)?;
     Ok(RemoteSyncResult {
         exported_count: 1,
         imported_count: 0,
@@ -332,7 +379,7 @@ fn export_remote_snapshot(
         deleted_count: 0,
         conflicted_count: 0,
         snapshot_count,
-        synced_at: exported_at,
+        synced_at: package.exported_at,
     })
 }
 
@@ -441,7 +488,7 @@ fn write_manifest(provider: &dyn SyncStorageProvider, updated_at: &str) -> Resul
         blobs_path: "blobs/".to_string(),
     };
     let bytes = serde_json::to_vec_pretty(&manifest)
-        .map_err(|error| CliplyError::Sync(format!("同步 manifest 序列化失败: {error}")))?;
+        .map_err(|error| CliplyError::Sync(format!("同步清单序列化失败: {error}")))?;
     provider.write(MANIFEST_PATH, &bytes)?;
     Ok(())
 }
@@ -454,7 +501,7 @@ fn read_manifest(
     }
     let bytes = provider.read(MANIFEST_PATH)?;
     let manifest = serde_json::from_slice(&bytes)
-        .map_err(|_| CliplyError::Sync("同步 manifest 格式不正确".to_string()))?;
+        .map_err(|_| CliplyError::Sync("同步清单格式无效".to_string()))?;
     Ok(Some(manifest))
 }
 
@@ -563,6 +610,7 @@ fn build_remote_sync_status(
     current_error: Option<String>,
 ) -> Result<RemoteSyncStatus, CliplyError> {
     let password_status = sync_secret_service::get_sync_password_status(app)?;
+    let queue_status = sync_queue_service::load_sync_queue_status(connection)?;
     let last_status = if current_error.is_some() {
         Some("error".to_string())
     } else {
@@ -577,11 +625,24 @@ fn build_remote_sync_status(
         last_status,
         last_error: current_error.or(get_sync_state_value(connection, LAST_ERROR_KEY)?),
         snapshot_count,
-        auto_sync_enabled: get_bool_sync_state_value(connection, AUTO_SYNC_ENABLED_KEY)?,
+        auto_sync_enabled: get_bool_sync_state_value(
+            connection,
+            sync_queue_service::AUTO_SYNC_ENABLED_KEY,
+        )?,
         auto_sync_interval_minutes: get_auto_sync_interval_minutes(connection)?,
         sync_password_saved: password_status.saved,
         sync_password_updated_at: password_status.updated_at,
         last_auto_sync_at: get_sync_state_value(connection, LAST_AUTO_SYNC_AT_KEY)?,
+        pending_item_count: queue_status.pending_item_count,
+        pending_tombstone_count: queue_status.pending_tombstone_count,
+        pending_event_count: queue_status.pending_event_count,
+        pending_blob_count: queue_status.pending_blob_count,
+        full_export_required: queue_status.full_export_required,
+        last_queue_abandoned_at: queue_status.last_queue_abandoned_at,
+        last_abandoned_item_count: queue_status.last_abandoned_item_count,
+        last_abandoned_tombstone_count: queue_status.last_abandoned_tombstone_count,
+        last_abandoned_event_count: queue_status.last_abandoned_event_count,
+        last_abandoned_blob_count: queue_status.last_abandoned_blob_count,
     }))
 }
 
@@ -640,63 +701,8 @@ fn resolve_sync_password(app: &AppHandle, password: Option<String>) -> Result<St
     }
 
     sync_secret_service::load_sync_password(app)?.ok_or_else(|| {
-        CliplyError::Sync("请先输入同步密码，或将同步密码保存到本机用于自动同步".to_string())
+        CliplyError::Sync("请输入同步密码，或先在本机保存自动同步密码。".to_string())
     })
-}
-
-fn pending_sync_change_count(connection: &Connection) -> Result<i64, CliplyError> {
-    let item_count: i64 = connection.query_row(
-        "SELECT COUNT(*)
-         FROM clipboard_items
-         WHERE sync_status = 'pending'",
-        [],
-        |row| row.get(0),
-    )?;
-    let event_count: i64 = connection.query_row(
-        "SELECT COUNT(*)
-         FROM sync_events
-         WHERE synced_at IS NULL",
-        [],
-        |row| row.get(0),
-    )?;
-    let blob_count = sync_blob_service::pending_blob_change_count(connection)?;
-    Ok(item_count + event_count + blob_count)
-}
-
-fn mark_sync_exported(connection: &Connection, exported_at: &str) -> Result<(), CliplyError> {
-    connection.execute(
-        "UPDATE clipboard_items
-         SET sync_status = 'synced',
-             last_synced_at = ?1
-         WHERE sync_status = 'pending'",
-        params![exported_at],
-    )?;
-    connection.execute(
-        "UPDATE sync_events
-         SET synced_at = ?1
-         WHERE synced_at IS NULL",
-        params![exported_at],
-    )?;
-    sync_blob_service::mark_pending_blob_tombstones_exported(connection, exported_at)?;
-    prune_synced_events(connection)?;
-    Ok(())
-}
-
-/// Events already shipped and older than the export window are dead weight:
-/// exports skip them and merges treat their items by revision, so dropping the
-/// rows keeps sync_events from growing forever.
-fn prune_synced_events(connection: &Connection) -> Result<(), CliplyError> {
-    let cutoff = (OffsetDateTime::now_utc()
-        - time::Duration::days(sync_package_service::SYNC_EXPORT_WINDOW_DAYS))
-    .format(&time::format_description::well_known::Rfc3339)
-    .map_err(|error| CliplyError::StorageUnavailable(error.to_string()))?;
-    connection.execute(
-        "DELETE FROM sync_events
-         WHERE synced_at IS NOT NULL
-           AND created_at < ?1",
-        params![cutoff],
-    )?;
-    Ok(())
 }
 
 fn get_imported_snapshots(connection: &Connection) -> Result<BTreeSet<String>, CliplyError> {
@@ -885,7 +891,7 @@ fn get_cached_provider_config(
     };
 
     let config: SyncProviderConfig = serde_json::from_str(&value)
-        .map_err(|error| CliplyError::Sync(format!("同步 provider 缓存配置损坏: {error}")))?;
+        .map_err(|error| CliplyError::Sync(format!("同步方式缓存配置无效: {error}")))?;
     let matches_type = matches!(
         (&config, expected_type),
         (SyncProviderConfig::LocalFolder { .. }, "local-folder")
@@ -929,7 +935,7 @@ fn provider_from_config(
             *secure,
             remote_path.clone(),
         ))),
-        _ => Err(CliplyError::Sync("当前 provider 尚未实现".to_string())),
+        _ => Err(CliplyError::Sync("当前同步方式尚未实现".to_string())),
     }
 }
 
@@ -937,9 +943,9 @@ fn validate_provider_config(config: &SyncProviderConfig) -> Result<(), CliplyErr
     match config {
         SyncProviderConfig::Disabled => Ok(()),
         SyncProviderConfig::LocalFolder { path } if !path.trim().is_empty() => Ok(()),
-        SyncProviderConfig::LocalFolder { .. } => Err(CliplyError::Sync(
-            "本地同步文件夹需要先选择目录".to_string(),
-        )),
+        SyncProviderConfig::LocalFolder { .. } => {
+            Err(CliplyError::Sync("请选择本地同步文件夹。".to_string()))
+        }
         SyncProviderConfig::Webdav {
             url,
             username,
@@ -967,7 +973,7 @@ fn validate_provider_config(config: &SyncProviderConfig) -> Result<(), CliplyErr
         SyncProviderConfig::Ftp { .. } => Err(CliplyError::Sync(
             "FTP 同步需要填写主机、端口、用户名和密码".to_string(),
         )),
-        _ => Err(CliplyError::Sync("当前 provider 尚未实现".to_string())),
+        _ => Err(CliplyError::Sync("当前同步方式尚未实现".to_string())),
     }
 }
 
@@ -977,7 +983,7 @@ fn get_provider_config_from_connection(
     let raw = get_sync_state_value(connection, CONFIG_KEY)?;
     match raw {
         Some(value) => serde_json::from_str(&value)
-            .map_err(|error| CliplyError::Sync(format!("同步 provider 配置损坏: {error}"))),
+            .map_err(|error| CliplyError::Sync(format!("同步方式配置无效: {error}"))),
         None => Ok(SyncProviderConfig::Disabled),
     }
 }
@@ -1202,6 +1208,16 @@ mod tests {
             sync_password_saved: false,
             sync_password_updated_at: None,
             last_auto_sync_at: None,
+            pending_item_count: 0,
+            pending_tombstone_count: 0,
+            pending_event_count: 0,
+            pending_blob_count: 0,
+            full_export_required: false,
+            last_queue_abandoned_at: None,
+            last_abandoned_item_count: 0,
+            last_abandoned_tombstone_count: 0,
+            last_abandoned_event_count: 0,
+            last_abandoned_blob_count: 0,
         };
 
         let status = redact_remote_sync_status(status);

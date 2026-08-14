@@ -1,11 +1,27 @@
-import { MoreHorizontal, Pin, ShieldAlert } from "lucide-react";
-import type { MouseEvent } from "react";
+import { Code2, FileText, Image, Link2, MoreHorizontal, Pin, ShieldAlert } from "lucide-react";
+import { memo, type MouseEvent } from "react";
 import { IconButton } from "@/components/common/IconButton";
 import { ClipboardActions } from "@/components/clipboard/ClipboardActions";
 import { ClipboardMetadata } from "@/components/clipboard/ClipboardMetadata";
 import { ClipboardPreview } from "@/components/clipboard/ClipboardPreview";
 import { EmptyState } from "@/components/clipboard/EmptyState";
+import { OverlayScrollArea } from "@/components/common/OverlayScrollArea";
 import type { ClipboardActionKind, ClipboardItem } from "@/lib/clipboardTypes";
+import { formatRelativeTime } from "@/lib/formatTime";
+
+const iconByType = {
+  code: Code2,
+  image: Image,
+  link: Link2,
+  text: FileText,
+};
+
+const typeLabels = {
+  code: "代码",
+  image: "图片",
+  link: "链接",
+  text: "文本",
+};
 
 type ClipboardDetailPaneProps = {
   item: ClipboardItem | null;
@@ -14,21 +30,35 @@ type ClipboardDetailPaneProps = {
   onOpenImage: (item: ClipboardItem) => void;
 };
 
-export function ClipboardDetailPane({
+function ClipboardDetailPaneComponent({
   item,
   onAction,
   onContextMenu,
   onOpenImage,
 }: ClipboardDetailPaneProps) {
+  const TypeIcon = item ? iconByType[item.type] : FileText;
+
   return (
     <section
-      className="cliply-detail-pane grid min-h-0 min-w-0 grid-rows-[44px_1fr_auto] border-l border-[color:var(--cliply-border)]"
+      className="cliply-detail-pane grid min-h-0 min-w-0 grid-rows-[48px_minmax(0,1fr)_auto]"
       onContextMenu={(event) => onContextMenu(event, item)}
     >
-      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[color:var(--cliply-border-soft)] px-3.5">
-        <h2 className="cliply-title min-w-0 truncate text-[14px] font-semibold text-[color:var(--cliply-text)]">
-          {item ? item.sourceApp : "内容详情"}
-        </h2>
+      <header className="cliply-detail-header flex h-12 shrink-0 items-center justify-between gap-3 px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="cliply-detail-type-icon grid size-7 shrink-0 place-items-center rounded-md">
+            <TypeIcon className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="min-w-0 truncate text-[13.5px] font-semibold text-[color:var(--cliply-text)]">
+              {item ? item.title : "内容详情"}
+            </h2>
+            {item ? (
+              <p className="cliply-caption mt-0.5 truncate text-[10.5px] text-[color:var(--cliply-faint)]">
+                {typeLabels[item.type]} · {item.sourceApp} · {formatRelativeTime(item.copiedAt)}
+              </p>
+            ) : null}
+          </div>
+        </div>
         <div className="flex shrink-0 items-center gap-1">
           {item?.isRedacted ? (
             <span
@@ -48,7 +78,7 @@ export function ClipboardDetailPane({
           ) : null}
           <IconButton
             label="更多"
-            className="size-7"
+            className="size-8"
             disabled={!item}
             onClick={(event) => onContextMenu(event, item)}
           >
@@ -58,17 +88,23 @@ export function ClipboardDetailPane({
       </header>
       {item ? (
         <>
-          <div className="cliply-scrollbar min-h-0 overflow-y-auto px-3.5 py-3.5">
+          <OverlayScrollArea
+            scrollbarLabel="滚动详情内容"
+            className="min-h-0"
+            viewportClassName="cliply-detail-content p-5 pr-6"
+          >
             <ClipboardPreview item={item} onOpenImage={onOpenImage} />
             <ClipboardMetadata item={item} />
-          </div>
+          </OverlayScrollArea>
           <ClipboardActions item={item} onAction={onAction} />
         </>
       ) : (
         <div className="min-h-0">
-          <EmptyState title="没有选中内容" description="从左侧列表选择一条记录。" />
+          <EmptyState title="未选择记录" description="请从记录列表中选择一项。" />
         </div>
       )}
     </section>
   );
 }
+
+export const ClipboardDetailPane = memo(ClipboardDetailPaneComponent);

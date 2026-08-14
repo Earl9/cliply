@@ -71,7 +71,6 @@ pub async fn toggle_pin_clipboard_item(
 pub async fn delete_clipboard_item(app: AppHandle, id: String) -> Result<(), String> {
     clipboard_service::delete_clipboard_item(&app, id)
         .map_err(|error| command_error(&app, "delete_clipboard_item", error))?;
-    let _ = app.emit("clipboard-items-changed", ());
     Ok(())
 }
 
@@ -182,6 +181,17 @@ pub async fn clear_auto_sync_password(
     logger::info(&app, "command.clear_auto_sync_password", "requested");
     let status = remote_sync_service::clear_auto_sync_password(&app)
         .map_err(|error| command_error(&app, "clear_auto_sync_password", error))?;
+    let _ = app.emit("remote-sync-status-changed", ());
+    Ok(status)
+}
+
+#[tauri::command]
+pub async fn abandon_sync_queue(
+    app: AppHandle,
+) -> Result<remote_sync_service::RemoteSyncStatus, String> {
+    logger::info(&app, "command.abandon_sync_queue", "requested");
+    let status = remote_sync_service::abandon_sync_queue(&app)
+        .map_err(|error| command_error(&app, "abandon_sync_queue", error))?;
     let _ = app.emit("remote-sync-status-changed", ());
     Ok(status)
 }
@@ -495,7 +505,7 @@ pub async fn fetch_cliply_update_manifest(app: AppHandle) -> Result<serde_json::
                     sanitize_log_value(&error.to_string())
                 ),
             );
-            return Err("检查更新失败，请检查网络后重试".to_string());
+            return Err("无法检查更新。请检查网络连接后重试。".to_string());
         }
     };
 
@@ -506,7 +516,7 @@ pub async fn fetch_cliply_update_manifest(app: AppHandle) -> Result<serde_json::
             "update_check_failed",
             format!("kind=read error={}", sanitize_log_value(&error.to_string())),
         );
-        return Err("无法读取更新清单，请稍后重试".to_string());
+        return Err("无法读取更新清单。请稍后重试。".to_string());
     }
 
     let manifest = match serde_json::from_str::<serde_json::Value>(&body) {
@@ -520,7 +530,7 @@ pub async fn fetch_cliply_update_manifest(app: AppHandle) -> Result<serde_json::
                     sanitize_log_value(&error.to_string())
                 ),
             );
-            return Err("更新清单格式不正确，请稍后重试".to_string());
+            return Err("更新清单格式无效。请稍后重试。".to_string());
         }
     };
 
@@ -575,14 +585,14 @@ pub async fn launch_modern_update_installer(
         return Err(command_error(
             &app,
             "launch_modern_update_installer.installer_path",
-            "更新安装器不存在",
+            "更新安装程序不存在",
         ));
     }
     if !is_downloaded_modern_installer_path(&installer_path) {
         return Err(command_error(
             &app,
             "launch_modern_update_installer.installer_path",
-            "更新安装器路径不合法",
+            "更新安装程序路径无效",
         ));
     }
 
@@ -803,7 +813,7 @@ fn download_modern_update_installer_inner(
     let response = ureq::get(&request.url)
         .timeout(Duration::from_secs(120))
         .call()
-        .map_err(|_| "更新安装器下载失败，请检查网络后重试".to_string())?;
+        .map_err(|_| "无法下载更新安装程序。请检查网络连接后重试。".to_string())?;
     let total_bytes = response
         .header("Content-Length")
         .and_then(|value| value.parse::<u64>().ok());
@@ -881,7 +891,7 @@ fn normalize_sha256(value: &str) -> Result<String, String> {
     {
         Ok(normalized)
     } else {
-        Err("更新清单中的 SHA256 不合法".to_string())
+        Err("更新清单中的 SHA-256 无效".to_string())
     }
 }
 
@@ -891,13 +901,13 @@ fn sanitize_installer_file_name(value: &str) -> Result<String, String> {
         .and_then(|name| name.to_str())
         .unwrap_or(MODERN_INSTALLER_FILE_NAME);
     if !file_name.to_ascii_lowercase().ends_with(".exe") {
-        return Err("更新安装器文件名不合法".to_string());
+        return Err("更新安装程序文件名无效".to_string());
     }
     if !file_name
         .to_ascii_lowercase()
         .ends_with("-modern-installer.exe")
     {
-        return Err("更新清单中的安装器不是 Modern Installer".to_string());
+        return Err("更新清单中的安装程序类型不受支持".to_string());
     }
     let sanitized: String = file_name
         .chars()
@@ -953,7 +963,7 @@ fn spawn_modern_installer(path: &Path, args: &[String]) -> std::io::Result<()> {
         Ok(())
     } else {
         Err(std::io::Error::other(format!(
-            "ShellExecuteW failed: {result}"
+            "无法以管理员权限启动安装程序，错误代码：{result}"
         )))
     }
 }
@@ -1050,7 +1060,7 @@ fn user_friendly_error(command: &str, raw: &str) -> String {
     }
 
     if lower.contains("rolled back") || lower.contains("已回滚") {
-        return "导入失败，数据库已回滚，未污染本地历史。".to_string();
+        return "导入失败，数据库已回滚，本地历史记录未更改。".to_string();
     }
 
     if lower.contains("webdav")
@@ -1065,14 +1075,18 @@ fn user_friendly_error(command: &str, raw: &str) -> String {
     }
 
     if command.contains("paste") || lower.contains("paste") || lower.contains("foreground") {
-        return "目标窗口无法自动粘贴，内容已尽量复制到剪贴板。".to_string();
+        return "无法粘贴到目标窗口。已尝试将内容复制到剪贴板。".to_string();
     }
 
-    if lower.contains("not found") || lower.contains("no rows") {
+    if lower.contains("not found")
+        || lower.contains("no rows")
+        || lower.contains("记录不存在")
+        || lower.contains("记录未找到")
+    {
         return "记录不存在或已被删除，请刷新列表后重试。".to_string();
     }
 
-    if command.contains("copy") || lower.contains("clipboard") {
+    if command.contains("copy") || lower.contains("clipboard") || lower.contains("剪贴板") {
         return "剪贴板写入失败，请稍后重试。".to_string();
     }
 
@@ -1081,6 +1095,7 @@ fn user_friendly_error(command: &str, raw: &str) -> String {
     }
 
     if lower.contains("database")
+        || lower.contains("数据库")
         || lower.contains("sqlite")
         || lower.contains("readonly")
         || lower.contains("locked")

@@ -15,7 +15,8 @@ const INK='#14161A';
 const onSoft=(base,soft)=>{for(let t=0;t<=0.8;t+=0.02){const c=mix(base,'#000000',t);if(R(c,soft)>=4.6)return c}return mix(base,'#000000',0.8)};
 
 const defs=[
-  ['system-blue','浅蓝','明亮通透的浅蓝，安静中性，默认主题。','#1F74CC'],
+  ['coral-pulse','珊瑚跃动','与 Cliply 图标同源的明快珊瑚色，轻盈、有活力，默认主题。','#FF6257'],
+  ['system-blue','晴空蓝','清透明快的晴空蓝，年轻、清晰，默认主题。','#2F69FA'],
   ['lake-blue','湖蓝','饱和的宝蓝，清晰有力。','#1D5FD6'],
   ['indigo-spark','电光靛','冷冽的电光靛蓝，年轻、有速度感。','#4F46E5'],
   ['purple-default','霓虹紫','明快的紫色，创意工具的气质。','#6D4CFF'],
@@ -28,12 +29,18 @@ const defs=[
   ['teal-fresh','清爽青','沉稳的青绿，专业感更强。','#0D9488'],
 ];
 
+// The brand coral stays luminous across interaction states. A large black
+// mix made this hue look muddy, so hover lifts and active only settles a touch.
+const stateOverrides = {
+  'coral-pulse': { hover: '#FF7066', active: '#F75A50' },
+};
+
 const NEUTRAL = {
   appBg:'#F5F9FD', windowBg:'#F5F9FD', panelBg:'#FFFFFF', cardBg:'#FFFFFF',
   inputBg:'#FFFFFF', mutedBg:'#EFF5FA', border:'#E2EAF2', borderStrong:'#CEDBE8',
   divider:'#EDF3F8', text:'#1B2734', bodyText:'#2C3A49', textSecondary:'#5F6F80',
   muted:'#64748B', placeholder:'#7C8B9C', disabledText:'#B9C5D1',
-  success:'#15803D', successSoft:'#ECFDF3', warning:'#B45309', warningSoft:'#FFF7E6',
+  success:'#168F73', successSoft:'#E8F7F2', warning:'#B45309', warningSoft:'#FFF7E6',
   danger:'#DC2626', dangerSoft:'#FEF2F2',
 };
 
@@ -45,12 +52,12 @@ for (const [name,label,description,primary] of defs) {
   let soft = mix(primary,'#FFFFFF',0.90);
   for (let t=0.90; t<=0.97; t+=0.01) { soft = mix(primary,'#FFFFFF',t); if (R('#5F6F80', soft) >= 4.55) break; }
   const border = mix(primary,'#FFFFFF',0.75);
-  const hover = mix(primary,'#000000',0.12);
-  const active = mix(primary,'#000000',0.22);
-  const os = onSoft(primary,soft);
   const text = R(primary,'#FFFFFF')>=4.5 ? '#FFFFFF' : INK;
+  const hover = stateOverrides[name]?.hover ?? (text === INK ? mix(primary,'#FFFFFF',0.08) : mix(primary,'#000000',0.12));
+  const active = stateOverrides[name]?.active ?? (text === INK ? mix(primary,'#000000',0.04) : mix(primary,'#000000',0.22));
+  const os = onSoft(primary,soft);
   const [r,g,b]=hx(primary);
-  report.push({name, btn:+R(primary,text).toFixed(2), wash:+R(os,soft).toFixed(2), rail:+R(primary,'#FFFFFF').toFixed(2), cap:+R('#5F6F80',soft).toFixed(2), text:text==='#FFFFFF'?'white':'ink'});
+  report.push({name, btn:+R(primary,text).toFixed(2), hover:+R(hover,text).toFixed(2), active:+R(active,text).toFixed(2), wash:+R(os,soft).toFixed(2), rail:+R(primary,'#FFFFFF').toFixed(2), cap:+R('#5F6F80',soft).toFixed(2), text:text==='#FFFFFF'?'white':'ink'});
   out += `  "${name}": {
     name: "${name}",
     label: "${label}",

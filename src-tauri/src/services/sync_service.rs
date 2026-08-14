@@ -213,7 +213,7 @@ fn current_device_name() -> String {
         .map(|name| name.trim().to_string())
         .ok()
         .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| "Windows device".to_string())
+        .unwrap_or_else(|| "Windows 设备".to_string())
 }
 
 fn current_platform() -> &'static str {

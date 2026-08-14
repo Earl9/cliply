@@ -1,5 +1,5 @@
 import { Code2, FileText, Image, Link2, Pin } from "lucide-react";
-import type { MouseEvent, ReactNode } from "react";
+import { memo, type MouseEvent, type ReactNode } from "react";
 import { clsx } from "clsx";
 import type { ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
 import { formatRelativeTime } from "@/lib/formatTime";
@@ -7,10 +7,14 @@ import { formatRelativeTime } from "@/lib/formatTime";
 type ClipboardListItemProps = {
   item: ClipboardItem;
   selected?: boolean;
-  onSelect: () => void;
-  onTogglePin: () => void;
-  onPaste: () => void;
-  onContextMenu: (event: MouseEvent<HTMLElement>) => void;
+  relativeTimeNow: number;
+  position: number;
+  setSize: number;
+  virtualOffset: number;
+  onSelectItem: (id: string) => void;
+  onTogglePin: (id: string) => void;
+  onPasteItem: (id: string) => void;
+  onItemContextMenu: (event: MouseEvent<HTMLElement>, item: ClipboardItem) => void;
 };
 
 const iconByType: Record<ClipboardItemType, typeof FileText> = {
@@ -20,9 +24,6 @@ const iconByType: Record<ClipboardItemType, typeof FileText> = {
   image: Image,
 };
 
-/// Renders the preview in the shape of its own content: code stays monospaced,
-/// links lead with the host and mute the path. Scanning a clipboard list is
-/// mostly "which one was it" — typography does that work faster than a label.
 function renderPreview(item: ClipboardItem): ReactNode {
   const preview = item.previewText;
 
@@ -49,61 +50,67 @@ function splitUrl(value: string) {
   }
 }
 
-export function ClipboardListItem({
+function ClipboardListItemComponent({
   item,
   selected,
-  onSelect,
+  relativeTimeNow,
+  position,
+  setSize,
+  virtualOffset,
+  onSelectItem,
   onTogglePin,
-  onPaste,
-  onContextMenu,
+  onPasteItem,
+  onItemContextMenu,
 }: ClipboardListItemProps) {
   const Icon = iconByType[item.type] ?? FileText;
 
   return (
     <article
+      role="listitem"
       tabIndex={0}
-      onClick={onSelect}
+      aria-posinset={position}
+      aria-setsize={setSize}
+      style={{
+        position: "absolute",
+        top: virtualOffset,
+        right: 0,
+        left: 0,
+      }}
+      onClick={() => onSelectItem(item.id)}
       onDoubleClick={(event) => {
         event.preventDefault();
-        onPaste();
+        onPasteItem(item.id);
       }}
-      onContextMenu={onContextMenu}
+      onContextMenu={(event) => onItemContextMenu(event, item)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelect();
+          onSelectItem(item.id);
         }
       }}
       className={clsx(
-        "cliply-row group relative mx-1.5 grid h-[52px] cursor-default grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[6px] px-2.5 text-left",
-        "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
+        "cliply-row group relative my-1 grid h-[68px] cursor-default grid-cols-[28px_minmax(0,1fr)_26px] items-center gap-3 rounded-[7px] border border-transparent px-3 text-left",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
         selected
           ? "cliply-row-selected"
-          : "hover:bg-[color:var(--cliply-muted-bg)]",
+          : "hover:border-[color:var(--cliply-border-soft)] hover:bg-[color:var(--cliply-surface-raised)]",
       )}
     >
-      <span className="grid size-7 shrink-0 place-items-center">
+      <span className="cliply-type-icon grid size-7 shrink-0 place-items-center rounded-md" data-type={item.type}>
         {item.type === "image" && item.thumbnailUrl ? (
           <img
             src={item.thumbnailUrl}
             alt={item.imageAlt ?? item.title}
-            className="size-7 rounded-[4px] border border-[color:var(--cliply-border)] object-cover"
+            className="size-7 rounded-[5px] border border-[color:var(--cliply-border)] object-cover"
           />
         ) : (
-          <Icon
-            className={clsx(
-              "size-4",
-              selected
-                ? "text-[color:var(--cliply-accent)]"
-                : "text-[color:var(--cliply-faint)]",
-            )}
-          />
+          <Icon className="size-4" />
         )}
       </span>
       <span className="min-w-0">
         <span
           className={clsx(
-            "block truncate leading-[18px] text-[color:var(--cliply-text)]",
+            "block truncate font-normal leading-[18px] text-[color:var(--cliply-text)]",
             item.type === "code"
               ? "cliply-code-font text-[12.5px]"
               : "text-[13px]",
@@ -111,10 +118,10 @@ export function ClipboardListItem({
         >
           {renderPreview(item)}
         </span>
-        <span className="cliply-caption mt-px flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-[color:var(--cliply-faint)]">
+        <span className="cliply-caption mt-1.5 flex min-w-0 items-center gap-1.5 text-[10.5px] leading-4 text-[color:var(--cliply-faint)]">
           <span className="truncate">{item.sourceApp}</span>
           <span aria-hidden="true">·</span>
-          <span className="shrink-0">{formatRelativeTime(item.copiedAt)}</span>
+          <span className="shrink-0">{formatRelativeTime(item.copiedAt, relativeTimeNow)}</span>
         </span>
       </span>
       <button
@@ -123,7 +130,7 @@ export function ClipboardListItem({
         title={item.isPinned ? "取消固定" : "固定"}
         onClick={(event) => {
           event.stopPropagation();
-          onTogglePin();
+          onTogglePin(item.id);
         }}
         onDoubleClick={(event) => {
           event.preventDefault();
@@ -131,10 +138,10 @@ export function ClipboardListItem({
         }}
         data-pinned={item.isPinned ? "true" : "false"}
         className={clsx(
-          "cliply-pin-button cliply-interactive grid size-6 shrink-0 place-items-center rounded-[4px]",
+          "cliply-pin-button cliply-interactive grid size-6 shrink-0 place-items-center rounded-[5px]",
           item.isPinned
             ? "text-[color:var(--cliply-accent)] opacity-100"
-            : "text-[color:var(--cliply-muted)] opacity-0 hover:bg-[color:var(--cliply-border-soft)] focus-visible:opacity-100 group-hover:opacity-70",
+            : "text-[color:var(--cliply-muted)] opacity-0 hover:bg-[color:var(--cliply-muted-bg)] focus-visible:opacity-100 group-hover:opacity-70",
         )}
       >
         <Pin
@@ -147,3 +154,5 @@ export function ClipboardListItem({
     </article>
   );
 }
+
+export const ClipboardListItem = memo(ClipboardListItemComponent);

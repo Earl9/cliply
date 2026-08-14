@@ -56,7 +56,7 @@ pub fn start_listener(app: AppHandle) -> Result<(), CliplyError> {
     let listener_slot = LISTENER.get_or_init(|| Mutex::new(None));
     let mut listener = listener_slot
         .lock()
-        .map_err(|_| CliplyError::PlatformUnavailable("clipboard listener lock poisoned".into()))?;
+        .map_err(|_| CliplyError::PlatformUnavailable("剪贴板监听服务暂时不可用".into()))?;
 
     if listener.is_some() {
         return Ok(());
@@ -76,8 +76,8 @@ pub fn start_listener(app: AppHandle) -> Result<(), CliplyError> {
                 drain_pending_clipboard_events(&change_rx);
 
                 match ingest_current_clipboard_with_retry(&worker_app) {
-                    Ok(Some(_item)) => {
-                        let _ = worker_app.emit("clipboard-items-changed", ());
+                    Ok(Some(item)) => {
+                        let _ = worker_app.emit("clipboard-item-upserted", item);
                         logger::info(&worker_app, "clipboard_ingest", "stored item");
                     }
                     Ok(None) => {}
@@ -127,7 +127,7 @@ pub fn stop_listener() -> Result<(), CliplyError> {
     let listener_slot = LISTENER.get_or_init(|| Mutex::new(None));
     let mut listener = listener_slot
         .lock()
-        .map_err(|_| CliplyError::PlatformUnavailable("clipboard listener lock poisoned".into()))?;
+        .map_err(|_| CliplyError::PlatformUnavailable("剪贴板监听服务暂时不可用".into()))?;
 
     if let Some(handle) = listener.take() {
         unsafe {
@@ -300,7 +300,7 @@ fn set_change_sender(sender: Option<Sender<()>>) -> Result<(), CliplyError> {
     let sender_slot = CHANGE_SENDER.get_or_init(|| Mutex::new(None));
     let mut current_sender = sender_slot
         .lock()
-        .map_err(|_| CliplyError::PlatformUnavailable("clipboard sender lock poisoned".into()))?;
+        .map_err(|_| CliplyError::PlatformUnavailable("剪贴板通信服务暂时不可用".into()))?;
     *current_sender = sender;
     Ok(())
 }

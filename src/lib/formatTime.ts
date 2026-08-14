@@ -23,9 +23,10 @@ export function formatFullCopiedTime(value: string) {
   return fullFormatter.format(new Date(value));
 }
 
-export function formatRelativeTime(value: string, now = new Date()) {
-  const copiedAt = new Date(value);
-  const diffMs = now.getTime() - copiedAt.getTime();
+export function formatRelativeTime(value: string, now: Date | number = Date.now()) {
+  const copiedAtMs = Date.parse(value);
+  const nowMs = typeof now === "number" ? now : now.getTime();
+  const diffMs = nowMs - copiedAtMs;
   const minutes = Math.max(0, Math.floor(diffMs / 60_000));
 
   if (minutes < 1) {
@@ -41,7 +42,7 @@ export function formatRelativeTime(value: string, now = new Date()) {
     return `${hours} 小时前`;
   }
 
-  return fullFormatter.format(copiedAt);
+  return fullFormatter.format(new Date(copiedAtMs));
 }
 
 export function formatBytes(bytes: number) {

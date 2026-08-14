@@ -59,7 +59,7 @@ export async function checkCliplyUpdate(): Promise<CliplyUpdateInfo | null> {
   const installer = getModernInstallerManifest(manifest);
   const latestVersion = normalizeVersion(installer?.version ?? manifest.version);
   if (!latestVersion) {
-    throw new Error("更新清单缺少版本号");
+    throw new Error("更新清单中缺少版本号。");
   }
 
   if (compareSemver(currentVersion, latestVersion) >= 0) {
@@ -85,7 +85,7 @@ export async function downloadCliplyUpdate(
   if (!pendingUpdate) {
     const update = await checkCliplyUpdate();
     if (!update) {
-      throw new Error("当前已经是最新版本");
+      throw new Error("当前版本已是最新版本。");
     }
   }
 
@@ -100,7 +100,7 @@ export async function downloadCliplyUpdate(
 
   const update = pendingUpdate;
   if (!update) {
-    throw new Error("当前已经是最新版本");
+    throw new Error("当前版本已是最新版本。");
   }
 
   const unlisten = await listen<DownloadProgressEvent>(
@@ -135,10 +135,10 @@ export async function downloadCliplyUpdate(
 
 export async function launchModernUpdateInstaller(): Promise<void> {
   if (!pendingUpdate) {
-    throw new Error("请先检查更新");
+    throw new Error("未获取到更新信息。请先检查更新。");
   }
   if (!downloadedInstallerPath) {
-    throw new Error("请先下载更新包");
+    throw new Error("更新包尚未下载。");
   }
 
   if (!isTauri()) {
@@ -185,13 +185,13 @@ async function fetchUpdateManifest(): Promise<CliplyUpdateManifest> {
     try {
       return await invoke<CliplyUpdateManifest>("fetch_cliply_update_manifest");
     } catch (error) {
-      throw new Error(errorMessage(error, "检查更新失败，请检查网络后重试"));
+      throw new Error(errorMessage(error, "无法检查更新。请检查网络连接后重试。"));
     }
   }
 
   const response = await fetch(CLIPLY_UPDATE_MANIFEST_URL, { cache: "no-store" });
   if (!response.ok) {
-    throw new Error("无法获取更新清单");
+    throw new Error("无法获取更新清单。请检查网络连接后重试。");
   }
   return (await response.json()) as CliplyUpdateManifest;
 }
@@ -206,11 +206,11 @@ async function getCurrentVersion(): Promise<string> {
 function normalizeModernInstaller(manifest: CliplyUpdateManifest): CliplyUpdateInfo["installer"] {
   const installer = getModernInstallerManifest(manifest);
   if (!installer?.url || !installer.sha256) {
-    throw new Error("更新清单缺少 Modern Installer 信息");
+    throw new Error("更新清单中缺少安装程序信息。");
   }
   const name = installer.name || fileNameFromUrl(installer.url);
   if (!name.toLowerCase().endsWith("-modern-installer.exe")) {
-    throw new Error("更新清单中的安装器不是 Modern Installer");
+    throw new Error("更新清单中的安装程序类型不受支持。");
   }
 
   return {

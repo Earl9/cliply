@@ -38,6 +38,16 @@ export type RemoteSyncStatus = {
   syncPasswordSaved: boolean;
   syncPasswordUpdatedAt?: string | null;
   lastAutoSyncAt?: string | null;
+  pendingItemCount: number;
+  pendingTombstoneCount: number;
+  pendingEventCount: number;
+  pendingBlobCount: number;
+  fullExportRequired: boolean;
+  lastQueueAbandonedAt?: string | null;
+  lastAbandonedItemCount: number;
+  lastAbandonedTombstoneCount: number;
+  lastAbandonedEventCount: number;
+  lastAbandonedBlobCount: number;
 };
 
 export type RemoteSyncResult = {
@@ -199,6 +209,30 @@ export async function clearAutoSyncPassword(): Promise<RemoteSyncStatus> {
   return invoke<RemoteSyncStatus>("clear_auto_sync_password");
 }
 
+export async function abandonSyncQueue(): Promise<RemoteSyncStatus> {
+  if (!isTauri()) {
+    const current = readMockRemoteSyncStatus();
+    const status: RemoteSyncStatus = {
+      ...current,
+      autoSyncEnabled: false,
+      pendingItemCount: 0,
+      pendingTombstoneCount: 0,
+      pendingEventCount: 0,
+      pendingBlobCount: 0,
+      fullExportRequired: true,
+      lastQueueAbandonedAt: new Date().toISOString(),
+      lastAbandonedItemCount: current.pendingItemCount,
+      lastAbandonedTombstoneCount: current.pendingTombstoneCount,
+      lastAbandonedEventCount: current.pendingEventCount,
+      lastAbandonedBlobCount: current.pendingBlobCount,
+    };
+    writeMockRemoteSyncStatus(status);
+    return status;
+  }
+
+  return invoke<RemoteSyncStatus>("abandon_sync_queue");
+}
+
 export async function syncWithRemoteNow(password?: string): Promise<RemoteSyncResult> {
   if (!isTauri()) {
     const syncedAt = new Date().toISOString();
@@ -209,6 +243,11 @@ export async function syncWithRemoteNow(password?: string): Promise<RemoteSyncRe
       lastAutoSyncAt: syncedAt,
       lastStatus: "success",
       snapshotCount: Math.max(1, readMockRemoteSyncStatus().snapshotCount),
+      pendingItemCount: 0,
+      pendingTombstoneCount: 0,
+      pendingEventCount: 0,
+      pendingBlobCount: 0,
+      fullExportRequired: false,
     };
     writeMockRemoteSyncStatus(status);
     return {
@@ -237,6 +276,11 @@ export async function exportToRemoteSyncFolder(password: string): Promise<Remote
       lastSyncedAt: syncedAt,
       lastStatus: "success",
       snapshotCount: readMockRemoteSyncStatus().snapshotCount + 1,
+      pendingItemCount: 0,
+      pendingTombstoneCount: 0,
+      pendingEventCount: 0,
+      pendingBlobCount: 0,
+      fullExportRequired: false,
     };
     writeMockRemoteSyncStatus(status);
     return {
@@ -337,6 +381,15 @@ function readMockRemoteSyncStatus(): RemoteSyncStatus {
     autoSyncEnabled: false,
     autoSyncIntervalMinutes: 5,
     syncPasswordSaved: false,
+    pendingItemCount: 0,
+    pendingTombstoneCount: 0,
+    pendingEventCount: 0,
+    pendingBlobCount: 0,
+    fullExportRequired: false,
+    lastAbandonedItemCount: 0,
+    lastAbandonedTombstoneCount: 0,
+    lastAbandonedEventCount: 0,
+    lastAbandonedBlobCount: 0,
   };
   try {
     const raw = window.localStorage.getItem("cliply.remoteSync.status");

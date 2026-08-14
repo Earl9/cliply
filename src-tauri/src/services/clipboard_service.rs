@@ -112,7 +112,7 @@ pub fn toggle_pin_clipboard_item(
 
     if changed_rows == 0 {
         return Err(CliplyError::PlatformUnavailable(
-            "clipboard item was not found".to_string(),
+            "剪贴板记录不存在或已被删除".to_string(),
         ));
     }
 
@@ -145,7 +145,7 @@ pub fn delete_clipboard_item(app: &AppHandle, id: String) -> Result<(), CliplyEr
     )?;
     if changed_rows == 0 {
         return Err(CliplyError::PlatformUnavailable(
-            "clipboard item was not found".to_string(),
+            "剪贴板记录不存在或已被删除".to_string(),
         ));
     }
 

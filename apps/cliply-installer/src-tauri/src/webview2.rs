@@ -27,8 +27,8 @@ mod windows_impl {
         }
 
         let should_install = message_box(
-            "Cliply Installer",
-            "Cliply needs Microsoft Edge WebView2 Runtime to show the modern installer.\n\nClick OK to install the runtime, then Cliply Installer will continue.",
+            "Cliply 安装程序",
+            "Cliply 安装程序需要 Microsoft Edge WebView2 Runtime。\n\n选择“确定”将下载并安装该组件。组件安装完成后，Cliply 安装程序会继续运行。",
             MB_OKCANCEL | MB_ICONINFORMATION,
         ) == IDOK;
 
@@ -39,10 +39,10 @@ mod windows_impl {
         match install_webview2_runtime() {
             Ok(()) if is_webview2_runtime_installed() => {}
             Ok(()) => exit_with_error(
-                "WebView2 Runtime setup finished, but Cliply still cannot find the runtime.\n\nPlease restart Windows or install Microsoft Edge WebView2 Runtime manually, then run the Cliply installer again.",
+                "Microsoft Edge WebView2 Runtime 已完成安装，但 Cliply 仍无法检测到该组件。\n\n请重新启动 Windows 后再次运行 Cliply 安装程序。如仍无法继续，请手动安装 WebView2 Runtime。",
             ),
             Err(error) => exit_with_error(&format!(
-                "Cliply could not prepare Microsoft Edge WebView2 Runtime.\n\n{}\n\nPlease install WebView2 Runtime manually or use the full Cliply setup package from GitHub Releases.",
+                "Microsoft Edge WebView2 Runtime 安装失败。\n\n详细信息：{}\n\n请手动安装 WebView2 Runtime，或从 GitHub 发布页面下载 Cliply 完整安装程序。",
                 error
             )),
         }
@@ -90,12 +90,13 @@ mod windows_impl {
 
     fn install_webview2_runtime() -> Result<(), String> {
         let path = bootstrapper_path();
-        download_bootstrapper(&path).map_err(|error| format!("Download failed: {error}"))?;
+        download_bootstrapper(&path)
+            .map_err(|error| format!("WebView2 安装程序下载失败：{error}"))?;
 
         let status = Command::new(&path)
             .args(["/silent", "/install"])
             .status()
-            .map_err(|error| format!("Could not start WebView2 setup: {error}"))?;
+            .map_err(|error| format!("无法启动 WebView2 安装程序：{error}"))?;
 
         let code = status.code().unwrap_or(-1);
         if status.success() || code == 3010 {
@@ -103,7 +104,7 @@ mod windows_impl {
             return Ok(());
         }
 
-        Err(format!("WebView2 setup exited with code {code}"))
+        Err(format!("WebView2 安装程序未能完成，错误代码：{code}"))
     }
 
     fn download_bootstrapper(path: &PathBuf) -> Result<(), String> {
@@ -124,7 +125,7 @@ mod windows_impl {
     }
 
     fn exit_with_error(message: &str) -> ! {
-        message_box("Cliply Installer", message, MB_OK | MB_ICONERROR);
+        message_box("Cliply 安装程序", message, MB_OK | MB_ICONERROR);
         std::process::exit(1);
     }
 

@@ -94,7 +94,7 @@ pub fn load_uploadable_blobs(connection: &Connection) -> Result<Vec<SyncBlobReco
          WHERE deleted_at IS NULL
            AND local_path IS NOT NULL
            AND COALESCE(local_path, '') <> ''
-           AND (remote_path IS NULL OR sync_status = 'pending')
+           AND (remote_path IS NULL OR COALESCE(sync_status, 'pending') = 'pending')
          ORDER BY datetime(created_at) ASC, id ASC
          LIMIT 200",
     ) {
@@ -130,20 +130,6 @@ pub fn load_missing_local_blobs(
         .collect())
 }
 
-pub fn pending_blob_change_count(connection: &Connection) -> Result<i64, CliplyError> {
-    match connection.query_row(
-        "SELECT COUNT(*)
-         FROM sync_blobs
-         WHERE sync_status = 'pending'",
-        [],
-        |row| row.get(0),
-    ) {
-        Ok(count) => Ok(count),
-        Err(error) if is_missing_sync_blobs_table(&error) => Ok(0),
-        Err(error) => Err(error.into()),
-    }
-}
-
 pub fn mark_blob_uploaded(
     connection: &Connection,
     id: &str,
@@ -162,24 +148,6 @@ pub fn mark_blob_uploaded(
     Ok(())
 }
 
-pub fn mark_pending_blob_tombstones_exported(
-    connection: &Connection,
-    exported_at: &str,
-) -> Result<(), CliplyError> {
-    match connection.execute(
-        "UPDATE sync_blobs
-         SET sync_status = 'synced',
-             uploaded_at = COALESCE(uploaded_at, ?1)
-         WHERE sync_status = 'pending'
-           AND deleted_at IS NOT NULL",
-        params![exported_at],
-    ) {
-        Ok(_) => Ok(()),
-        Err(error) if is_missing_sync_blobs_table(&error) => Ok(()),
-        Err(error) => Err(error.into()),
-    }
-}
-
 pub fn write_downloaded_blob(
     app: &AppHandle,
     connection: &Connection,
@@ -188,7 +156,7 @@ pub fn write_downloaded_blob(
     plaintext: &[u8],
 ) -> Result<(), CliplyError> {
     if hash_service::stable_bytes_hash(plaintext) != envelope.hash {
-        return Err(CliplyError::Sync("图片同步 blob 校验失败".to_string()));
+        return Err(CliplyError::Sync("图片同步文件校验失败".to_string()));
     }
 
     let local_path = local_sync_blob_path(app, record, &envelope.file_extension)?;
@@ -251,17 +219,15 @@ pub fn build_remote_blob_envelope(
     let local_path = record
         .local_path
         .as_deref()
-        .ok_or_else(|| CliplyError::Sync("图片同步 blob 缺少本地文件".to_string()))?;
+        .ok_or_else(|| CliplyError::Sync("图片同步文件不存在".to_string()))?;
     let payload = fs::read(local_path)?;
     let hash = hash_service::stable_bytes_hash(&payload);
     if hash != record.hash {
-        return Err(CliplyError::Sync(
-            "图片同步 blob 本地文件校验失败".to_string(),
-        ));
+        return Err(CliplyError::Sync("本地图片同步文件校验失败".to_string()));
     }
     if record.size_bytes > 0 && payload.len() as i64 != record.size_bytes {
         return Err(CliplyError::Sync(
-            "image sync blob local file size does not match metadata".to_string(),
+            "图片同步文件大小与记录信息不一致".to_string(),
         ));
     }
 
@@ -279,7 +245,7 @@ pub fn build_remote_blob_envelope(
         encrypted_payload,
     };
     serde_json::to_vec_pretty(&envelope)
-        .map_err(|error| CliplyError::Sync(format!("图片同步 blob 序列化失败: {error}")))
+        .map_err(|error| CliplyError::Sync(format!("图片同步文件序列化失败: {error}")))
 }
 
 pub fn decrypt_remote_blob_envelope(
@@ -287,9 +253,9 @@ pub fn decrypt_remote_blob_envelope(
     password: &str,
 ) -> Result<(RemoteBlobEnvelope, Vec<u8>), CliplyError> {
     let envelope: RemoteBlobEnvelope = serde_json::from_slice(bytes)
-        .map_err(|_| CliplyError::Sync("图片同步 blob 格式不正确".to_string()))?;
+        .map_err(|_| CliplyError::Sync("图片同步文件格式无效".to_string()))?;
     if envelope.app != "Cliply" || envelope.version != REMOTE_BLOB_VERSION {
-        return Err(CliplyError::Sync("图片同步 blob 版本不兼容".to_string()));
+        return Err(CliplyError::Sync("图片同步文件版本不兼容".to_string()));
     }
     let plaintext = sync_crypto_service::decrypt_payload(
         &envelope.encryption,
@@ -299,7 +265,7 @@ pub fn decrypt_remote_blob_envelope(
     if plaintext.len() as i64 != envelope.size_bytes
         || hash_service::stable_bytes_hash(&plaintext) != envelope.hash
     {
-        return Err(CliplyError::Sync("图片同步 blob 校验失败".to_string()));
+        return Err(CliplyError::Sync("图片同步文件校验失败".to_string()));
     }
 
     Ok((envelope, plaintext))

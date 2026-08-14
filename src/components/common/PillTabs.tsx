@@ -14,28 +14,30 @@ type PillTabsProps<T extends string> = {
 
 export function PillTabs<T extends string>({ options, value, onValueChange }: PillTabsProps<T>) {
   return (
-    <div className="cliply-scrollbar flex h-7 min-w-0 items-center gap-0.5 overflow-x-auto">
+    <div className="cliply-filter-tabs flex h-8 min-w-0 items-center gap-0.5 overflow-x-auto p-0.5" role="group" aria-label="筛选剪贴板记录">
       {options.map((option) => {
         const selected = option.value === value;
         return (
           <button
             key={option.value}
             type="button"
+            data-value={option.value}
+            aria-pressed={selected}
             onClick={() => onValueChange(option.value)}
             className={clsx(
-              "cliply-interactive inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[6px] px-2.5 text-[12.5px] leading-none",
-              "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
+              "cliply-filter-tab cliply-interactive relative inline-flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[5px] px-1.5 text-[11.5px] leading-none",
+              "focus-visible:z-10 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
               selected
-                ? "cliply-pill-tab-active bg-[color:var(--cliply-accent-soft)] font-medium text-[color:var(--cliply-accent-on-soft)]"
-                : "text-[color:var(--cliply-faint)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
+                ? "font-semibold text-[color:var(--cliply-text)]"
+                : "text-[color:var(--cliply-faint)] hover:text-[color:var(--cliply-text)]",
             )}
           >
             <span>{option.label}</span>
             {typeof option.count === "number" ? (
               <span
                 className={clsx(
-                  "cliply-caption text-[11px] tabular-nums",
-                  selected ? "opacity-75" : "opacity-60",
+                  "cliply-caption min-w-3 text-[10px] tabular-nums",
+                  selected ? "text-[color:var(--cliply-accent)]" : "opacity-70",
                 )}
               >
                 {option.count}

@@ -34,9 +34,10 @@ pub fn write_payload(
         return write_image_file(&image_path, owner_window);
     }
 
-    let text = payload.text.or(payload.html).ok_or_else(|| {
-        CliplyError::PlatformUnavailable("clipboard payload has no writable content".into())
-    })?;
+    let text = payload
+        .text
+        .or(payload.html)
+        .ok_or_else(|| CliplyError::PlatformUnavailable("剪贴板内容为空，无法写入".into()))?;
 
     write_unicode_text(&text, owner_window)
 }
@@ -109,7 +110,7 @@ fn image_to_dib(image: &DynamicImage) -> Result<Vec<u8>, CliplyError> {
     let pixel_bytes = width
         .checked_mul(height)
         .and_then(|pixels| pixels.checked_mul(4))
-        .ok_or_else(|| CliplyError::PlatformUnavailable("image is too large".into()))?;
+        .ok_or_else(|| CliplyError::PlatformUnavailable("图片尺寸过大".into()))?;
     let row_bytes = (width as usize) * 4;
     let mut dib = Vec::with_capacity(40 + pixel_bytes as usize);
 
@@ -202,7 +203,7 @@ impl ClipboardGuard {
         }
 
         Err(CliplyError::PlatformUnavailable(
-            "windows clipboard is currently unavailable after retry".into(),
+            "Windows 剪贴板暂时不可用，请稍后重试".into(),
         ))
     }
 }

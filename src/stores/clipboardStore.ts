@@ -13,11 +13,13 @@ import {
   clearClipboardHistory,
   copyClipboardItem,
   deleteClipboardItem,
+  dtoToClipboardItem,
   getClipboardItemDetail,
   listClipboardItems,
   pasteClipboardItem,
   pastePlainText,
   togglePinClipboardItem,
+  type ClipboardItemDto,
 } from "@/lib/clipboardRepository";
 import {
   getCliplySettings,
@@ -32,26 +34,59 @@ import { defaultSettingsState } from "@/stores/settingsStore";
 const actionLabels: Record<ClipboardActionKind, string> = {
   paste: "已粘贴",
   copy: "已复制到剪贴板",
-  pastePlain: "已无格式粘贴",
-  togglePin: "固定状态已更新",
+  pastePlain: "已粘贴为纯文本",
+  togglePin: "记录固定状态已更新",
   delete: "记录已删除",
 };
 
 const actionErrorLabels: Record<Extract<ClipboardActionKind, "paste" | "copy" | "pastePlain">, string> = {
-  paste: "粘贴失败，内容已尽量复制到剪贴板",
+  paste: "无法粘贴到目标窗口，已尝试将内容复制到剪贴板",
   copy: "复制失败",
-  pastePlain: "无格式粘贴失败",
+  pastePlain: "无法粘贴为纯文本",
 };
 
 type StoreErrorKind = "list" | "detail" | "settings";
 
 const storeErrorLabels: Record<StoreErrorKind, string> = {
-  list: "读取剪贴板历史失败，请稍后重试",
-  detail: "读取记录详情失败",
-  settings: "保存设置失败，请检查快捷键或本地配置",
+  list: "无法读取剪贴板历史记录，请稍后重试",
+  detail: "无法读取记录详情",
+  settings: "无法保存设置，请检查快捷键和本地文件权限",
 };
 
 const initialClipboardItems = isTauri() ? [] : mockClipboardItems;
+
+function compareClipboardItems(left: ClipboardItem, right: ClipboardItem) {
+  if (left.isPinned !== right.isPinned) {
+    return left.isPinned ? -1 : 1;
+  }
+
+  const leftTime = Date.parse(left.copiedAt);
+  const rightTime = Date.parse(right.copiedAt);
+  if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+    return rightTime - leftTime;
+  }
+
+  return right.copiedAt.localeCompare(left.copiedAt);
+}
+
+function sortClipboardItems(items: ClipboardItem[]) {
+  return [...items].sort(compareClipboardItems);
+}
+
+function upsertClipboardItem(
+  items: ClipboardItem[],
+  updatedItem: ClipboardItem,
+  limit: number,
+) {
+  const existingIndex = items.findIndex((item) => item.id === updatedItem.id);
+  const nextItems = existingIndex === -1 ? [...items, updatedItem] : [...items];
+  if (existingIndex !== -1) {
+    nextItems[existingIndex] = updatedItem;
+  }
+
+  nextItems.sort(compareClipboardItems);
+  return nextItems.slice(0, Math.max(1, limit));
+}
 
 function isEditableShortcutTarget(target: EventTarget | null) {
   return (
@@ -79,7 +114,8 @@ export function useClipboardStore() {
   const [loading, setLoading] = useState(isTauri());
   const allItemsLoadedRef = useRef(!isTauri());
   const [actionStatus, setActionStatus] = useState<ClipboardActionStatus>(null);
-  const [refreshToken, setRefreshToken] = useState(0);
+  const [fullRefreshToken, setFullRefreshToken] = useState(0);
+  const [filteredRefreshToken, setFilteredRefreshToken] = useState(0);
   const [settings, setSettingsState] = useState<CliplySettings>(defaultSettingsState);
   const [listErrorMessage, setListErrorMessage] = useState<string | null>(null);
   const [monitoringErrorMessage, setMonitoringErrorMessage] = useState<string | null>(null);
@@ -88,6 +124,11 @@ export function useClipboardStore() {
     about: false,
     clearHistory: false,
   });
+  const maxHistoryItemsRef = useRef(settings.maxHistoryItems);
+
+  useEffect(() => {
+    maxHistoryItemsRef.current = settings.maxHistoryItems;
+  }, [settings.maxHistoryItems]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,7 +177,7 @@ export function useClipboardStore() {
     return () => {
       cancelled = true;
     };
-  }, [refreshToken, settings.maxHistoryItems]);
+  }, [fullRefreshToken, settings.maxHistoryItems]);
 
   // The default view ("all", no query) shows exactly the allItems result, so
   // it mirrors that list instead of issuing a second identical query on every
@@ -197,21 +238,42 @@ export function useClipboardStore() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, filter, refreshToken, settings.maxHistoryItems]);
+  }, [debouncedQuery, filter, filteredRefreshToken, fullRefreshToken, settings.maxHistoryItems]);
 
   useEffect(() => {
     if (!isTauri()) {
       return;
     }
 
-    let unlisten: (() => void) | undefined;
-    let unlistenSettings: (() => void) | undefined;
-    let unlistenErrors: (() => void) | undefined;
+    let unlisteners: Array<() => void> = [];
     let cancelled = false;
 
     Promise.all([
       listen("clipboard-items-changed", () => {
-        setRefreshToken((token) => token + 1);
+        setFullRefreshToken((token) => token + 1);
+      }),
+      listen<ClipboardItemDto>("clipboard-item-upserted", (event) => {
+        const updatedItem = dtoToClipboardItem(event.payload);
+        setAllItems((items) =>
+          upsertClipboardItem(items, updatedItem, maxHistoryItemsRef.current),
+        );
+        setDetail((item) => {
+          if (item?.id !== updatedItem.id) {
+            return item;
+          }
+
+          return {
+            ...item,
+            ...updatedItem,
+            fullText: item.fullText,
+            imageUrl: item.imageUrl,
+            imageWidth: item.imageWidth,
+            imageHeight: item.imageHeight,
+            formats: item.formats,
+          };
+        });
+        setSelectedId((currentSelectedId) => currentSelectedId ?? updatedItem.id);
+        setFilteredRefreshToken((token) => token + 1);
       }),
       listen<CliplySettings>("cliply-settings-changed", (event) => {
         setSettingsState(event.payload);
@@ -219,7 +281,7 @@ export function useClipboardStore() {
       listen<string>("cliply-error", (event) => {
         setActionStatus({
           label: event.payload,
-          itemTitle: "稍后会自动继续监听",
+          itemTitle: "Cliply 将自动重试。",
           at: Date.now(),
           tone: "error",
         });
@@ -231,15 +293,13 @@ export function useClipboardStore() {
           return;
         }
 
-        [unlisten, unlistenSettings, unlistenErrors] = cleanup;
+        unlisteners = cleanup;
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
-      unlisten?.();
-      unlistenSettings?.();
-      unlistenErrors?.();
+      unlisteners.forEach((unlisten) => unlisten());
     };
   }, []);
 
@@ -303,25 +363,45 @@ export function useClipboardStore() {
     setSelectedId(id);
   }, []);
 
-  const patchPinnedState = useCallback((id: string, updatedItem: ClipboardItem | null) => {
-    const patchItem = (item: ClipboardItem) =>
-      item.id === id ? updatedItem ?? { ...item, isPinned: !item.isPinned } : item;
+  const patchPinnedState = useCallback(
+    (id: string, updatedItem: ClipboardItem | null) => {
+      const patchItem = (item: ClipboardItem) =>
+        item.id === id ? updatedItem ?? { ...item, isPinned: !item.isPinned } : item;
 
-    setAllItems((items) => items.map(patchItem));
-    setVisibleItems((items) => items.map(patchItem));
-    setDetail((item) => (item?.id === id ? patchItem(item) : item));
-  }, []);
+      setAllItems((items) => sortClipboardItems(items.map(patchItem)));
+      setVisibleItems((items) => {
+        const patchedItems = items.map(patchItem);
+        return sortClipboardItems(
+          filter === "pinned"
+            ? patchedItems.filter((item) => item.isPinned)
+            : patchedItems,
+        );
+      });
+      setDetail((item) => {
+        if (item?.id !== id) {
+          return item;
+        }
 
-  const refreshItems = useCallback(() => {
-    setRefreshToken((token) => token + 1);
-  }, []);
+        const patchedItem = patchItem(item);
+        return {
+          ...item,
+          ...patchedItem,
+          fullText: item.fullText,
+          imageUrl: item.imageUrl,
+          imageWidth: item.imageWidth,
+          imageHeight: item.imageHeight,
+          formats: item.formats,
+        };
+      });
+    },
+    [filter],
+  );
 
   const updatePinnedState = useCallback(
     async (id: string) => {
       try {
         const updatedItem = await togglePinClipboardItem(id);
         patchPinnedState(id, updatedItem);
-        refreshItems();
         return true;
       } catch {
         setActionStatus({
@@ -333,7 +413,7 @@ export function useClipboardStore() {
         return false;
       }
     },
-    [patchPinnedState, refreshItems],
+    [patchPinnedState],
   );
 
   const moveSelection = useCallback(
@@ -369,7 +449,6 @@ export function useClipboardStore() {
 
       try {
         await deleteClipboardItem(id);
-        refreshItems();
       } catch {
         setVisibleItems(previousVisibleItems);
         setAllItems(previousAllItems);
@@ -392,7 +471,7 @@ export function useClipboardStore() {
         });
       }
     },
-    [allItems, refreshItems, selectedItem, visibleItems],
+    [allItems, selectedItem, visibleItems],
   );
 
   const findActionItem = useCallback(
@@ -461,7 +540,6 @@ export function useClipboardStore() {
             itemTitle: item.title,
             at: Date.now(),
           });
-          refreshItems();
         })
         .catch(() => {
           setActionStatus({
@@ -472,7 +550,7 @@ export function useClipboardStore() {
           });
         });
     },
-    [findActionItem, refreshItems, removeItem, selectedId, updatePinnedState],
+    [findActionItem, removeItem, selectedId, updatePinnedState],
   );
 
   const togglePinItem = useCallback(
@@ -512,8 +590,8 @@ export function useClipboardStore() {
       });
     } catch {
       setActionStatus({
-        label: "路径复制失败",
-        itemTitle: "请从设置或日志说明中查看",
+        label: "无法复制路径",
+        itemTitle: "请在“设置 > 关于”中查看路径",
         at: Date.now(),
         tone: "error",
       });
@@ -582,21 +660,20 @@ export function useClipboardStore() {
     void clearClipboardHistory(false)
       .then(() => {
         setActionStatus({
-          label: "历史已清空",
+          label: "历史记录已清空",
           itemTitle: "固定记录已保留",
           at: Date.now(),
         });
-        refreshItems();
       })
       .catch(() => {
         setActionStatus({
-          label: "数据库写入失败",
-          itemTitle: "历史未清空",
+          label: "无法清空历史记录",
+          itemTitle: "历史记录未删除",
           at: Date.now(),
           tone: "error",
         });
       });
-  }, [refreshItems]);
+  }, []);
 
   const closeDialogs = useCallback(() => {
     setDialogs({
@@ -650,7 +727,7 @@ export function useClipboardStore() {
     } catch (error) {
       const message = error instanceof Error ? error.message : storeErrorLabels.settings;
       setSettingsState(previousSettings);
-      setMonitoringErrorMessage(message || "设置保存失败，请检查本地权限");
+      setMonitoringErrorMessage(message || "无法保存设置，请检查本地文件权限");
       throw new Error(message || storeErrorLabels.settings);
     }
   }, [settings]);
@@ -663,15 +740,15 @@ export function useClipboardStore() {
         setSettingsState(savedSettings);
         setActionStatus({
           label: savedSettings.pauseMonitoring ? "监听已暂停" : "监听已恢复",
-          itemTitle: "剪贴板监听状态已更新",
+          itemTitle: "剪贴板监听设置已保存",
           at: Date.now(),
         });
       })
       .catch(() => {
         setSettingsState((current) => ({ ...current, pauseMonitoring: !paused }));
         setActionStatus({
-          label: "数据库写入失败",
-          itemTitle: "监听状态未保存",
+          label: "无法保存监听设置",
+          itemTitle: "监听状态未更改",
           at: Date.now(),
           tone: "error",
         });

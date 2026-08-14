@@ -416,13 +416,20 @@ fn upsert_sync_blob_metadata(
            hash = excluded.hash,
            encrypted = excluded.encrypted,
            sync_status = CASE
+             WHEN COALESCE(sync_blobs.sync_status, 'pending') IN ('pending', 'abandoned')
+             THEN COALESCE(sync_blobs.sync_status, 'pending')
              WHEN sync_blobs.local_path IS NOT NULL
                   AND COALESCE(sync_blobs.local_path, '') <> ''
              THEN sync_blobs.sync_status
              ELSE excluded.sync_status
            END,
            uploaded_at = excluded.uploaded_at,
-           deleted_at = excluded.deleted_at",
+           deleted_at = CASE
+             WHEN COALESCE(sync_blobs.sync_status, 'pending') IN ('pending', 'abandoned')
+                  AND sync_blobs.deleted_at IS NOT NULL
+             THEN sync_blobs.deleted_at
+             ELSE excluded.deleted_at
+           END",
         params![
             blob.id,
             blob.item_id,
@@ -523,9 +530,9 @@ fn unique_item_id(connection: &Connection, preferred_id: &str) -> Result<String,
 
 #[cfg(test)]
 mod tests {
-    use super::merge_sync_payload;
+    use super::{merge_sync_payload, upsert_sync_blob_metadata};
     use crate::services::sync_package_service::{
-        SyncPackageDevice, SyncPackageItem, SyncPackagePayload,
+        SyncPackageBlob, SyncPackageDevice, SyncPackageItem, SyncPackagePayload,
     };
     use rusqlite::{params, Connection};
 
@@ -642,6 +649,57 @@ mod tests {
         assert_eq!(device_count(&connection), 0);
     }
 
+    #[test]
+    fn remote_blob_metadata_does_not_overwrite_local_abandoned_tombstone() {
+        let connection = setup_connection();
+        insert_local_item(
+            &connection,
+            "local-1",
+            "sync-1",
+            "hash-1",
+            1,
+            false,
+            Some("2026-05-06T12:00:00Z"),
+        );
+        connection
+            .execute(
+                "INSERT INTO sync_blobs (
+                    id, item_id, blob_type, local_path, remote_path, size_bytes, hash,
+                    encrypted, sync_status, created_at, uploaded_at, deleted_at
+                 ) VALUES (
+                    'blob-1', 'local-1', 'preview', NULL, '/old/blob', 100, 'hash',
+                    1, 'abandoned', '2026-05-01T00:00:00Z', NULL, '2026-05-06T12:00:00Z'
+                 )",
+                [],
+            )
+            .expect("local blob tombstone should insert");
+        let remote = SyncPackageBlob {
+            id: "blob-1".to_string(),
+            item_id: "local-1".to_string(),
+            blob_type: "preview".to_string(),
+            remote_path: Some("/remote/blob".to_string()),
+            size_bytes: 100,
+            hash: "hash".to_string(),
+            encrypted: true,
+            sync_status: Some("synced".to_string()),
+            created_at: "2026-05-01T00:00:00Z".to_string(),
+            uploaded_at: Some("2026-05-02T00:00:00Z".to_string()),
+            deleted_at: None,
+        };
+
+        upsert_sync_blob_metadata(&connection, &remote).expect("remote metadata should merge");
+
+        let (status, deleted_at): (String, Option<String>) = connection
+            .query_row(
+                "SELECT sync_status, deleted_at FROM sync_blobs WHERE id = 'blob-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("local blob should load");
+        assert_eq!(status, "abandoned");
+        assert_eq!(deleted_at.as_deref(), Some("2026-05-06T12:00:00Z"));
+    }
+
     fn setup_connection() -> Connection {
         let connection = Connection::open_in_memory().expect("sqlite should open");
         connection
@@ -716,6 +774,20 @@ mod tests {
                   payload_json TEXT,
                   created_at TEXT NOT NULL,
                   synced_at TEXT NULL
+                );
+                CREATE TABLE sync_blobs (
+                  id TEXT PRIMARY KEY,
+                  item_id TEXT NOT NULL,
+                  blob_type TEXT NOT NULL,
+                  local_path TEXT,
+                  remote_path TEXT,
+                  size_bytes INTEGER DEFAULT 0,
+                  hash TEXT NOT NULL,
+                  encrypted INTEGER DEFAULT 0,
+                  sync_status TEXT DEFAULT 'pending',
+                  created_at TEXT NOT NULL,
+                  uploaded_at TEXT NULL,
+                  deleted_at TEXT NULL
                 );
                 ",
             )

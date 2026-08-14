@@ -1,6 +1,6 @@
 use crate::error::CliplyError;
 use crate::logger;
-use crate::services::database_service;
+use crate::services::{database_service, sync_cleanup_service};
 use rusqlite::{params, Connection};
 use std::collections::HashSet;
 use std::path::Path;
@@ -24,17 +24,43 @@ pub fn start_blob_cleanup_task(app: AppHandle) {
         .name("cliply-blob-cleanup".to_string())
         .spawn(move || {
             thread::sleep(CLEANUP_START_DELAY);
-            match run_blob_cleanup(&app) {
-                Ok(result) if result.removed_files > 0 => logger::info(
-                    &app,
-                    "blob_cleanup",
-                    format!(
-                        "removed_files={} freed_bytes={}",
-                        result.removed_files, result.freed_bytes
+            let files_cleaned = match run_blob_cleanup(&app) {
+                Ok(result) => {
+                    if result.removed_files > 0 {
+                        logger::info(
+                            &app,
+                            "blob_cleanup",
+                            format!(
+                                "removed_files={} freed_bytes={}",
+                                result.removed_files, result.freed_bytes
+                            ),
+                        );
+                    }
+                    true
+                }
+                Err(error) => {
+                    logger::error(&app, "blob_cleanup_failed", error);
+                    false
+                }
+            };
+
+            if files_cleaned {
+                match sync_cleanup_service::run_sync_cleanup(&app) {
+                    Ok(result) if result.total_deleted_rows > 0 => logger::info(
+                        &app,
+                        "sync_cleanup",
+                        format!(
+                            "tombstones={} deleted_rows={} vacuumed={} free_pages={} page_count={}",
+                            result.deleted_tombstones,
+                            result.total_deleted_rows,
+                            result.vacuumed,
+                            result.freelist_pages,
+                            result.page_count
+                        ),
                     ),
-                ),
-                Ok(_) => {}
-                Err(error) => logger::error(&app, "blob_cleanup_failed", error),
+                    Ok(_) => {}
+                    Err(error) => logger::error(&app, "sync_cleanup_failed", error),
+                }
             }
         });
 

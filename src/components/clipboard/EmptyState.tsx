@@ -6,8 +6,8 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({
-  title = "还没有剪贴板记录",
-  description = "复制一段文字、链接或图片后，它会出现在这里。",
+  title = "暂无剪贴板记录",
+  description = "复制文本、链接或图片后，记录将显示在此处。",
 }: EmptyStateProps) {
   return (
     <div className="grid min-h-48 place-items-center p-6 text-center">

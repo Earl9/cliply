@@ -87,7 +87,7 @@ pub fn check_shortcut(
             normalized: normalized.normalized,
             display: normalized.display,
             reason: "cliply-conflict".to_string(),
-            message: "该快捷键已被 Cliply 使用，请换一个组合键".to_string(),
+            message: "该快捷键已被 Cliply 使用，请选择其他组合键。".to_string(),
         };
     }
 
@@ -116,7 +116,7 @@ pub fn check_shortcut(
 pub fn register_user_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), CliplyError> {
     register_shortcut(app, shortcut).map_err(|error| {
         CliplyError::PlatformUnavailable(format!(
-            "快捷键已被占用或不可用，请换一个组合键（{error}）"
+            "快捷键已被占用或不可用，请选择其他组合键（{error}）"
         ))
     })
 }
@@ -172,7 +172,7 @@ fn normalize_shortcut(shortcut: &str) -> Result<NormalizedShortcut, String> {
     }
 
     if !has_control && !has_alt && !has_super {
-        return Err("全局快捷键需要包含 Ctrl、Alt 或 Win，避免误触".to_string());
+        return Err("全局快捷键必须包含 Ctrl、Alt 或 Win".to_string());
     }
 
     let Some((key_normalized, key_display)) = key else {

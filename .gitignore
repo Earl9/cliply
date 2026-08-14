@@ -60,6 +60,7 @@ id_ed25519
 # Local scratch/debug folders
 icon-debug/
 tmp_wix_decompile/
+.claude/
 
 # OS/editor noise
 .DS_Store

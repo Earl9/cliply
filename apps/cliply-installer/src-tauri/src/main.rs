@@ -21,5 +21,5 @@ fn main() {
             commands::open_release_page
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run Cliply modern installer");
+        .expect("无法启动 Cliply 安装程序");
 }

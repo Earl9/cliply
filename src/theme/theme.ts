@@ -4,6 +4,7 @@
 //   applyCliplyTheme(DEFAULT_THEME_NAME);
 
 export type CliplyThemeName =
+  | "coral-pulse"
   | "system-blue"
   | "lake-blue"
   | "indigo-spark"
@@ -96,7 +97,7 @@ export type CliplyAutoThemeColorSources = {
   systemAccent?: string | null;
 };
 
-export const DEFAULT_THEME_NAME: CliplyThemeName = "system-blue";
+export const DEFAULT_THEME_NAME: CliplyThemeName = "coral-pulse";
 
 export const CLIPLY_THEME_STORAGE_KEY = "cliply.theme.name";
 
@@ -108,25 +109,25 @@ export const DEFAULT_AUTO_THEME_SETTINGS: CliplyAutoThemeSettings = {
 };
 
 const AUTO_THEME_FALLBACK_COLORS: Record<CliplyAutoThemeSource, string> = {
-  "system-accent": "#1F74CC",
-  wallpaper: "#3B82F6",
+  "system-accent": "#FF6257",
+  wallpaper: "#22B793",
 };
 
 let themeTransitionResetTimer: number | undefined;
 
 export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
-  "system-blue": {
-    name: "system-blue",
-    label: "浅蓝",
-    description: "明亮通透的浅蓝，安静中性，默认主题。",
+  "coral-pulse": {
+    name: "coral-pulse",
+    label: "珊瑚红",
+    description: "使用珊瑚红作为默认强调色。",
 
-    primary: "#1F74CC",
-    primaryHover: "#1B66B4",
-    primaryActive: "#185A9F",
-    primarySoft: "#EBF2FA",
-    primaryBorder: "#C7DCF2",
-    primaryText: "#FFFFFF",
-    primaryOnSoft: "#1D6DC0",
+    primary: "#FF6257",
+    primaryHover: "#FF7066",
+    primaryActive: "#F75A50",
+    primarySoft: "#FFEFEE",
+    primaryBorder: "#FFD8D5",
+    primaryText: "#14161A",
+    primaryOnSoft: "#B8473F",
 
     appBg: "#F5F9FD",
     windowBg: "#F5F9FD",
@@ -138,7 +139,7 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     border: "#E2EAF2",
     borderStrong: "#CEDBE8",
     divider: "#EDF3F8",
-    focusRing: "rgba(31, 116, 204, 0.15)",
+    focusRing: "rgba(255, 98, 87, 0.15)",
 
     text: "#1B2734",
     bodyText: "#2C3A49",
@@ -147,14 +148,14 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
     dangerSoft: "#FEF2F2",
-    info: "#1F74CC",
-    infoSoft: "#EBF2FA",
+    info: "#FF6257",
+    infoSoft: "#FFEFEE",
 
     shadowWindow:
       "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
@@ -162,13 +163,63 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#1F74CC",
+    swatch: "#FF6257",
+  },
+
+  "system-blue": {
+    name: "system-blue",
+    label: "系统蓝",
+    description: "使用 Windows 系统蓝作为强调色。",
+
+    primary: "#2F69FA",
+    primaryHover: "#295CDC",
+    primaryActive: "#2552C3",
+    primarySoft: "#ECF2FF",
+    primaryBorder: "#CBDAFE",
+    primaryText: "#FFFFFF",
+    primaryOnSoft: "#2B61E6",
+
+    appBg: "#F5F9FD",
+    windowBg: "#F5F9FD",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5FA",
+
+    border: "#E2EAF2",
+    borderStrong: "#CEDBE8",
+    divider: "#EDF3F8",
+    focusRing: "rgba(47, 105, 250, 0.15)",
+
+    text: "#1B2734",
+    bodyText: "#2C3A49",
+    textSecondary: "#5F6F80",
+    muted: "#64748B",
+    placeholder: "#7C8B9C",
+    disabledText: "#B9C5D1",
+
+    success: "#168F73",
+    successSoft: "#E8F7F2",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#2F69FA",
+    infoSoft: "#ECF2FF",
+
+    shadowWindow:
+      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
+    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#2F69FA",
   },
 
   "lake-blue": {
     name: "lake-blue",
-    label: "湖蓝",
-    description: "饱和的宝蓝，清晰有力。",
+    label: "深蓝",
+    description: "使用深蓝色作为强调色。",
 
     primary: "#1D5FD6",
     primaryHover: "#1A54BC",
@@ -197,8 +248,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -217,8 +268,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
 
   "indigo-spark": {
     name: "indigo-spark",
-    label: "电光靛",
-    description: "冷冽的电光靛蓝，年轻、有速度感。",
+    label: "靛蓝",
+    description: "使用靛蓝色作为强调色。",
 
     primary: "#4F46E5",
     primaryHover: "#463ECA",
@@ -247,8 +298,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -267,8 +318,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
 
   "purple-default": {
     name: "purple-default",
-    label: "霓虹紫",
-    description: "明快的紫色，创意工具的气质。",
+    label: "紫色",
+    description: "使用紫色作为强调色。",
 
     primary: "#6D4CFF",
     primaryHover: "#6043E0",
@@ -297,8 +348,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -317,8 +368,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
 
   "magenta-pop": {
     name: "magenta-pop",
-    label: "荧光洋红",
-    description: "高饱和洋红，最张扬的一款。",
+    label: "洋红",
+    description: "使用洋红色作为强调色。",
 
     primary: "#D6218C",
     primaryHover: "#BC1D7B",
@@ -347,8 +398,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -368,7 +419,7 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
   "rose-violet": {
     name: "rose-violet",
     label: "玫红",
-    description: "明亮的玫红，柔中带锐。",
+    description: "使用玫红色作为强调色。",
 
     primary: "#DB2777",
     primaryHover: "#C12269",
@@ -397,8 +448,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -417,12 +468,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
 
   "coral-orange": {
     name: "coral-orange",
-    label: "珊瑚橙",
-    description: "热烈的珊瑚橙，暖而醒目。",
+    label: "橙红",
+    description: "使用橙红色作为强调色。",
 
     primary: "#E8552D",
-    primaryHover: "#CC4B28",
-    primaryActive: "#B54223",
+    primaryHover: "#EA633E",
+    primaryActive: "#DF522B",
     primarySoft: "#FDEEEA",
     primaryBorder: "#F9D5CB",
     primaryText: "#14161A",
@@ -447,8 +498,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -467,12 +518,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
 
   "amber-glow": {
     name: "amber-glow",
-    label: "暖阳金",
-    description: "温暖的琥珀金，明亮不刺眼。",
+    label: "琥珀色",
+    description: "使用琥珀色作为强调色。",
 
     primary: "#C2820A",
-    primaryHover: "#AB7209",
-    primaryActive: "#976508",
+    primaryHover: "#C78C1E",
+    primaryActive: "#BA7D0A",
     primarySoft: "#F9F3E7",
     primaryBorder: "#F0E0C2",
     primaryText: "#14161A",
@@ -497,8 +548,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -518,11 +569,11 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
   "lime-punch": {
     name: "lime-punch",
     label: "青柠绿",
-    description: "鲜亮的青柠绿，轻快有生气。",
+    description: "使用青柠绿色作为强调色。",
 
     primary: "#4E9F0D",
-    primaryHover: "#458C0B",
-    primaryActive: "#3D7C0A",
+    primaryHover: "#5CA720",
+    primaryActive: "#4B990C",
     primarySoft: "#EDF5E7",
     primaryBorder: "#D3E7C3",
     primaryText: "#14161A",
@@ -547,8 +598,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -568,11 +619,11 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
   "mint-green": {
     name: "mint-green",
     label: "薄荷绿",
-    description: "清新的薄荷绿，自然舒展。",
+    description: "使用薄荷绿色作为强调色。",
 
     primary: "#1BA36B",
-    primaryHover: "#188F5E",
-    primaryActive: "#157F53",
+    primaryHover: "#2DAA77",
+    primaryActive: "#1A9C67",
     primarySoft: "#E8F6F0",
     primaryBorder: "#C6E8DA",
     primaryText: "#14161A",
@@ -597,8 +648,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -617,12 +668,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
 
   "teal-fresh": {
     name: "teal-fresh",
-    label: "清爽青",
-    description: "沉稳的青绿，专业感更强。",
+    label: "青绿色",
+    description: "使用青绿色作为强调色。",
 
     primary: "#0D9488",
-    primaryHover: "#0B8278",
-    primaryActive: "#0A736A",
+    primaryHover: "#209D92",
+    primaryActive: "#0C8E83",
     primarySoft: "#E7F4F3",
     primaryBorder: "#C3E4E1",
     primaryText: "#14161A",
@@ -647,8 +698,8 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     placeholder: "#7C8B9C",
     disabledText: "#B9C5D1",
 
-    success: "#15803D",
-    successSoft: "#ECFDF3",
+    success: "#168F73",
+    successSoft: "#E8F7F2",
     warning: "#B45309",
     warningSoft: "#FFF7E6",
     danger: "#DC2626",
@@ -670,10 +721,10 @@ export const CLIPLY_THEME_OPTIONS = Object.values(CLIPLY_THEMES);
 
 // 推荐首屏展示这几个，其余在“更多主题”里。
 export const RECOMMENDED_THEME_NAMES: CliplyThemeName[] = [
-  "system-blue",
-  "indigo-spark",
+  "coral-pulse",
+  "mint-green",
+  "lake-blue",
   "magenta-pop",
-  "lime-punch",
 ];
 
 export function isCliplyThemeName(value: unknown): value is CliplyThemeName {
@@ -712,7 +763,8 @@ export function getCliplyThemeWithAccent(
     primaryActive: mixHex(accent, "#000000", 0.22),
     primarySoft: mixHex(accent, "#FFFFFF", 0.9),
     primaryBorder: mixHex(accent, "#FFFFFF", 0.72),
-    primaryText: readableTextForColor(rgb),
+    primaryText: readableTextForAccent(accent),
+    primaryOnSoft: readableAccentOnLightSurface(accent),
     focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
     shadowSelected: `0 0 0 1px ${accent}, 0 8px 22px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.13)`,
     swatch: accent,
@@ -864,6 +916,7 @@ export function cssVarsFromCliplyTheme(theme: CliplyThemeTokens): Record<string,
     "--cliply-primary-border": theme.primaryBorder,
     "--cliply-primary-border-selected": theme.primaryBorderSelected ?? theme.primaryBorder,
     "--cliply-primary-text": theme.primaryText,
+    "--cliply-primary-action-text": theme.primaryText,
     "--cliply-accent-on-soft": theme.primaryOnSoft ?? theme.primaryHover,
 
     "--cliply-app-bg": theme.appBg,
@@ -1024,12 +1077,21 @@ function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
   const darkAccent = normalizeDefaultDarkAccent(theme.primary);
   const rgb = hexToRgb(darkAccent) ?? { r: 124, g: 92, b: 255 };
   const isDefaultPurple = darkAccent === "#7C5CFF";
+  const isBrandCoral = theme.name === "coral-pulse";
 
   return {
     ...theme,
     primary: darkAccent,
-    primaryHover: isDefaultPurple ? "#8B6DFF" : mixHex(darkAccent, "#FFFFFF", 0.08),
-    primaryActive: isDefaultPurple ? "#6D4CFF" : mixHex(darkAccent, "#000000", 0.12),
+    primaryHover: isBrandCoral
+      ? "#FF7066"
+      : isDefaultPurple
+        ? "#8B6DFF"
+        : mixHex(darkAccent, "#FFFFFF", 0.08),
+    primaryActive: isBrandCoral
+      ? "#F75A50"
+      : isDefaultPurple
+        ? "#6D4CFF"
+        : mixHex(darkAccent, "#000000", 0.12),
     primarySoft: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`,
     primaryBorder: isDefaultPurple
       ? "rgba(167, 139, 250, 0.55)"
@@ -1058,7 +1120,8 @@ function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
     disabledText: "#5D666F",
     focusBorder: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`,
     focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`,
-    successSoft: "rgba(34, 197, 94, 0.14)",
+    success: "#3DD0AC",
+    successSoft: "rgba(61, 208, 172, 0.14)",
     warningSoft: "rgba(245, 158, 11, 0.16)",
     dangerSoft: "rgba(239, 68, 68, 0.16)",
     infoSoft: "rgba(37, 99, 235, 0.18)",
@@ -1090,7 +1153,7 @@ function withDarkAccent(theme: CliplyThemeTokens, accent: string): CliplyThemeTo
     primaryBorderSelected: isDefaultPurple
       ? "rgba(167, 139, 250, 0.75)"
       : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.72)`,
-    primaryText: "#FFFFFF",
+    primaryText: readableTextForAccent(darkAccent),
     focusBorder: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.65)`,
     focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
     shadowSelected: `0 0 0 1px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`,
@@ -1230,9 +1293,25 @@ function mixHex(from: string, to: string, amount: number) {
   )}`.toUpperCase();
 }
 
-function readableTextForColor(rgb: { r: number; g: number; b: number }) {
-  const luminance = relativeLuminance(rgb);
-  return luminance > 0.72 ? "#1F2937" : "#FFFFFF";
+function readableTextForAccent(accent: string) {
+  const lightContrast = contrastRatio(accent, "#FFFFFF");
+  const darkContrast = contrastRatio(accent, "#14161A");
+  return lightContrast >= darkContrast ? "#FFFFFF" : "#14161A";
+}
+
+function readableAccentOnLightSurface(accent: string) {
+  if (contrastRatio(accent, "#FFFFFF") >= 4.5) {
+    return accent;
+  }
+
+  for (let amount = 0.04; amount <= 0.8; amount += 0.04) {
+    const candidate = mixHex(accent, "#000000", amount);
+    if (contrastRatio(candidate, "#FFFFFF") >= 4.5) {
+      return candidate;
+    }
+  }
+
+  return mixHex(accent, "#000000", 0.8);
 }
 
 function relativeLuminance(rgb: { r: number; g: number; b: number }) {

@@ -13,7 +13,7 @@ use crate::{payload, platform};
 
 const PRODUCT_NAME: &str = "Cliply";
 const PRODUCT_EXE: &str = "cliply.exe";
-const PRODUCT_ICON: &str = "cliply.ico";
+const PRODUCT_ICON: &str = concat!("cliply-", env!("CARGO_PKG_VERSION"), ".ico");
 const PRODUCT_UNINSTALLER: &str = "uninstall.exe";
 const PRODUCT_REG_KEY: &str = r"Software\cliply\Cliply";
 const PRODUCT_UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Cliply";
@@ -21,32 +21,32 @@ const START_MENU_FOLDER: &str = "Cliply";
 
 #[derive(Debug, Error)]
 pub enum InstallError {
-    #[error("安装路径不能为空")]
+    #[error("请选择安装目录")]
     EmptyInstallDir,
-    #[error("安装路径不合法：{0}")]
+    #[error("安装目录无效：{0}")]
     InvalidInstallDir(String),
-    #[error("无法创建目录 {path}: {source}")]
+    #[error("无法创建目录 {path}：{source}")]
     CreateDir {
         path: String,
         source: std::io::Error,
     },
-    #[error("无法写入文件 {path}: {source}")]
+    #[error("无法写入文件 {path}：{source}")]
     WriteFile {
         path: String,
         source: std::io::Error,
     },
-    #[error("无法替换旧文件 {path}。Cliply 可能仍在运行，或文件被安全软件占用。请退出 Cliply 后重试；如果仍失败，请重启 Windows 再安装。原始错误：{source}")]
+    #[error("无法替换程序文件 {path}。Cliply 可能仍在运行，或该文件正在被安全软件扫描。请退出 Cliply 后重试；若问题仍然存在，请重新启动 Windows 后再次安装。详细信息：{source}")]
     ReplaceLockedFile {
         path: String,
         source: std::io::Error,
     },
-    #[error("无法关闭正在运行的 Cliply。请从托盘退出 Cliply 后重试。")]
+    #[error("无法关闭 Cliply。请从系统托盘退出 Cliply，然后重试。")]
     StopRunningCliply,
-    #[error("无法启动 Cliply: {0}")]
+    #[error("无法启动 Cliply：{0}")]
     Launch(std::io::Error),
-    #[error("无法读取当前安装器路径: {0}")]
+    #[error("无法读取安装程序路径：{0}")]
     CurrentExe(std::io::Error),
-    #[error("无法解压 Cliply 程序文件: {0}")]
+    #[error("无法解压 Cliply 程序文件：{0}")]
     Decompress(std::io::Error),
     #[error("{0}")]
     Platform(String),
@@ -179,7 +179,7 @@ where
         wait_for_process_exit(parent_pid, Duration::from_secs(10));
     }
 
-    on_progress(progress(8, "正在关闭正在运行的 Cliply"));
+    on_progress(progress(8, "正在关闭 Cliply"));
     stop_running_cliply()?;
 
     on_progress(progress(24, "正在复制 Cliply 程序文件"));
@@ -193,12 +193,13 @@ where
         PRODUCT_REG_KEY,
         PRODUCT_UNINSTALL_KEY,
         &install_dir,
+        &icon_path,
     )?;
 
     on_progress(progress(72, "正在创建开始菜单快捷方式"));
     platform::create_start_menu_shortcuts(START_MENU_FOLDER, &exe_path, &icon_path)?;
 
-    on_progress(progress(86, "正在应用你的安装选项"));
+    on_progress(progress(86, "正在应用安装选项"));
     if options.is_update {
         platform::refresh_desktop_shortcut_if_exists(&exe_path, &icon_path)?;
         platform::refresh_start_on_login_if_enabled(PRODUCT_NAME, &exe_path)?;
@@ -211,12 +212,17 @@ where
 
         platform::set_start_on_login(PRODUCT_NAME, &exe_path, options.start_on_login)?;
     }
+
+    let _ = remove_stale_product_icons(&install_dir, Some(&icon_path));
+    refresh_shell_icon_cache();
     on_progress(progress(
         100,
-        if preserve_user_data {
-            "安装完成，用户数据已保留"
+        if options.is_update {
+            "Cliply 更新完成"
+        } else if preserve_user_data {
+            "Cliply 安装完成，剪贴板历史记录和应用设置已保留"
         } else {
-            "安装完成"
+            "Cliply 安装完成"
         },
     ));
 
@@ -262,10 +268,10 @@ where
     F: FnMut(InstallProgress),
 {
     let install_dir = normalize_install_dir(&options.install_dir)?;
-    on_progress(progress(10, "正在关闭正在运行的 Cliply"));
+    on_progress(progress(10, "正在关闭 Cliply"));
     stop_running_cliply()?;
 
-    on_progress(progress(28, "正在移除快捷方式和开机启动"));
+    on_progress(progress(28, "正在移除快捷方式和开机启动项"));
     let exe_path = install_dir.join(PRODUCT_EXE);
     let _ = platform::set_start_on_login(PRODUCT_NAME, &exe_path, false);
     let _ = platform::remove_desktop_shortcut();
@@ -276,9 +282,10 @@ where
 
     on_progress(progress(72, "正在清理安装信息"));
     platform::remove_install_registry(PRODUCT_REG_KEY, PRODUCT_UNINSTALL_KEY)?;
+    refresh_shell_icon_cache();
 
     if options.remove_user_data {
-        on_progress(progress(88, "正在删除本地历史记录与设置"));
+        on_progress(progress(88, "正在删除剪贴板历史记录和应用设置"));
         remove_user_data()?;
     }
 
@@ -323,12 +330,7 @@ fn write_uninstaller(install_dir: &Path) -> InstallResult<()> {
 }
 
 fn remove_installed_files(install_dir: &Path) -> InstallResult<()> {
-    let files = [
-        PRODUCT_EXE,
-        PRODUCT_ICON,
-        "Uninstall Cliply.lnk",
-        "卸载 Cliply.lnk",
-    ];
+    let files = [PRODUCT_EXE, "Uninstall Cliply.lnk", "卸载 Cliply.lnk"];
 
     for file in files {
         let path = install_dir.join(file);
@@ -337,7 +339,50 @@ fn remove_installed_files(install_dir: &Path) -> InstallResult<()> {
         }
     }
 
+    remove_stale_product_icons(install_dir, None)?;
+
     Ok(())
+}
+
+fn remove_stale_product_icons(install_dir: &Path, keep: Option<&Path>) -> InstallResult<()> {
+    let entries = match fs::read_dir(install_dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(InstallError::ReplaceLockedFile {
+                path: install_dir.to_string_lossy().to_string(),
+                source,
+            })
+        }
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if keep.is_some_and(|keep_path| paths_equal(&path, keep_path)) {
+            continue;
+        }
+
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        let is_legacy_icon = file_name.eq_ignore_ascii_case("cliply.ico");
+        let is_versioned_icon = file_name
+            .to_ascii_lowercase()
+            .strip_prefix("cliply-")
+            .is_some_and(|suffix| suffix.ends_with(".ico"));
+        if is_legacy_icon || is_versioned_icon {
+            remove_file_with_retry(&path)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn refresh_shell_icon_cache() {
+    let _ = Command::new("ie4uinit.exe")
+        .arg("-show")
+        .creation_flags_no_window()
+        .status();
 }
 
 fn remove_user_data() -> InstallResult<()> {

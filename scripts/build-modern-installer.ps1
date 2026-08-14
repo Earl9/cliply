@@ -24,7 +24,15 @@ New-Item -ItemType Directory -Path $bundleDir -Force | Out-Null
 
 Push-Location $repoRoot
 try {
-  npm run tauri -- build --bundles nsis
+  node (Join-Path $repoRoot "scripts\generate-installer-art.mjs")
+  if ($LASTEXITCODE -ne 0) {
+    throw "Installer artwork generation failed with exit code $LASTEXITCODE"
+  }
+  $localBuildConfig = Join-Path $tauriDir "tauri.local-build.conf.json"
+  npm run tauri -- build --bundles nsis --config $localBuildConfig
+  if ($LASTEXITCODE -ne 0) {
+    throw "Tauri build failed with exit code $LASTEXITCODE"
+  }
 
   $releaseResourcesDir = Join-Path $tauriDir "target\release\resources"
   New-Item -ItemType Directory -Path $releaseResourcesDir -Force | Out-Null
@@ -33,6 +41,9 @@ try {
     -Force
 
   $scriptContent = Get-Content -Path $scriptPath -Raw -Encoding UTF8
+  # Keep the custom installer's displayed and output versions in sync with package.json.
+  $scriptContent = $scriptContent -replace '(?m)^!define PRODUCT_VERSION "[^"]*"', "!define PRODUCT_VERSION `"$version`""
+  $scriptContent = $scriptContent -replace '(?m)^!define OUT_EXE "[^"]*"', "!define OUT_EXE `"$(Join-Path $bundleDir "Cliply_${version}_x64-modern-setup.exe")`""
   $utf8Bom = New-Object System.Text.UTF8Encoding $true
   [System.IO.File]::WriteAllText($compiledScriptPath, $scriptContent, $utf8Bom)
 

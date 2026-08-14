@@ -85,7 +85,7 @@ mod windows_secure_storage {
         };
         if ok == 0 {
             return Err(CliplyError::PlatformUnavailable(format!(
-                "Windows DPAPI protect failed: {}",
+                "Windows 安全存储加密失败：{}",
                 std::io::Error::last_os_error()
             )));
         }
@@ -116,7 +116,7 @@ mod windows_secure_storage {
         };
         if ok == 0 {
             return Err(CliplyError::PlatformUnavailable(format!(
-                "Windows DPAPI unprotect failed: {}",
+                "Windows 安全存储解密失败：{}",
                 std::io::Error::last_os_error()
             )));
         }

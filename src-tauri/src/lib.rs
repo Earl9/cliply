@@ -42,6 +42,7 @@ pub fn run() {
             commands::set_remote_sync_provider,
             commands::update_auto_sync_config,
             commands::clear_auto_sync_password,
+            commands::abandon_sync_queue,
             commands::sync_with_remote_now,
             commands::export_to_remote_sync_folder,
             commands::import_from_remote_sync_folder,

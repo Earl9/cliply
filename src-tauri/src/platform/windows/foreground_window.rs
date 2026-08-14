@@ -22,7 +22,7 @@ pub fn current_foreground_app() -> Option<ForegroundAppInfo> {
         GetWindowThreadProcessId(hwnd, &mut process_id);
     }
 
-    let app_name = process_name(process_id).unwrap_or_else(|| "Windows Clipboard".to_string());
+    let app_name = process_name(process_id).unwrap_or_else(|| "Windows 剪贴板".to_string());
     let window_title = window_title(hwnd);
 
     Some(ForegroundAppInfo {

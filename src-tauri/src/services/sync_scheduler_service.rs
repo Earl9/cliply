@@ -1,11 +1,8 @@
 use crate::error::CliplyError;
 use crate::logger;
 use crate::services::remote_sync_service;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-use std::thread;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
@@ -16,30 +13,81 @@ const CHECK_INTERVAL: Duration = Duration::from_secs(60);
 // line every single minute.
 const MAX_BACKOFF: Duration = Duration::from_secs(30 * 60);
 
+struct SchedulerSignal {
+    running: Mutex<bool>,
+    wake: Condvar,
+}
+
+impl SchedulerSignal {
+    fn new() -> Self {
+        Self {
+            running: Mutex::new(true),
+            wake: Condvar::new(),
+        }
+    }
+
+    fn is_running(&self) -> bool {
+        *self
+            .running
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn wait_timeout(&self, duration: Duration) -> bool {
+        let running = self
+            .running
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if !*running {
+            return false;
+        }
+
+        let (running, _) = self
+            .wake
+            .wait_timeout_while(running, duration, |running| *running)
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *running
+    }
+
+    fn stop(&self) {
+        let mut running = self
+            .running
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *running = false;
+        drop(running);
+        self.wake.notify_all();
+    }
+}
+
 pub struct AutoSyncSchedulerShutdown {
-    running: Arc<AtomicBool>,
+    signal: Arc<SchedulerSignal>,
+    worker: Option<JoinHandle<()>>,
 }
 
 impl Drop for AutoSyncSchedulerShutdown {
     fn drop(&mut self) {
-        self.running.store(false, Ordering::SeqCst);
+        self.signal.stop();
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
     }
 }
 
 pub fn start_auto_sync_scheduler(app: AppHandle) -> Result<AutoSyncSchedulerShutdown, CliplyError> {
-    let running = Arc::new(AtomicBool::new(true));
-    let thread_running = Arc::clone(&running);
-    thread::Builder::new()
+    let signal = Arc::new(SchedulerSignal::new());
+    let thread_signal = Arc::clone(&signal);
+    let worker = thread::Builder::new()
         .name("cliply-auto-sync".to_string())
         .spawn(move || {
-            if !sleep_while_running(&thread_running, INITIAL_DELAY) {
+            if !thread_signal.wait_timeout(INITIAL_DELAY) {
                 return;
             }
 
             let mut consecutive_failures = 0u32;
             let mut last_error_message = String::new();
 
-            while thread_running.load(Ordering::SeqCst) {
+            while thread_signal.is_running() {
                 match remote_sync_service::run_auto_sync_cycle(&app) {
                     Ok(Some(result)) => {
                         consecutive_failures = 0;
@@ -81,14 +129,17 @@ pub fn start_auto_sync_scheduler(app: AppHandle) -> Result<AutoSyncSchedulerShut
                     }
                 }
 
-                if !sleep_while_running(&thread_running, next_interval(consecutive_failures)) {
+                if !thread_signal.wait_timeout(next_interval(consecutive_failures)) {
                     break;
                 }
             }
         })
         .map_err(|error| CliplyError::PlatformUnavailable(error.to_string()))?;
 
-    Ok(AutoSyncSchedulerShutdown { running })
+    Ok(AutoSyncSchedulerShutdown {
+        signal,
+        worker: Some(worker),
+    })
 }
 
 fn next_interval(consecutive_failures: u32) -> Duration {
@@ -101,23 +152,12 @@ fn next_interval(consecutive_failures: u32) -> Duration {
     backoff.min(MAX_BACKOFF)
 }
 
-fn sleep_while_running(running: &Arc<AtomicBool>, duration: Duration) -> bool {
-    let mut slept = Duration::ZERO;
-    while slept < duration {
-        if !running.load(Ordering::SeqCst) {
-            return false;
-        }
-        let step = Duration::from_millis(250).min(duration - slept);
-        thread::sleep(step);
-        slept += step;
-    }
-    running.load(Ordering::SeqCst)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{next_interval, CHECK_INTERVAL, MAX_BACKOFF};
-    use std::time::Duration;
+    use super::{next_interval, SchedulerSignal, CHECK_INTERVAL, MAX_BACKOFF};
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn backoff_doubles_and_caps() {
@@ -127,5 +167,19 @@ mod tests {
         assert_eq!(next_interval(5), MAX_BACKOFF.min(Duration::from_secs(1920)));
         assert_eq!(next_interval(20), next_interval(5));
         assert!(next_interval(20) <= MAX_BACKOFF);
+    }
+
+    #[test]
+    fn stop_interrupts_a_long_wait() {
+        let signal = Arc::new(SchedulerSignal::new());
+        let waiter_signal = Arc::clone(&signal);
+        let started_at = Instant::now();
+        let waiter = thread::spawn(move || waiter_signal.wait_timeout(Duration::from_secs(5)));
+
+        thread::sleep(Duration::from_millis(20));
+        signal.stop();
+
+        assert!(!waiter.join().expect("waiter should finish"));
+        assert!(started_at.elapsed() < Duration::from_secs(1));
     }
 }

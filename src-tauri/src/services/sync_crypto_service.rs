@@ -115,7 +115,7 @@ pub fn encrypt_payload(
     let nonce = random_bytes::<NONCE_LEN>();
     let key = derive_key(password, &salt)?;
     let cipher = Aes256Gcm::new_from_slice(&key)
-        .map_err(|_| CliplyError::Sync("failed to initialize sync cipher".to_string()))?;
+        .map_err(|_| CliplyError::Sync("无法初始化同步加密组件".to_string()))?;
     let ciphertext = cipher
         .encrypt(Nonce::from_slice(&nonce), payload)
         .map_err(|_| CliplyError::Sync("同步包加密失败".to_string()))?;
@@ -163,7 +163,7 @@ pub fn decrypt_payload(
         metadata.parallelism,
     )?;
     let cipher = Aes256Gcm::new_from_slice(&key)
-        .map_err(|_| CliplyError::Sync("failed to initialize sync cipher".to_string()))?;
+        .map_err(|_| CliplyError::Sync("无法初始化同步加密组件".to_string()))?;
 
     cipher
         .decrypt(Nonce::from_slice(&nonce), ciphertext.as_ref())
@@ -214,7 +214,7 @@ fn derive_key_uncached(
     parallelism: u32,
 ) -> Result<[u8; KEY_LEN], CliplyError> {
     let params = Params::new(memory_kib, iterations, parallelism, Some(KEY_LEN))
-        .map_err(|_| CliplyError::Sync("同步包 KDF 参数不兼容".to_string()))?;
+        .map_err(|_| CliplyError::Sync("同步包密钥派生参数不兼容".to_string()))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0_u8; KEY_LEN];
     argon2

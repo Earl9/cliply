@@ -1,12 +1,9 @@
 // Generates every Cliply app icon asset from one vector definition.
 //
-// Direction: the mark is the *stack*, not a clipboard. Cliply's job is clipboard
-// history — a deck of things you can page back through — so the icon is three
-// offset sheets: the front one is the live clip (brand blue, white rules) and
-// the two behind recede into lighter blues. No container square, so the
-// silhouette itself is identifiable rather than "pictogram in a box".
-// Gradients stay within a single hue and a narrow range, which reads as
-// material; the two-hue saturated ramp is what makes an icon look generated.
+// Direction: two offset paper shapes express clipboard history without using
+// a literal clipboard outline. Coral is the active clip, mint is its history,
+// and the folded corner gives the silhouette a recognizable action. The mark
+// stays flat and typographic: no gradient, glow, glass orb, sparkle, or letter.
 //
 // Usage: node scripts/generate-app-icon.mjs
 
@@ -17,86 +14,78 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Front sheet carries the product accent; sheets behind recede (aerial
-// perspective) so depth reads without outlines.
-const SHEET_FRONT = { from: [0x30, 0x82, 0xd6], to: [0x1a, 0x6a, 0xbe] };
-const SHEET_MID = { from: [0x7f, 0xb1, 0xe8], to: [0x5f, 0x9b, 0xdd] };
-const SHEET_BACK = { from: [0xb6, 0xd5, 0xf3], to: [0x9c, 0xc5, 0xee] };
-const RULE = [0xff, 0xff, 0xff];
-const CAST_SHADOW = [0x0d, 0x3c, 0x6e];
+const PAPER_FRONT = [0xff, 0x62, 0x57];
+const PAPER_BACK = [0x22, 0xb7, 0x93];
+const PAPER_FOLD = [0xff, 0xdf, 0xc9];
+const INK = [0x21, 0x28, 0x2d];
+const CAST_SHADOW = [0x21, 0x28, 0x2d];
 
-// Geometry in unit-square coordinates (0..1), rasterised at any size.
-// Each sheet steps up-and-right by a constant offset. The stack is sized to
-// fill ~85% of the canvas — taskbar icons look undersized below that.
-const STACK_LARGE = {
-  sheets: 3,
-  sheet: { w: 0.56, h: 0.66, r: 0.06 },
-  step: { x: 0.11, y: -0.09 },
-  origin: { x: 0.11, y: 0.25 },
+// Windows taskbar icons need a denser optical fill than in-app artwork. The
+// sheets use roughly 90% of the 32px canvas so the narrow paper silhouette has
+// the same perceived size as circular and square neighboring app icons.
+const MARK_LARGE = {
+  back: { x0: 0.276, y0: 0.068, x1: 0.931, y1: 0.738, r: 0.113 },
+  front: { x0: 0.069, y0: 0.208, x1: 0.805, y1: 0.932, r: 0.113 },
 };
 
-// Below ~32px the standard step collapses into a plain rounded square, so the
-// small variant drops a sheet and widens the offset — the usual hand-tuning
-// every real icon set does for 16/24px.
-const STACK_SMALL = {
-  sheets: 2,
-  sheet: { w: 0.62, h: 0.7, r: 0.085 },
-  step: { x: 0.15, y: -0.15 },
-  origin: { x: 0.115, y: 0.22 },
+const MARK_SMALL = {
+  back: { x0: 0.299, y0: 0.073, x1: 0.931, y1: 0.743, r: 0.13 },
+  front: { x0: 0.069, y0: 0.214, x1: 0.805, y1: 0.927, r: 0.13 },
 };
-
-const SHEET_FILLS = [SHEET_FRONT, SHEET_MID, SHEET_BACK];
-
-function stackFor(size) {
-  return size <= 24 ? STACK_SMALL : STACK_LARGE;
-}
-
-function sheetRect(stack, level) {
-  const x0 = stack.origin.x + stack.step.x * level;
-  const y0 = stack.origin.y + stack.step.y * level;
-  return {
-    x0,
-    y0,
-    x1: x0 + stack.sheet.w,
-    y1: y0 + stack.sheet.h,
-    r: stack.sheet.r,
-  };
-}
-
-/// Soft cast shadow for a sheet, nudged away from the light so it lands on the
-/// sheet behind rather than ringing the shape.
-function sheetShadow(stack, level, spread, alpha) {
-  const rect = sheetRect(stack, level);
-  return {
-    x0: rect.x0 - 0.005,
-    y0: rect.y0 + 0.009,
-    x1: rect.x1 - 0.005,
-    y1: rect.y1 + 0.009,
-    r: rect.r,
-    fill: CAST_SHADOW,
-    shadow: spread,
-    alpha,
-  };
-}
 
 const RULES = [
-  { x0: 0.185, x1: 0.595, cy: 0.46 },
-  { x0: 0.185, x1: 0.595, cy: 0.575 },
-  { x0: 0.185, x1: 0.47, cy: 0.69 },
+  { x0: 0.207, x1: 0.598, cy: 0.554 },
+  { x0: 0.207, x1: 0.494, cy: 0.694 },
 ];
-const RULE_HEIGHT = 0.038;
-const RULES_MIN_SIZE = 48;
+const RULE_HEIGHT = 0.037;
+const DETAIL_SCALE_X = 1.15;
+const DETAIL_SCALE_Y = 1.08;
+const FOLD_MIN_SIZE = 20;
+const RULES_MIN_SIZE = 32;
 
 function layersFor(size) {
-  const stack = stackFor(size);
-  const layers = [];
+  const mark = size <= 24 ? MARK_SMALL : MARK_LARGE;
+  const layers = [
+    {
+      ...mark.back,
+      y0: mark.back.y0 + 0.014,
+      y1: mark.back.y1 + 0.014,
+      fill: CAST_SHADOW,
+      shadow: 0.028,
+      alpha: 0.14,
+    },
+    { ...mark.back, fill: PAPER_BACK },
+    {
+      ...mark.front,
+      x0: mark.front.x0 - 0.004,
+      x1: mark.front.x1 - 0.004,
+      y0: mark.front.y0 + 0.014,
+      y1: mark.front.y1 + 0.014,
+      fill: CAST_SHADOW,
+      shadow: 0.03,
+      alpha: 0.18,
+    },
+    { ...mark.front, fill: PAPER_FRONT },
+  ];
 
-  // Back to front, with each sheet casting onto the one behind it.
-  for (let level = stack.sheets - 1; level >= 0; level -= 1) {
-    if (level < stack.sheets - 1) {
-      layers.push(sheetShadow(stack, level, 0.022 + level * 0.002, 0.28));
-    }
-    layers.push({ ...sheetRect(stack, level), fill: SHEET_FILLS[level] });
+  if (size >= FOLD_MIN_SIZE) {
+    layers.push({
+      points: [
+        {
+          x: mark.front.x1 - 0.2 * DETAIL_SCALE_X,
+          y: mark.front.y0 + 0.025 * DETAIL_SCALE_Y,
+        },
+        {
+          x: mark.front.x1 - 0.045 * DETAIL_SCALE_X,
+          y: mark.front.y0 + 0.025 * DETAIL_SCALE_Y,
+        },
+        {
+          x: mark.front.x1 - 0.045 * DETAIL_SCALE_X,
+          y: mark.front.y0 + 0.18 * DETAIL_SCALE_Y,
+        },
+      ],
+      fill: PAPER_FOLD,
+    });
   }
 
   if (size >= RULES_MIN_SIZE) {
@@ -107,8 +96,8 @@ function layersFor(size) {
         x1: rule.x1,
         y1: rule.cy + RULE_HEIGHT / 2,
         r: RULE_HEIGHT / 2,
-        fill: RULE,
-        alpha: 0.92,
+        fill: INK,
+        alpha: 0.82,
       });
     }
   }
@@ -126,8 +115,6 @@ function roundedRectDistance(px, py, cx, cy, halfWidth, halfHeight, radius) {
   return outside + inside - r;
 }
 
-/// Vertical ramp sampled over the full canvas, so any shape sharing a gradient
-/// lines up seamlessly with the board behind it.
 function sampleFill(fill, y, size) {
   if (Array.isArray(fill)) {
     return fill;
@@ -140,17 +127,43 @@ function sampleFill(fill, y, size) {
   ];
 }
 
+function pointInTriangle(px, py, points, size) {
+  const [a, b, c] = points.map((point) => ({ x: point.x * size, y: point.y * size }));
+  const edge = (p1, p2) => (px - p2.x) * (p1.y - p2.y) - (p1.x - p2.x) * (py - p2.y);
+  const d1 = edge(a, b);
+  const d2 = edge(b, c);
+  const d3 = edge(c, a);
+  const hasNegative = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPositive = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNegative && hasPositive);
+}
+
+function triangleCoverage(shape, x, y, size) {
+  const samples = size <= 32 ? 4 : 2;
+  let covered = 0;
+  for (let sampleY = 0; sampleY < samples; sampleY += 1) {
+    for (let sampleX = 0; sampleX < samples; sampleX += 1) {
+      const px = x + (sampleX + 0.5) / samples;
+      const py = y + (sampleY + 0.5) / samples;
+      if (pointInTriangle(px, py, shape.points, size)) {
+        covered += 1;
+      }
+    }
+  }
+  return covered / (samples * samples);
+}
+
 /// Renders the icon at `size` into straight (non-premultiplied) RGBA bytes.
 function renderIcon(size) {
   // Premultiplied accumulation keeps source-over compositing branch-free.
   const premul = new Float64Array(size * size * 4);
 
   for (const shape of layersFor(size)) {
-    const cx = ((shape.x0 + shape.x1) / 2) * size;
-    const cy = ((shape.y0 + shape.y1) / 2) * size;
-    const halfWidth = ((shape.x1 - shape.x0) / 2) * size;
-    const halfHeight = ((shape.y1 - shape.y0) / 2) * size;
-    const radius = shape.r * size;
+    const cx = shape.points ? 0 : ((shape.x0 + shape.x1) / 2) * size;
+    const cy = shape.points ? 0 : ((shape.y0 + shape.y1) / 2) * size;
+    const halfWidth = shape.points ? 0 : ((shape.x1 - shape.x0) / 2) * size;
+    const halfHeight = shape.points ? 0 : ((shape.y1 - shape.y0) / 2) * size;
+    const radius = shape.points ? 0 : shape.r * size;
     const spread = (shape.shadow ?? 0) * size;
     const maxAlpha = shape.alpha ?? 1;
 
@@ -158,23 +171,33 @@ function renderIcon(size) {
       const [sr, sg, sb] = sampleFill(shape.fill, y, size);
 
       for (let x = 0; x < size; x += 1) {
-        const distance = roundedRectDistance(
-          x + 0.5,
-          y + 0.5,
-          cx,
-          cy,
-          halfWidth,
-          halfHeight,
-          radius,
-        );
-
         let coverage;
-        if (spread > 0) {
+        if (shape.points) {
+          coverage = triangleCoverage(shape, x, y, size) * maxAlpha;
+        } else if (spread > 0) {
+          const distance = roundedRectDistance(
+            x + 0.5,
+            y + 0.5,
+            cx,
+            cy,
+            halfWidth,
+            halfHeight,
+            radius,
+          );
           // Quadratic falloff over `spread` gives a genuinely soft shadow
           // straight from the distance field — no blur pass needed.
           const t = Math.min(Math.max(1 - distance / spread, 0), 1);
           coverage = t * t * maxAlpha;
         } else {
+          const distance = roundedRectDistance(
+            x + 0.5,
+            y + 0.5,
+            cx,
+            cy,
+            halfWidth,
+            halfHeight,
+            radius,
+          );
           // Analytic 1px antialias band around the edge.
           coverage = Math.min(Math.max(0.5 - distance, 0), 1) * maxAlpha;
         }
@@ -359,6 +382,7 @@ const PNG_TARGETS = [
   ["src-tauri/icons/ico-sizes/32.png", 32],
   ["src-tauri/icons/ico-sizes/48.png", 48],
   ["src-tauri/icons/ico-sizes/64.png", 64],
+  ["src/assets/cliply-logo-20.png", 20],
   ["src/assets/cliply-logo.png", 512],
   ["src/assets/cliply-logo-256.png", 256],
   ["apps/cliply-installer/src-tauri/icons/32x32.png", 32],

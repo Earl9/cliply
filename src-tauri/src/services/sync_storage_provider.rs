@@ -371,7 +371,7 @@ impl SyncStorageProvider for WebdavSyncProvider {
         let xml = match response {
             Ok(response) => response
                 .into_string()
-                .map_err(|error| CliplyError::Sync(format!("WebDAV 列表读取失败: {error}")))?,
+                .map_err(|error| CliplyError::Sync(format!("WebDAV 列表读取失败：{error}")))?,
             Err(ureq::Error::Status(404, _)) => return Ok(Vec::new()),
             Err(error) => return Err(map_webdav_error("PROPFIND", error)),
         };
@@ -427,7 +427,7 @@ impl SyncStorageProvider for WebdavSyncProvider {
         let mut bytes = Vec::new();
         reader
             .read_to_end(&mut bytes)
-            .map_err(|error| CliplyError::Sync(format!("WebDAV 读取失败: {error}")))?;
+            .map_err(|error| CliplyError::Sync(format!("WebDAV 读取失败：{error}")))?;
         Ok(bytes)
     }
 
@@ -531,23 +531,23 @@ impl FtpSyncProvider {
     fn connect(&self) -> Result<FtpConnection, CliplyError> {
         let address = self
             .socket_addr()
-            .map_err(|error| CliplyError::Sync(format!("FTP 地址解析失败: {error}")))?;
+            .map_err(|error| CliplyError::Sync(format!("FTP 地址解析失败：{error}")))?;
 
         if self.secure {
             let connector = TlsConnector::new()
                 .map(NativeTlsConnector::from)
-                .map_err(|error| CliplyError::Sync(format!("FTPS 初始化失败: {error}")))?;
+                .map_err(|error| CliplyError::Sync(format!("FTPS 初始化失败：{error}")))?;
             let stream = NativeTlsFtpStream::connect_timeout(address, self.timeout)
-                .map_err(|error| CliplyError::Sync(format!("FTPS 连接失败: {error}")))?
+                .map_err(|error| CliplyError::Sync(format!("FTPS 连接失败：{error}")))?
                 .into_secure(connector, &self.host)
-                .map_err(|error| CliplyError::Sync(format!("FTPS 握手失败: {error}")))?;
+                .map_err(|error| CliplyError::Sync(format!("FTPS 握手失败：{error}")))?;
             let mut connection = FtpConnection::Secure(stream);
             connection.login(&self.username, &self.password)?;
             return Ok(connection);
         }
 
         let stream = FtpStream::connect_timeout(address, self.timeout)
-            .map_err(|error| CliplyError::Sync(format!("FTP 连接失败: {error}")))?;
+            .map_err(|error| CliplyError::Sync(format!("FTP 连接失败：{error}")))?;
         let mut connection = FtpConnection::Plain(stream);
         connection.login(&self.username, &self.password)?;
         Ok(connection)
@@ -691,7 +691,7 @@ impl SyncStorageProvider for FtpSyncProvider {
         let (mut connection, remote_path) = self.connect_with_path(path)?;
         let bytes = connection
             .retr_as_buffer(&remote_path)
-            .map_err(|error| CliplyError::Sync(format!("FTP 读取失败: {error}")))?
+            .map_err(|error| CliplyError::Sync(format!("FTP 读取失败：{error}")))?
             .into_inner();
         self.store_session(connection);
         Ok(bytes)
@@ -703,7 +703,7 @@ impl SyncStorageProvider for FtpSyncProvider {
         let mut cursor = Cursor::new(data);
         connection
             .put_file(&remote_path, &mut cursor)
-            .map_err(|error| CliplyError::Sync(format!("FTP 写入失败: {error}")))?;
+            .map_err(|error| CliplyError::Sync(format!("FTP 写入失败：{error}")))?;
         self.store_session(connection);
         Ok(())
     }
@@ -736,7 +736,7 @@ impl FtpConnection {
             Self::Plain(stream) => stream.login(username, password),
             Self::Secure(stream) => stream.login(username, password),
         }
-        .map_err(|error| CliplyError::Sync(format!("FTP 登录失败: {error}")))
+        .map_err(|error| CliplyError::Sync(format!("FTP 登录失败：{error}")))
     }
 
     fn nlst(&mut self, path: Option<&str>) -> Result<Vec<String>, suppaftp::FtpError> {
@@ -880,10 +880,10 @@ fn safe_path_parts(path: &str) -> Result<Vec<String>, CliplyError> {
 fn map_webdav_error(method: &str, error: ureq::Error) -> CliplyError {
     match error {
         ureq::Error::Status(status, _) => {
-            CliplyError::Sync(format!("WebDAV {method} 失败: HTTP {status}"))
+            CliplyError::Sync(format!("WebDAV {method} 失败：HTTP {status}"))
         }
         ureq::Error::Transport(error) => {
-            CliplyError::Sync(format!("WebDAV {method} 连接失败: {error}"))
+            CliplyError::Sync(format!("WebDAV {method} 连接失败：{error}"))
         }
     }
 }

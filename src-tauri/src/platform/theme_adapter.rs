@@ -22,7 +22,7 @@ pub fn read_system_theme_colors() -> Result<SystemThemeColorInfo, CliplyError> {
             system_accent: None,
             source: "fallback".to_string(),
             status: "fallback".to_string(),
-            message: "当前平台暂未接入系统强调色读取，已使用 Cliply 默认 fallback。".to_string(),
+            message: "当前平台不支持读取系统强调色，已使用 Cliply 默认强调色。".to_string(),
         })
     }
 }
@@ -57,7 +57,7 @@ mod windows_theme_adapter {
             system_accent: None,
             source: "fallback".to_string(),
             status: "fallback".to_string(),
-            message: "未读取到 Windows 强调色，已使用 Cliply 默认 fallback。".to_string(),
+            message: "无法读取 Windows 强调色，已使用 Cliply 默认强调色。".to_string(),
         })
     }
 
@@ -126,18 +126,21 @@ mod windows_theme_adapter {
 
     fn key_path_error(code: u32) -> String {
         if code == ERROR_FILE_NOT_FOUND {
-            return "not found".to_string();
+            return "未找到".to_string();
         }
-        format!("Windows registry error {code}")
+        format!("Windows 注册表错误，代码：{code}")
     }
 
     fn registry_error(action: &str, reason: String) -> CliplyError {
-        CliplyError::PlatformUnavailable(format!(
-            "Windows theme registry {action} failed: {reason}"
-        ))
+        let action = match action {
+            "open" => "打开",
+            "read" => "读取",
+            _ => action,
+        };
+        CliplyError::PlatformUnavailable(format!("{action} Windows 主题注册表失败：{reason}"))
     }
 
     fn is_not_found(error: &CliplyError) -> bool {
-        error.to_string().to_ascii_lowercase().contains("not found")
+        error.to_string().contains("未找到")
     }
 }

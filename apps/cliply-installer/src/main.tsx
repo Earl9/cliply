@@ -4,13 +4,20 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
+  ArrowRight,
   Check,
   ChevronRight,
+  CircleCheck,
   FolderOpen,
+  HardDrive,
+  History,
   Loader2,
+  LockKeyhole,
   Minus,
-  MonitorUp,
-  Sparkles,
+  Monitor,
+  Power,
+  RefreshCw,
+  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -58,6 +65,11 @@ const DEFAULT_DETECTION: InstallDetection = {
   defaultInstallDir: "C:\\Program Files\\Cliply",
 };
 
+function normalizeError(reason: unknown) {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  return message.replace(/^Error:\s*/i, "");
+}
+
 function App() {
   const [screen, setScreen] = React.useState<Screen>("setup");
   const [mode, setMode] = React.useState<InstallerMode>({
@@ -79,7 +91,7 @@ function App() {
   const [removeUserData, setRemoveUserData] = React.useState(false);
   const [progress, setProgress] = React.useState<InstallProgress>({
     progress: 0,
-    step: "准备安装",
+    step: "正在准备安装",
   });
   const [error, setError] = React.useState<string | null>(null);
   const [installOutcome, setInstallOutcome] =
@@ -97,7 +109,7 @@ function App() {
           setInstallDir(nextMode.installDir);
         }
       })
-      .catch((reason) => setError(String(reason)));
+      .catch((reason) => setError(normalizeError(reason)));
 
     void invoke<InstallDetection>("detect_installation")
       .then((nextDetection) => {
@@ -106,7 +118,7 @@ function App() {
           setInstallDir(nextDetection.installDir);
         }
       })
-      .catch((reason) => setError(String(reason)));
+      .catch((reason) => setError(normalizeError(reason)));
 
     const unlisten = listen<InstallProgress>("installer-progress", (event) => {
       setProgress(event.payload);
@@ -138,7 +150,7 @@ function App() {
         setInstallDir(selected);
       }
     } catch (reason) {
-      setError(String(reason));
+      setError(normalizeError(reason));
     }
   }
 
@@ -146,7 +158,7 @@ function App() {
     setError(null);
     setProgress({
       progress: 0,
-      step: isUpdate ? "准备更新 Cliply" : "准备安装 Cliply",
+      step: isUpdate ? "正在准备更新 Cliply" : "正在准备安装 Cliply",
     });
     setScreen("working");
 
@@ -167,14 +179,14 @@ function App() {
       setProgress({ progress: 100, step: "安装完成" });
       setScreen("complete");
     } catch (reason) {
-      setError(String(reason));
+      setError(normalizeError(reason));
       setScreen(mode.isUpdate ? "working" : "setup");
     }
   }
 
   async function uninstall() {
     setError(null);
-    setProgress({ progress: 0, step: "准备卸载 Cliply" });
+    setProgress({ progress: 0, step: "正在准备卸载 Cliply" });
     setScreen("working");
 
     try {
@@ -188,7 +200,7 @@ function App() {
       setProgress({ progress: 100, step: "卸载完成" });
       setScreen("complete");
     } catch (reason) {
-      setError(String(reason));
+      setError(normalizeError(reason));
       setScreen("setup");
     }
   }
@@ -199,7 +211,7 @@ function App() {
       try {
         await invoke("launch_cliply", { installDir: installOutcome.installDir });
       } catch (reason) {
-        setError(String(reason));
+        setError(normalizeError(reason));
         return;
       }
     }
@@ -211,7 +223,7 @@ function App() {
       <div className="titlebar" data-tauri-drag-region>
         <div className="titlebar-brand" data-tauri-drag-region>
           <img src="/cliply-logo.png" alt="" />
-          <span>{isUninstall ? "Cliply Uninstaller" : "Cliply Installer"}</span>
+          <span>{isUninstall ? "Cliply 卸载程序" : "Cliply 安装程序"}</span>
         </div>
         <div className="window-actions">
           <button
@@ -224,6 +236,7 @@ function App() {
           <button
             type="button"
             aria-label="关闭"
+            disabled={screen === "working" && !error}
             onClick={() => void getCurrentWindow().close()}
           >
             <X size={15} />
@@ -262,11 +275,11 @@ function App() {
           <WorkingScreen
             isUpdate={isUpdate}
             isUninstall={isUninstall}
+            removeUserData={removeUserData}
             sourceVersion={mode.sourceVersion}
             targetVersion={mode.targetVersion}
             progress={progress}
             error={error}
-            onCancel={() => void getCurrentWindow().close()}
           />
         )}
 
@@ -276,6 +289,8 @@ function App() {
             isUpdate={isUpdate}
             launchAfterInstall={launchAfterInstall}
             userDataRemoved={uninstallOutcome?.userDataRemoved ?? false}
+            installDir={installOutcome?.installDir ?? installDir}
+            targetVersion={mode.targetVersion}
             error={error}
             onLaunchAfterInstallChange={setLaunchAfterInstall}
             onFinish={() => void finish()}
@@ -313,71 +328,126 @@ function SetupScreen({
   onInstall,
   onCancel,
 }: SetupScreenProps) {
+  const ModeIcon = isUpdate ? RefreshCw : ShieldCheck;
+
   return (
     <section className="screen setup-screen">
       <div className="hero-row">
         <div className="logo-wrap">
           <img src="/cliply-logo.png" alt="" />
         </div>
-        <div>
-          <div className="eyebrow">Local-first clipboard manager</div>
-          <h1>{isUpdate ? "更新 Cliply" : "安装 Cliply"}</h1>
+        <div className="hero-copy">
+          <div className="hero-heading-line">
+            <h1>{isUpdate ? "更新 Cliply" : "安装 Cliply"}</h1>
+            <span className="mode-badge">
+              <ModeIcon size={14} />
+              {isUpdate ? "更新" : "安装"}
+            </span>
+          </div>
           <p>
-            快速找回复制过的文本、链接、图片和代码。所有数据默认保存在本地。
+            {isUpdate
+              ? "更新程序文件，历史记录和应用设置保持不变。"
+              : "将在此计算机上安装 Cliply。剪贴板历史记录和应用设置默认存储在本机。"}
           </p>
         </div>
       </div>
 
       <div className="setup-panel">
-        <label className="field-label" htmlFor="install-dir">
+        <div className="panel-heading-row">
+          <div className="panel-title">
+            <HardDrive size={18} />
+            <div>
+              <strong>安装位置</strong>
+              <span>{isUpdate ? "当前安装目录" : "请选择 Cliply 的安装目录"}</span>
+            </div>
+          </div>
+          {isUpdate && (
+            <span className="detection-badge">
+              <Check size={13} />
+              已安装
+            </span>
+          )}
+        </div>
+        <label className="sr-only" htmlFor="install-dir">
           安装位置
         </label>
         <div className="path-row">
-          <input
-            id="install-dir"
-            value={installDir}
-            spellCheck={false}
-            onChange={(event) => onInstallDirChange(event.target.value)}
-          />
+          <div className="path-input-shell">
+            <FolderOpen size={16} />
+            <input
+              id="install-dir"
+              value={installDir}
+              spellCheck={false}
+              onChange={(event) => onInstallDirChange(event.target.value)}
+            />
+          </div>
           <button type="button" className="ghost-button" onClick={onBrowse}>
             <FolderOpen size={16} />
             更改
           </button>
         </div>
 
-        {isUpdate && (
+        {error ? (
+          <div className="error-banner" role="alert">{error}</div>
+        ) : isUpdate ? (
           <div className="update-note">
-            <MonitorUp size={16} />
-            检测到已安装的 Cliply。本次将覆盖更新程序文件，并保留本地历史记录与设置。
+            <History size={18} />
+            <div className="note-copy">
+              <strong>更新范围</strong>
+              <span>本次更新仅替换程序文件。剪贴板历史记录、主题和快捷键等设置不会更改。</span>
+            </div>
           </div>
-        )}
-
-        {!isUpdate && (
+        ) : (
           <div className="option-grid">
             <CheckOption
               checked={desktopShortcut}
+              icon={<Monitor size={17} />}
               label="创建桌面快捷方式"
+              description="在 Windows 桌面创建 Cliply 快捷方式"
               onChange={onDesktopShortcutChange}
             />
             <CheckOption
               checked={startOnLogin}
-              label="开机自动启动"
+              icon={<Power size={17} />}
+              label="登录时自动启动"
+              description="登录 Windows 后自动启动 Cliply"
               onChange={onStartOnLoginChange}
             />
           </div>
         )}
+
+        {!error && (
+          <div className="install-facts" aria-label="安装摘要">
+            <div>
+              <span>安装类型</span>
+              <strong>{isUpdate ? "更新现有版本" : "首次安装"}</strong>
+            </div>
+            <div>
+              <span>历史记录与设置</span>
+              <strong>{isUpdate ? "保持不变" : "存储于本机"}</strong>
+            </div>
+            <div>
+              <span>默认快捷键</span>
+              <strong>Ctrl + Shift + V</strong>
+            </div>
+          </div>
+        )}
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
-
       <div className="actions">
-        <button type="button" className="secondary-button" onClick={onCancel}>
-          取消
-        </button>
-        <button type="button" className="primary-button" onClick={onInstall}>
-          {isUpdate ? "更新 Cliply" : "安装 Cliply"}
-          <ChevronRight size={17} />
-        </button>
+        <div className="trust-note">
+          <LockKeyhole size={14} />
+          {isUpdate ? "更新不会更改剪贴板历史记录和应用设置" : "剪贴板历史记录默认存储在本机"}
+        </div>
+        <div className="action-buttons">
+          <button type="button" className="secondary-button" onClick={onCancel}>
+            取消
+          </button>
+          <button type="button" className="primary-button" onClick={onInstall}>
+            {isUpdate ? "更新 Cliply" : "安装 Cliply"}
+            <ArrowRight size={17} />
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -406,42 +476,81 @@ function UninstallScreen({
         <div className="logo-wrap danger">
           <Trash2 size={34} />
         </div>
-        <div>
-          <div className="eyebrow">Cliply Uninstaller</div>
-          <h1>卸载 Cliply</h1>
+        <div className="hero-copy">
+          <div className="hero-heading-line">
+            <h1>卸载 Cliply</h1>
+            <span className="mode-badge danger">
+              <Trash2 size={14} />
+              卸载
+            </span>
+          </div>
           <p>
-            将移除 Cliply 程序文件、开始菜单快捷方式和开机启动项。本地历史记录与设置默认保留。
+            卸载将移除 Cliply 的程序文件、快捷方式和开机启动项。剪贴板历史记录和应用设置默认保留。
           </p>
         </div>
       </div>
 
       <div className="setup-panel">
-        <div className="field-label">安装位置</div>
-        <div className="readonly-path">{installDir}</div>
-
-        <div className="update-note neutral">
-          保留本地数据后，重新安装 Cliply 会继续使用原来的剪贴板历史和设置。
+        <div className="panel-heading-row">
+          <div className="panel-title">
+            <HardDrive size={18} />
+            <div>
+              <strong>当前安装位置</strong>
+              <span>程序文件将从此目录移除</span>
+            </div>
+          </div>
+          <span className="detection-badge neutral">
+            <Check size={13} />
+            已安装
+          </span>
+        </div>
+        <div className="readonly-path">
+          <FolderOpen size={16} />
+          <span>{installDir}</span>
         </div>
 
-        <div className="option-grid single">
-          <CheckOption
-            checked={removeUserData}
-            label="同时删除本地历史记录与设置"
-            onChange={onRemoveUserDataChange}
-          />
-        </div>
+        {error ? (
+          <div className="error-banner" role="alert">{error}</div>
+        ) : (
+          <>
+            <div className="update-note neutral">
+              <History size={18} />
+              <div className="note-copy">
+                <strong>数据保留</strong>
+                <span>如需同时删除剪贴板历史记录和应用设置，请选择下方选项。</span>
+              </div>
+            </div>
+
+            <div className="option-grid single">
+              <CheckOption
+                checked={removeUserData}
+                icon={<Trash2 size={17} />}
+                label="删除剪贴板历史记录和应用设置"
+                description="删除后无法恢复"
+                tone="danger"
+                onChange={onRemoveUserDataChange}
+              />
+            </div>
+          </>
+        )}
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
-
       <div className="actions">
-        <button type="button" className="secondary-button" onClick={onCancel}>
-          取消
-        </button>
-        <button type="button" className="danger-button" onClick={onUninstall}>
-          卸载 Cliply
-          <Trash2 size={16} />
-        </button>
+        <div className="trust-note">
+          <LockKeyhole size={14} />
+          {removeUserData
+            ? "剪贴板历史记录和应用设置将一并删除"
+            : "剪贴板历史记录和应用设置将保留"}
+        </div>
+        <div className="action-buttons">
+          <button type="button" className="secondary-button" onClick={onCancel}>
+            取消
+          </button>
+          <button type="button" className="danger-button" onClick={onUninstall}>
+            卸载 Cliply
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -450,21 +559,21 @@ function UninstallScreen({
 type WorkingScreenProps = {
   isUpdate: boolean;
   isUninstall: boolean;
+  removeUserData: boolean;
   sourceVersion?: string | null;
   targetVersion?: string | null;
   progress: InstallProgress;
   error: string | null;
-  onCancel: () => void;
 };
 
 function WorkingScreen({
   isUpdate,
   isUninstall,
+  removeUserData,
   sourceVersion,
   targetVersion,
   progress,
   error,
-  onCancel,
 }: WorkingScreenProps) {
   const title = isUninstall
     ? "正在卸载 Cliply"
@@ -473,54 +582,89 @@ function WorkingScreen({
       : "正在安装 Cliply";
 
   return (
-    <section className="screen centered-screen">
-      <div className={isUninstall ? "installing-mark danger" : "installing-mark"}>
-        <Loader2 size={30} />
-      </div>
-      <h1>{title}</h1>
-      {isUpdate && targetVersion ? (
-        <div className="version-row">
-          <span>{sourceVersion ? `v${sourceVersion}` : "当前版本"}</span>
-          <ChevronRight size={14} />
-          <span>v{targetVersion}</span>
+    <section className="screen process-screen">
+      <div className="process-shell">
+        <div className={isUninstall ? "installing-mark danger" : "installing-mark"}>
+          <Loader2 size={29} />
         </div>
-      ) : null}
-      <p className="muted-copy">{progress.step}</p>
+        <div className="process-heading">
+          <h1>{title}</h1>
+          <p>
+            {isUninstall
+              ? "正在移除程序文件、快捷方式和开机启动项。"
+              : isUpdate
+                ? "正在替换程序文件。剪贴板历史记录和应用设置不会更改。"
+                : "正在复制程序文件并应用安装选项。"}
+          </p>
+        </div>
 
-      <div className="progress-track" aria-label="进度">
-        <div
-          className={isUninstall ? "progress-fill danger" : "progress-fill"}
-          style={{ width: `${Math.min(Math.max(progress.progress, 0), 100)}%` }}
-        />
-      </div>
-      <div className="progress-value">{progress.progress}%</div>
-
-      {error ? (
-        <div className="installer-error-panel">
-          <div className="error-banner compact">{error}</div>
-          <div className="mini-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void invoke("open_installer_log_directory")}
-            >
-              打开日志目录
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void invoke("open_release_page")}
-            >
-              打开 Release 页面
-            </button>
+        {isUpdate && targetVersion ? (
+          <div className="version-row">
+            <span>{sourceVersion ? `v${sourceVersion}` : "当前版本"}</span>
+            <ChevronRight size={14} />
+            <span>v{targetVersion}</span>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <div className="actions single-action">
-        <button type="button" className="secondary-button" onClick={onCancel}>
-          取消
-        </button>
+        {error ? (
+          <div className="installer-error-panel">
+            <div className="error-banner compact" role="alert">{error}</div>
+            <div className="mini-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void invoke("open_installer_log_directory")}
+              >
+                打开日志文件夹
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void invoke("open_release_page")}
+              >
+                查看发布页面
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="progress-panel">
+            <div className="progress-copy" aria-live="polite">
+              <span>{progress.step}</span>
+              <strong>{progress.progress}%</strong>
+            </div>
+            <div
+              className="progress-track"
+              role="progressbar"
+              aria-label={title}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.min(Math.max(progress.progress, 0), 100)}
+            >
+              <div
+                className={isUninstall ? "progress-fill danger" : "progress-fill"}
+                style={{ width: `${Math.min(Math.max(progress.progress, 0), 100)}%` }}
+              />
+            </div>
+            <div className="progress-caption">
+              <LockKeyhole size={13} />
+              {isUninstall
+                ? removeUserData
+                  ? "剪贴板历史记录和应用设置将一并删除"
+                  : "剪贴板历史记录和应用设置将保留"
+                : isUpdate
+                  ? "剪贴板历史记录和应用设置不会更改"
+                  : "正在执行本机安装"}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="actions process-actions">
+        <div className="trust-note">
+          <LockKeyhole size={14} />
+          {isUninstall ? "正在移除程序文件" : isUpdate ? "正在更新程序文件" : "正在写入程序文件"}
+        </div>
+        {!error && <div className="process-lock">请勿关闭安装程序</div>}
       </div>
     </section>
   );
@@ -531,6 +675,8 @@ type CompleteScreenProps = {
   isUpdate: boolean;
   launchAfterInstall: boolean;
   userDataRemoved: boolean;
+  installDir: string;
+  targetVersion?: string | null;
   error: string | null;
   onLaunchAfterInstallChange: (value: boolean) => void;
   onFinish: () => void;
@@ -541,43 +687,78 @@ function CompleteScreen({
   isUpdate,
   launchAfterInstall,
   userDataRemoved,
+  installDir,
+  targetVersion,
   error,
   onLaunchAfterInstallChange,
   onFinish,
 }: CompleteScreenProps) {
   return (
-    <section className="screen centered-screen">
-      <div className={isUninstall ? "complete-mark danger" : "complete-mark"}>
-        <Check size={34} />
-      </div>
-      <h1>{isUninstall ? "Cliply 已卸载" : isUpdate ? "Cliply 已更新" : "Cliply 已准备就绪"}</h1>
-      <p className="muted-copy">
-        {isUninstall
-          ? userDataRemoved
-            ? "本地历史记录与设置已删除。"
-            : "本地历史记录与设置已保留，重新安装后仍可继续使用。"
-          : isUpdate
-            ? "用户数据已保留，Cliply 会重新启动。"
-          : "使用 Ctrl + Shift + V 打开剪贴板历史。"}
-      </p>
-
-      {!isUninstall && !isUpdate && (
-        <div className="finish-option">
-          <CheckOption
-            checked={launchAfterInstall}
-            label="立即启动 Cliply"
-            onChange={onLaunchAfterInstallChange}
-          />
+    <section className="screen process-screen">
+      <div className="result-shell">
+        <div className="result-heading">
+          <div className={isUninstall ? "complete-mark danger" : "complete-mark"}>
+            <CircleCheck size={38} />
+          </div>
+          <div>
+            <h1>{isUninstall ? "Cliply 卸载完成" : isUpdate ? "Cliply 更新完成" : "Cliply 安装完成"}</h1>
+            <p className="muted-copy">
+              {isUninstall
+                ? userDataRemoved
+                  ? "程序文件、剪贴板历史记录和应用设置已删除。"
+                  : "程序文件已移除，剪贴板历史记录和应用设置已保留。"
+              : isUpdate
+                ? "程序文件已更新，剪贴板历史记录和应用设置已保留。"
+                : "Cliply 已安装。使用 Ctrl + Shift + V 可打开剪贴板历史记录。"}
+            </p>
+          </div>
         </div>
-      )}
 
-      {error && <div className="error-banner compact">{error}</div>}
+        <div className="result-facts">
+          <div>
+            <span>操作结果</span>
+            <strong>{isUninstall ? "程序已移除" : isUpdate ? "更新完成" : "安装完成"}</strong>
+          </div>
+          <div>
+            <span>{isUninstall ? "历史记录与设置" : "当前版本"}</span>
+            <strong>
+              {isUninstall
+                ? userDataRemoved ? "已删除" : "已保留"
+                : targetVersion ? `v${targetVersion}` : "已安装版本"}
+            </strong>
+          </div>
+          <div>
+            <span>{isUninstall ? "原安装位置" : "安装位置"}</span>
+            <strong title={installDir}>{installDir}</strong>
+          </div>
+        </div>
 
-      <div className="actions single-action">
-        <button type="button" className="primary-button" onClick={onFinish}>
-          完成
-          <Sparkles size={16} />
-        </button>
+        {!isUninstall && !isUpdate && (
+          <div className="finish-option">
+            <CheckOption
+              checked={launchAfterInstall}
+              icon={<Power size={17} />}
+              label="启动 Cliply"
+              description="关闭安装程序后自动启动"
+              onChange={onLaunchAfterInstallChange}
+            />
+          </div>
+        )}
+
+        {error && <div className="error-banner compact" role="alert">{error}</div>}
+      </div>
+
+      <div className="actions process-actions">
+        <div className="trust-note success">
+          <CircleCheck size={14} />
+          {isUninstall ? "卸载已完成" : isUpdate ? "更新已完成" : "安装已完成"}
+        </div>
+        <div className="action-buttons">
+          <button type="button" className="primary-button" onClick={onFinish}>
+            完成
+            <ArrowRight size={16} />
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -585,20 +766,34 @@ function CompleteScreen({
 
 type CheckOptionProps = {
   checked: boolean;
+  icon?: React.ReactNode;
   label: string;
+  description?: string;
+  tone?: "default" | "danger";
   onChange: (checked: boolean) => void;
 };
 
-function CheckOption({ checked, label, onChange }: CheckOptionProps) {
+function CheckOption({
+  checked,
+  icon,
+  label,
+  description,
+  tone = "default",
+  onChange,
+}: CheckOptionProps) {
   return (
-    <label className="check-option">
+    <label className={`check-option ${tone === "danger" ? "danger" : ""}`}>
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
       />
       <span className="box">{checked && <Check size={13} />}</span>
-      <span>{label}</span>
+      {icon && <span className="option-icon">{icon}</span>}
+      <span className="option-copy">
+        <strong>{label}</strong>
+        {description && <span>{description}</span>}
+      </span>
     </label>
   );
 }

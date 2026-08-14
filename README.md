@@ -129,6 +129,8 @@ npm run build:modern-installer
 - [Privacy Policy](PRIVACY.md)
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
+- [Product and Engineering Optimization Plan](docs/optimization-plan.md)
+- [Performance Optimization Plan](docs/performance-optimization.md)
 - [Sync Design](docs/sync-design.md)
 - [Installer Notes](docs/installer.md)
 - [Privacy And Logs](docs/privacy-and-logs.md)

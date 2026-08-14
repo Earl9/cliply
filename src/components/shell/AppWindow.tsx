@@ -1,4 +1,15 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   Clipboard,
   ClipboardList as ClipboardListIcon,
@@ -21,20 +32,21 @@ import {
   X,
 } from "lucide-react";
 import { ClipboardDetailPane } from "@/components/clipboard/ClipboardDetailPane";
-import { ClipboardFilterTabs } from "@/components/clipboard/ClipboardFilterTabs";
 import { ClipboardList } from "@/components/clipboard/ClipboardList";
 import { ClipboardSearchBar } from "@/components/clipboard/ClipboardSearchBar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ContextMenu, type ContextMenuSection, type ContextMenuState } from "@/components/common/ContextMenu";
 import { ImageViewer } from "@/components/common/ImageViewer";
 import { GlobalToast, type ToastMessage } from "@/components/common/Toast";
-import { AboutDialog } from "@/components/settings/AboutDialog";
-import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { FooterShortcuts } from "@/components/shell/FooterShortcuts";
 import { PrivacyBanner } from "@/components/shell/PrivacyBanner";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { getClipboardActionAvailability } from "@/lib/clipboardCapabilities";
-import type { ClipboardFilter, ClipboardItem } from "@/lib/clipboardTypes";
+import type {
+  ClipboardActionKind,
+  ClipboardFilter,
+  ClipboardItem,
+} from "@/lib/clipboardTypes";
 import { checkCliplyUpdate } from "@/lib/updateService";
 import { hideMainWindow, toggleAlwaysOnTop } from "@/lib/windowAdapter";
 import {
@@ -44,6 +56,17 @@ import {
 } from "@/theme/theme";
 import { useClipboardStore } from "@/stores/clipboardStore";
 import { useUiStore } from "@/stores/uiStore";
+
+const SettingsDialog = lazy(() =>
+  import("@/components/settings/SettingsDialog").then((module) => ({
+    default: module.SettingsDialog,
+  })),
+);
+const AboutDialog = lazy(() =>
+  import("@/components/settings/AboutDialog").then((module) => ({
+    default: module.AboutDialog,
+  })),
+);
 
 function shouldAllowNativeContextMenu(target: EventTarget | null) {
   const selection = window.getSelection();
@@ -78,13 +101,25 @@ function shouldRunAutoUpdateCheck(
   return Date.now() - timestamp >= intervalMs;
 }
 
+function DialogLoadingFallback({ label }: { label: string }) {
+  return (
+    <div className="cliply-overlay absolute inset-0 z-30 grid place-items-center bg-black/35 px-6">
+      <div
+        role="status"
+        className="cliply-dialog rounded-[8px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] px-4 py-3 text-sm text-[color:var(--cliply-muted)] shadow-[var(--cliply-shadow-dialog)]"
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
 export function AppWindow() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const {
     state,
     filteredItems,
     selectedItem,
-    counts,
     actionStatus,
     settings,
     dialogs,
@@ -109,6 +144,18 @@ export function AppWindow() {
   const [imageViewerItem, setImageViewerItem] = useState<ClipboardItem | null>(null);
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => getSystemPrefersDark());
   const settingsRef = useRef(settings);
+  const runMockActionRef = useRef(runMockAction);
+
+  useLayoutEffect(() => {
+    runMockActionRef.current = runMockAction;
+  }, [runMockAction]);
+
+  const runClipboardAction = useCallback(
+    (kind: ClipboardActionKind, itemId?: string) => {
+      runMockActionRef.current(kind, itemId);
+    },
+    [],
+  );
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -227,29 +274,42 @@ export function AppWindow() {
   }, [setSettings, settings.update.autoCheck, settings.update.checkInterval, settings.update.lastCheckedAt]);
 
   useEffect(() => {
-    const removeListeners: Array<() => void> = [];
+    if (!isTauri()) {
+      return;
+    }
 
-    const registerTauriListeners = async () => {
-      const { isTauri } = await import("@tauri-apps/api/core");
-      if (!isTauri()) {
-        return;
+    let cancelled = false;
+    let removeListeners: Array<() => void> = [];
+    void Promise.all([
+      listen("cliply-open-settings", openSettings),
+      listen("cliply-open-about", openAbout),
+      listen("cliply-open-clear-history", requestClearHistory),
+    ]).then((listeners) => {
+      if (cancelled) {
+        listeners.forEach((unlisten) => unlisten());
+      } else {
+        removeListeners = listeners;
       }
+    });
 
-      const { listen } = await import("@tauri-apps/api/event");
-      removeListeners.push(await listen("cliply-open-settings", openSettings));
-      removeListeners.push(await listen("cliply-open-about", openAbout));
-      removeListeners.push(await listen("cliply-open-clear-history", requestClearHistory));
+    return () => {
+      cancelled = true;
+      removeListeners.forEach((unlisten) => unlisten());
     };
-
-    void registerTauriListeners();
-    return () => removeListeners.forEach((unlisten) => unlisten());
   }, [openAbout, openSettings, requestClearHistory]);
 
-  const onToggleWindowPin = async () => {
+  const onToggleWindowPin = useCallback(async () => {
     const nextPinned = !windowPinned;
     await toggleAlwaysOnTop(nextPinned);
     setWindowPinned(nextPinned);
-  };
+  }, [setWindowPinned, windowPinned]);
+
+  const pasteItem = useCallback(
+    (id: string) => {
+      runClipboardAction("paste", id);
+    },
+    [runClipboardAction],
+  );
 
   const focusSearch = useCallback(() => {
     searchInputRef.current?.focus();
@@ -305,7 +365,7 @@ export function AppWindow() {
           monitoringPaused: settings.pauseMonitoring,
           windowPinned,
           compact: item !== null,
-          onAction: (kind) => runMockAction(kind, item?.id),
+          onAction: (kind) => runClipboardAction(kind, item?.id),
           onFilter: applyTypeFilter,
           onFilterBySource: item ? () => filterBySource(item) : undefined,
           onSearchRelated: item ? () => searchSelectedText(item) : undefined,
@@ -333,7 +393,7 @@ export function AppWindow() {
       openSettings,
       requestClearHistory,
       copyDebugPath,
-      runMockAction,
+      runClipboardAction,
       searchSelectedText,
       selectItem,
       settings.pauseMonitoring,
@@ -366,65 +426,83 @@ export function AppWindow() {
           onClearHistory={requestClearHistory}
           onToggleMonitoring={toggleMonitoring}
         />
-        <div className="shrink-0 px-3 pb-2.5 pt-2">
-          <ClipboardSearchBar ref={searchInputRef} query={state.query} onQueryChange={setQuery} />
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <ClipboardFilterTabs filter={state.filter} counts={counts} onFilterChange={setFilter} />
-            <span className="cliply-caption shrink-0 text-[11px] tabular-nums text-[color:var(--cliply-faint)]">
-              {resultSummary({
-                query: state.query,
-                filter: state.filter,
-                shownCount: filteredItems.length,
-                totalCount: state.items.length,
-              })}
-            </span>
-          </div>
-        </div>
-        <PrivacyBanner
-          monitoringPaused={settings.pauseMonitoring}
-          errorMessage={state.monitoringErrorMessage}
-          onResumeMonitoring={toggleMonitoring}
-        />
-        <div className="min-h-0 flex-1 px-3 pb-3">
-          <div className="grid h-full min-h-0 grid-cols-[minmax(280px,0.8fr)_minmax(400px,1.2fr)] overflow-hidden rounded-[10px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] shadow-[var(--cliply-shadow-card)]">
-            <ClipboardList
-              items={filteredItems}
-              selectedId={state.selectedId}
-              query={state.query}
-              filter={state.filter}
-              loading={state.loading}
-              errorMessage={state.listErrorMessage}
-              onSelectItem={selectItem}
-              onTogglePin={togglePinItem}
-              onPasteItem={(id) => runMockAction("paste", id)}
-              onItemContextMenu={showContextMenu}
+        <div className="cliply-app-shell min-h-0 flex-1">
+          <section className="cliply-main-stage min-h-0 min-w-0">
+            <header className="cliply-command-area shrink-0">
+              <div className="cliply-command-row">
+                <ClipboardSearchBar
+                  ref={searchInputRef}
+                  query={state.query}
+                  onQueryChange={setQuery}
+                />
+                <span className="cliply-result-summary shrink-0 rounded-md border border-[color:var(--cliply-border-soft)] px-2.5 tabular-nums">
+                  {resultSummary({
+                    query: state.query,
+                    filter: state.filter,
+                    shownCount: filteredItems.length,
+                    totalCount: state.items.length,
+                  })}
+                </span>
+              </div>
+            </header>
+
+            <PrivacyBanner
+              monitoringPaused={settings.pauseMonitoring}
+              errorMessage={state.monitoringErrorMessage}
+              onResumeMonitoring={toggleMonitoring}
             />
-            <ClipboardDetailPane
-              item={selectedItem}
-              onAction={runMockAction}
-              onContextMenu={showContextMenu}
-              onOpenImage={openImageViewer}
-            />
-          </div>
+
+            <div className="cliply-workspace min-h-0 flex-1">
+              <div className="cliply-workspace-grid grid h-full min-h-0 overflow-hidden">
+                <ClipboardList
+                  items={filteredItems}
+                  selectedId={state.selectedId}
+                  hasQuery={state.query.length > 0}
+                  filter={state.filter}
+                  onFilterChange={setFilter}
+                  loading={state.loading}
+                  errorMessage={state.listErrorMessage}
+                  onSelectItem={selectItem}
+                  onTogglePin={togglePinItem}
+                  onPasteItem={pasteItem}
+                  onItemContextMenu={showContextMenu}
+                />
+                <ClipboardDetailPane
+                  item={selectedItem}
+                  onAction={runClipboardAction}
+                  onContextMenu={showContextMenu}
+                  onOpenImage={openImageViewer}
+                />
+              </div>
+            </div>
+          </section>
         </div>
         <FooterShortcuts monitoringPaused={settings.pauseMonitoring} />
         <GlobalToast
           toast={!dialogs.settings && actionStatus ? actionStatusToToast(actionStatus) : null}
           onClose={clearActionStatus}
         />
-        <SettingsDialog
-          open={dialogs.settings}
-          settings={settings}
-          onClose={closeDialogs}
-          onSave={setSettings}
-          onClearHistory={requestClearHistory}
-        />
-        <AboutDialog open={dialogs.about} onClose={closeDialogs} />
+        {dialogs.settings ? (
+          <Suspense fallback={<DialogLoadingFallback label="正在加载设置…" />}>
+            <SettingsDialog
+              open
+              settings={settings}
+              onClose={closeDialogs}
+              onSave={setSettings}
+              onClearHistory={requestClearHistory}
+            />
+          </Suspense>
+        ) : null}
+        {dialogs.about ? (
+          <Suspense fallback={<DialogLoadingFallback label="正在加载关于信息…" />}>
+            <AboutDialog open onClose={closeDialogs} />
+          </Suspense>
+        ) : null}
         <ConfirmDialog
           open={dialogs.clearHistory}
-          title="清空剪贴板历史？"
-          description="将清空所有未固定记录，固定记录会保留。此操作不可撤销。"
-          confirmLabel="清空历史"
+          title="清空剪贴板历史记录？"
+          description="将删除全部未固定记录，并保留固定记录。此操作无法撤销。"
+          confirmLabel="清空历史记录"
           danger
           onConfirm={confirmClearHistory}
           onClose={closeDialogs}
@@ -476,7 +554,7 @@ function buildContextMenuSections(config: ContextMenuConfig): ContextMenuSection
             onSelect: config.onFocusSearch,
           },
           filterItem("all", "全部记录", ClipboardListIcon, config),
-          filterItem("pinned", "只看固定", Pin, config),
+          filterItem("pinned", "仅显示固定记录", Pin, config),
         ],
       },
     ];
@@ -496,10 +574,10 @@ function buildContextMenuSections(config: ContextMenuConfig): ContextMenuSection
           onSelect: config.onFocusSearch,
         },
         filterItem("all", "全部记录", ClipboardListIcon, config),
-        filterItem("text", "只看文本", FileText, config),
-        filterItem("link", "只看链接", Link2, config),
-        filterItem("image", "只看图片", Image, config),
-        filterItem("pinned", "只看固定", Pin, config),
+        filterItem("text", "仅显示文本", FileText, config),
+        filterItem("link", "仅显示链接", Link2, config),
+        filterItem("image", "仅显示图片", Image, config),
+        filterItem("pinned", "仅显示固定记录", Pin, config),
       ],
     },
     {
@@ -508,7 +586,7 @@ function buildContextMenuSections(config: ContextMenuConfig): ContextMenuSection
       items: [
         {
           id: "toggle-pin-window",
-          label: config.windowPinned ? "取消窗口置顶" : "窗口置顶",
+          label: config.windowPinned ? "取消窗口置顶" : "置顶窗口",
           icon: Pin,
           checked: config.windowPinned,
           onSelect: config.onToggleWindowPin,
@@ -564,7 +642,7 @@ function buildContextMenuSections(config: ContextMenuConfig): ContextMenuSection
         },
         {
           id: "clear-history",
-          label: "清空未固定历史",
+          label: "清空未固定记录",
           icon: Database,
           danger: true,
           onSelect: config.onClearHistory,
@@ -630,7 +708,7 @@ function buildItemSections(config: ContextMenuConfig): ContextMenuSection[] {
       items: [
         {
           id: "toggle-pin",
-          label: item.isPinned ? "取消固定这条" : "固定这条",
+          label: item.isPinned ? "取消固定" : "固定记录",
           shortcut: "Ctrl P",
           icon: Pin,
           checked: item.isPinned,
@@ -638,25 +716,25 @@ function buildItemSections(config: ContextMenuConfig): ContextMenuSection[] {
         },
         {
           id: "filter-type",
-          label: `只看同类：${typeLabel[item.type]}`,
+          label: `仅显示同类型记录：${typeLabel[item.type]}`,
           icon: Filter,
           onSelect: () => config.onFilter(item.type),
         },
         {
           id: "filter-source",
-          label: `只看来源：${item.sourceApp}`,
+          label: `仅显示来源：${item.sourceApp}`,
           icon: ExternalLink,
           onSelect: config.onFilterBySource,
         },
         {
           id: "search-related",
-          label: "用标签/来源搜索相关",
+          label: "按标签或来源搜索",
           icon: Search,
           onSelect: config.onSearchRelated,
         },
         {
           id: "delete",
-          label: "删除这条记录",
+          label: "删除记录",
           shortcut: "Del",
           icon: Trash2,
           danger: true,

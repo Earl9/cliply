@@ -2,7 +2,7 @@ import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import type { ClipboardFilter, ClipboardItem, ClipboardItemType } from "@/lib/clipboardTypes";
 import { mockClipboardItems } from "@/lib/mockClipboardItems";
 
-type ClipboardItemDto = {
+export type ClipboardItemDto = {
   id: string;
   itemType: ClipboardItemType;
   title: string;
@@ -178,7 +178,7 @@ function detailDtoToClipboardItem(detail: ClipboardItemDetailDto): ClipboardItem
   };
 }
 
-function dtoToClipboardItem(item: ClipboardItemDto): ClipboardItem {
+export function dtoToClipboardItem(item: ClipboardItemDto): ClipboardItem {
   return {
     id: item.id,
     type: item.itemType,
@@ -195,26 +195,6 @@ function dtoToClipboardItem(item: ClipboardItemDto): ClipboardItem {
     tags: item.tags ?? [],
     thumbnailUrl: toAssetUrl(item.thumbnailPath),
     formats: [],
-  };
-}
-
-function clipboardItemToDto(item: ClipboardItem): ClipboardItemDto {
-  return {
-    id: item.id,
-    itemType: item.type,
-    title: item.title,
-    previewText: item.previewText,
-    sourceApp: item.sourceApp,
-    sourceWindow: item.sourceWindow,
-    copiedAt: item.copiedAt,
-    createdAt: item.createdAt,
-    relativeTime: "",
-    sizeBytes: item.sizeBytes,
-    isPinned: item.isPinned,
-    sensitiveScore: item.sensitiveScore,
-    isRedacted: item.isRedacted,
-    tags: item.tags,
-    thumbnailPath: item.thumbnailUrl,
   };
 }
 

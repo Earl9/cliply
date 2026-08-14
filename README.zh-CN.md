@@ -122,6 +122,8 @@ npm run build:modern-installer
 - [隐私政策](PRIVACY.md)
 - [安全政策](SECURITY.md)
 - [更新日志](CHANGELOG.md)
+- [产品与工程优化方案](docs/optimization-plan.md)
+- [性能优化方案](docs/performance-optimization.md)
 - [同步设计](docs/sync-design.md)
 - [安装器说明](docs/installer.md)
 - [隐私和日志](docs/privacy-and-logs.md)

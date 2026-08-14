@@ -67,8 +67,8 @@ export const defaultSettingsState: CliplySettings = {
   ignoreApps: ["1Password", "Bitwarden", "KeePass", "KeePassXC", "Windows Credential Manager"],
   globalShortcut: "Ctrl+Shift+V",
   theme: "light",
-  themeName: "system-blue",
-  accentColor: "#1F74CC",
+  themeName: "coral-pulse",
+  accentColor: "#FF6257",
   autoTheme: DEFAULT_AUTO_THEME_SETTINGS,
   imageSync: {
     mode: "metadata-only",

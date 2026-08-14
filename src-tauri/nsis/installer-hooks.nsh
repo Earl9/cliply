@@ -1,5 +1,5 @@
 !macro NSIS_HOOK_PREINSTALL
-  DetailPrint "Preparing Cliply install directory..."
+  DetailPrint "正在准备 Cliply 安装目录…"
 
   !if "${INSTALLMODE}" == "perMachine"
     SetShellVarContext all
@@ -15,7 +15,7 @@
   nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
   Pop $R0
   ${If} $R0 = 0
-    MessageBox MB_ICONSTOP "Cliply 仍在运行，无法覆盖安装。$\n$\n请从托盘退出 Cliply，或在任务管理器中结束 ${MAINBINARYNAME}.exe 后重试。"
+    MessageBox MB_ICONSTOP "Cliply 仍在运行，安装无法继续。$\n$\n请从系统托盘退出 Cliply，或在任务管理器中结束 ${MAINBINARYNAME}.exe 后重试。"
     Abort
   ${EndIf}
 
@@ -27,7 +27,7 @@
   CreateDirectory "$INSTDIR"
   FileOpen $R1 "$INSTDIR\.cliply_write_test" w
   ${If} ${Errors}
-    MessageBox MB_ICONSTOP "无法写入安装目录：$INSTDIR$\n$\n请确认安装器已用管理员权限运行，或换到你有写入权限的目录。"
+    MessageBox MB_ICONSTOP "无法写入安装目录：$INSTDIR$\n$\n请以管理员身份运行安装程序，或选择具有写入权限的其他目录。"
     Abort
   ${EndIf}
   FileClose $R1

@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cliply Modern UI - Open Design</title>
+    <style>
+      :root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+        font-synthesis: none;
+        --bg: oklch(94.5% 0.012 155);
+        --surface: rgb(255 255 255 / 0.5);
+        --chrome: rgb(255 255 255 / 0.58);
+        --fg: oklch(19% 0.008 255);
+        --body: oklch(31% 0.008 255);
+        --muted: oklch(54% 0.007 255);
+        --faint: oklch(59% 0.006 255);
+        --border: oklch(89.5% 0.005 255);
+        --border-strong: oklch(82.5% 0.007 255);
+        --accent: #ff6257;
+        --accent-hover: #ff7066;
+        --accent-active: #f75a50;
+        --accent-text: #14161a;
+        --accent-soft: color-mix(in oklch, var(--accent) 11%, var(--surface));
+        --success: #168f73;
+        --code: rgb(247 249 250 / 0.62);
+        --raised: rgb(255 255 255 / 0.68);
+        --danger: oklch(56% 0.2 25);
+        --glass: rgb(255 255 255 / 0.68);
+        --glass-window: rgb(255 255 255 / 0.34);
+        --glass-control: rgb(255 255 255 / 0.76);
+        --glass-pane: rgb(255 255 255 / 0.36);
+        --glass-pane-strong: rgb(255 255 255 / 0.48);
+        --glass-card: rgb(255 255 255 / 0.6);
+        --glass-edge: rgb(255 255 255 / 0.78);
+      }
+
+      :root[data-theme="dark"] {
+        --bg: oklch(13.5% 0.008 255);
+        --surface: rgb(13 17 23 / 0.62);
+        --chrome: rgb(28 33 40 / 0.72);
+        --fg: oklch(95% 0.004 250);
+        --body: oklch(84% 0.006 250);
+        --muted: oklch(67% 0.008 250);
+        --faint: oklch(58% 0.008 250);
+        --border: oklch(28% 0.007 255);
+        --border-strong: oklch(36% 0.009 255);
+        --accent: #ff6257;
+        --accent-hover: #ff7066;
+        --accent-active: #f75a50;
+        --accent-text: #14161a;
+        --success: #3dd0ac;
+        --code: rgb(22 27 34 / 0.7);
+        --raised: rgb(30 36 44 / 0.7);
+        --glass: rgb(27 29 33 / 0.78);
+        --glass-window: rgb(10 13 17 / 0.38);
+        --glass-control: rgb(27 29 33 / 0.84);
+        --glass-pane: rgb(18 23 29 / 0.62);
+        --glass-pane-strong: rgb(22 28 35 / 0.74);
+        --glass-card: rgb(30 36 44 / 0.78);
+        --glass-edge: rgb(255 255 255 / 0.12);
+      }
+
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); }
+      button, input { font: inherit; }
+      button { border: 0; }
+      svg { width: 16px; height: 16px; stroke-width: 1.8; }
+
+      .app {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        min-width: 860px;
+        min-height: 560px;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--glass-window);
+        backdrop-filter: blur(30px) saturate(122%);
+      }
+
+      .titlebar {
+        display: flex;
+        height: 42px;
+        flex: none;
+        align-items: center;
+        justify-content: space-between;
+        padding-left: 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--glass);
+        backdrop-filter: blur(18px) saturate(118%);
+        box-shadow: inset 0 1px 0 var(--glass-edge), 0 8px 22px rgb(31 35 40 / 0.05);
+      }
+
+      .brand { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+      .brand-mark { position: relative; width: 20px; height: 20px; flex: none; }
+      .brand-mark::before, .brand-mark::after { position: absolute; border-radius: 3px; content: ""; }
+      .brand-mark::before { top: 1px; right: 1px; width: 12px; height: 13px; background: #22b793; }
+      .brand-mark::after { bottom: 1px; left: 1px; width: 13px; height: 14px; background: #ff6257; box-shadow: 0 1px 2px rgb(33 40 45 / 0.18); }
+      .brand-fold { position: absolute; z-index: 1; top: 7px; left: 10px; width: 0; height: 0; border-top: 4px solid #ffdfc9; border-left: 4px solid transparent; }
+      .window-tools { display: flex; height: 100%; align-items: stretch; }
+      .icon-button { display: grid; width: 40px; place-items: center; background: transparent; color: var(--muted); }
+      .icon-button:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); color: var(--fg); }
+
+      .commandbar {
+        display: flex;
+        height: 52px;
+        flex: none;
+        align-items: center;
+        gap: 16px;
+        padding: 6px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--glass-control);
+        backdrop-filter: blur(14px) saturate(114%);
+        box-shadow: inset 0 1px 0 var(--glass-edge), 0 4px 14px rgb(31 35 40 / 0.055);
+      }
+
+      .search {
+        display: flex;
+        width: min(620px, 70vw);
+        height: 40px;
+        align-items: center;
+        gap: 9px;
+        padding: 0 11px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--muted);
+      }
+
+      .search:focus-within { border-color: color-mix(in srgb, var(--accent) 65%, var(--border)); background: var(--surface); }
+      .search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--fg); font-size: 13px; }
+      .search kbd, .status kbd { color: var(--faint); font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 10px; }
+      .result { display: flex; height: 28px; align-items: center; margin-left: auto; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--raised); box-shadow: 0 1px 2px rgb(31 35 40 / 0.05); color: var(--faint); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+
+      .workspace { display: grid; width: 100%; min-width: 0; min-height: 0; flex: 1; grid-template-columns: clamp(280px, 33%, 344px) minmax(0, 1fr); overflow: hidden; background: transparent; }
+      .history { display: grid; min-width: 0; min-height: 0; grid-template-rows: 48px minmax(0, 1fr); border-right: 1px solid var(--border); background: var(--glass-pane); backdrop-filter: blur(20px) saturate(116%); }
+      .filterbar { display: flex; height: 48px; align-items: center; gap: 2px; padding: 0 10px; overflow: hidden; background: var(--chrome); backdrop-filter: blur(22px) saturate(120%); }
+      .filter {
+        position: relative;
+        height: 28px;
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 11.5px;
+      }
+      .filter:hover { color: var(--fg); }
+      .filter.active { border-color: var(--border); background: var(--raised); box-shadow: 0 1px 2px rgb(31 35 40 / 0.05); color: color-mix(in srgb, var(--accent) 78%, #8a2822); font-weight: 600; }
+
+      .history-list { min-height: 0; overflow: auto; padding: 0 6px 8px; }
+      .history-row {
+        position: relative;
+        display: grid;
+        height: 68px;
+        grid-template-columns: 28px minmax(0, 1fr) 26px;
+        align-items: center;
+        gap: 11px;
+        margin: 4px 0;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        background: var(--glass-card);
+        cursor: default;
+      }
+      .history-row:hover { border-color: var(--border); background: color-mix(in srgb, var(--glass-card) 78%, var(--accent-soft)); }
+      .history-row.active { border-color: color-mix(in srgb, var(--accent) 18%, var(--border)); background: color-mix(in srgb, var(--glass-card) 72%, var(--accent-soft)); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent); }
+      .history-row.active::before { position: absolute; top: 10px; bottom: 10px; left: -1px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); content: ""; }
+      .type-icon, .detail-type { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--border); border-radius: 6px; background: var(--raised); box-shadow: 0 1px 2px rgb(31 35 40 / 0.05); color: var(--muted); }
+      .row-copy { min-width: 0; }
+      .row-title { overflow: hidden; color: var(--fg); font-size: 13px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+      .row-title.code { font-family: ui-monospace, "Cascadia Code", monospace; font-size: 12.5px; }
+      .row-meta { display: flex; min-width: 0; gap: 6px; margin-top: 3px; color: var(--faint); font-size: 10.5px; }
+      .row-meta span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .pin { display: grid; width: 26px; height: 26px; place-items: center; background: transparent; color: var(--accent); }
+
+      .detail { display: grid; width: 100%; min-width: 0; min-height: 0; grid-template-rows: 48px minmax(0, 1fr) 56px; overflow: hidden; container-type: inline-size; background: var(--glass-pane-strong); backdrop-filter: blur(24px) saturate(116%); }
+      .detail-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--chrome); backdrop-filter: blur(22px) saturate(120%); }
+      .detail-identity { display: flex; min-width: 0; align-items: center; gap: 12px; }
+      .detail-type { flex: none; color: var(--accent); }
+      .detail-title { min-width: 0; }
+      .detail-title strong { display: block; overflow: hidden; font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+      .detail-title span { display: block; margin-top: 2px; color: var(--faint); font-size: 10.5px; }
+      .detail-tools { display: flex; align-items: center; }
+
+      .detail-scroll { width: 100%; min-width: 0; min-height: 0; overflow: hidden auto; padding: 20px; }
+      .content-panel { width: min(100%, 980px); overflow: hidden; margin: 0 auto; border: 1px solid var(--border); border-radius: 8px; background: var(--glass-card); backdrop-filter: blur(16px) saturate(112%); box-shadow: inset 0 1px 0 var(--glass-edge), 0 1px 2px rgb(31 35 40 / 0.05); }
+      .panel-heading { display: flex; height: 40px; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--border); background: var(--chrome); }
+      .panel-heading strong { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+      .panel-heading strong svg { color: var(--accent); }
+      .panel-heading span { color: var(--faint); font-size: 10px; }
+      .code-block { margin: 0; overflow: auto; background: var(--code); color: var(--body); font-family: ui-monospace, "Cascadia Code", monospace; font-size: 12.5px; line-height: 1.7; }
+      .code-line { display: grid; grid-template-columns: 48px minmax(max-content, 1fr); min-height: 21px; }
+      .line-number { padding-right: 13px; border-right: 1px solid var(--border); color: var(--faint); text-align: right; user-select: none; }
+      .code-text { padding-left: 16px; white-space: pre; }
+
+      .meta-section { margin-top: 16px; }
+      .meta-grid { display: grid; grid-template-columns: 1fr 1fr; }
+      .meta-item { display: grid; min-width: 0; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+      .meta-item:nth-child(odd):not(.wide) { border-right: 1px solid var(--border); }
+      .meta-item.wide { grid-column: 1 / -1; }
+      .meta-icon { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--border); border-radius: 6px; background: var(--chrome); color: var(--muted); }
+      .meta-item dt { color: var(--faint); font-size: 10px; }
+      .meta-item dd { overflow: hidden; margin: 2px 0 0; color: var(--body); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+      .tags { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--faint); font-size: 10px; }
+      .tags span { padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--chrome); }
+      .formats { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--chrome); color: var(--faint); font-size: 10px; }
+      .formats strong { font-weight: 400; }
+      .formats span { padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); }
+
+      .actions { display: flex; width: 100%; min-width: 0; align-items: center; gap: 6px; overflow: hidden; padding: 0 14px; border-top: 1px solid var(--border); background: var(--glass); backdrop-filter: blur(18px) saturate(118%); box-shadow: inset 0 1px 0 var(--glass-edge), 0 -8px 22px rgb(31 35 40 / 0.04); }
+      .action { display: inline-flex; height: 32px; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--raised); color: var(--body); font-size: 12px; }
+      .action:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); color: var(--fg); }
+      .action.delete { color: var(--muted); }
+      .action.primary { height: 36px; margin-left: auto; padding: 0 16px; border-color: transparent; background: var(--accent); color: var(--accent-text); font-weight: 600; }
+      .action.primary:hover { background: var(--accent-hover); }
+      .action.primary:active { background: var(--accent-active); }
+      .action.primary kbd { color: color-mix(in srgb, var(--accent-text) 72%, transparent); font-family: ui-monospace, monospace; font-size: 9.5px; font-weight: 400; }
+
+      .status { display: flex; height: 28px; flex: none; align-items: center; justify-content: space-between; padding: 0 12px; border-top: 1px solid var(--border); background: var(--chrome); color: var(--faint); font-size: 10px; }
+      .shortcuts, .local { display: flex; align-items: center; gap: 14px; }
+      .local { gap: 6px; }
+      .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+      @media (max-width: 920px) {
+        .filter { padding-inline: 4px; }
+      }
+
+      @media (max-width: 940px) {
+        .detail-scroll { padding: 16px; }
+      }
+
+      @container (max-width: 680px) {
+        .actions { gap: 4px; padding-inline: 10px; }
+        .action:not(.primary) { width: 32px; justify-content: center; padding-inline: 0; }
+        .action:not(.primary) span, .action.primary kbd { display: none; }
+        .action.primary { gap: 6px; padding-inline: 12px; }
+      }
+
+      @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+        .app, .titlebar, .commandbar, .history, .filterbar, .detail, .detail-header, .content-panel, .search, .actions { background: var(--surface); }
+        .app, .titlebar, .commandbar, .history, .filterbar, .detail, .detail-header, .content-panel, .search, .actions { backdrop-filter: none; box-shadow: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="titlebar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"><span class="brand-fold"></span></span><span>Cliply</span></div>
+        <div class="window-tools">
+          <button class="icon-button" title="置顶"><i data-lucide="pin"></i></button>
+          <button class="icon-button" id="theme" title="切换主题"><i data-lucide="sun"></i></button>
+          <button class="icon-button" title="设置"><i data-lucide="settings"></i></button>
+          <button class="icon-button" title="最小化"><i data-lucide="minus"></i></button>
+          <button class="icon-button" title="最大化"><i data-lucide="maximize-2"></i></button>
+          <button class="icon-button" title="关闭"><i data-lucide="x"></i></button>
+        </div>
+      </header>
+
+      <div class="commandbar">
+        <label class="search">
+          <i data-lucide="search"></i>
+          <input autofocus placeholder="搜索内容、来源或标签" />
+          <kbd>Ctrl K</kbd>
+        </label>
+        <span class="result">8 条记录</span>
+      </div>
+
+      <section class="workspace">
+        <section class="history">
+          <nav class="filterbar" aria-label="筛选剪贴板记录">
+            <button class="filter active" data-value="all">全部</button>
+            <button class="filter" data-value="text">文本</button>
+            <button class="filter" data-value="link">链接</button>
+            <button class="filter" data-value="image">图片</button>
+            <button class="filter" data-value="code">代码</button>
+            <button class="filter" data-value="pinned">固定</button>
+          </nav>
+          <div class="history-list">
+            <article class="history-row active"><span class="type-icon" data-type="code"><i data-lucide="code-2"></i></span><span class="row-copy"><span class="row-title code">const user = await getProfile(session.userId);</span><span class="row-meta"><span>Visual Studio Code</span><span>·</span><span>刚刚</span></span></span><button class="pin"><i data-lucide="pin"></i></button></article>
+            <article class="history-row"><span class="type-icon" data-type="link"><i data-lucide="link-2"></i></span><span class="row-copy"><span class="row-title">github.com/tauri-apps/tauri</span><span class="row-meta"><span>Chrome</span><span>·</span><span>1 分钟前</span></span></span><button class="pin"></button></article>
+            <article class="history-row"><span class="type-icon" data-type="text"><i data-lucide="file-text"></i></span><span class="row-copy"><span class="row-title">优先保证 Windows 版稳定可用，保持平台适配层清晰。</span><span class="row-meta"><span>记事本</span><span>·</span><span>8 分钟前</span></span></span><button class="pin"></button></article>
+            <article class="history-row"><span class="type-icon" data-type="image"><i data-lucide="image"></i></span><span class="row-copy"><span class="row-title">截图 1160 × 760</span><span class="row-meta"><span>截图工具</span><span>·</span><span>18 分钟前</span></span></span><button class="pin"><i data-lucide="pin"></i></button></article>
+            <article class="history-row"><span class="type-icon" data-type="code"><i data-lucide="code-2"></i></span><span class="row-copy"><span class="row-title code">SELECT item_id FROM clipboard_items_fts…</span><span class="row-meta"><span>DataGrip</span><span>·</span><span>24 分钟前</span></span></span><button class="pin"></button></article>
+            <article class="history-row"><span class="type-icon" data-type="link"><i data-lucide="link-2"></i></span><span class="row-copy"><span class="row-title">www.radix-ui.com/primitives</span><span class="row-meta"><span>Edge</span><span>·</span><span>42 分钟前</span></span></span><button class="pin"></button></article>
+          </div>
+        </section>
+
+        <section class="detail">
+          <header class="detail-header">
+            <div class="detail-identity"><span class="detail-type"><i data-lucide="code-2"></i></span><div class="detail-title"><strong>会话校验代码</strong><span>代码 · Visual Studio Code · 刚刚</span></div></div>
+            <div class="detail-tools"><button class="icon-button"><i data-lucide="pin"></i></button><button class="icon-button"><i data-lucide="more-horizontal"></i></button></div>
+          </header>
+          <div class="detail-scroll">
+            <section class="content-panel">
+              <div class="panel-heading"><strong><i data-lucide="code-2"></i>代码预览</strong><span>text/plain</span></div>
+              <pre class="code-block"><code><span class="code-line"><span class="line-number">1</span><span class="code-text">const user = await getProfile(session.userId);</span></span><span class="code-line"><span class="line-number">2</span><span class="code-text"> </span></span><span class="code-line"><span class="line-number">3</span><span class="code-text">if (!user?.enabled) {</span></span><span class="code-line"><span class="line-number">4</span><span class="code-text">  return createEmptySession();</span></span><span class="code-line"><span class="line-number">5</span><span class="code-text">}</span></span><span class="code-line"><span class="line-number">6</span><span class="code-text"> </span></span><span class="code-line"><span class="line-number">7</span><span class="code-text">return createSession(user);</span></span></code></pre>
+            </section>
+            <section class="meta-section content-panel">
+              <div class="panel-heading"><strong>记录信息</strong><span>1 种格式</span></div>
+              <dl class="meta-grid">
+                <div class="meta-item"><span class="meta-icon"><i data-lucide="app-window"></i></span><div><dt>来源应用</dt><dd>Visual Studio Code</dd></div></div>
+                <div class="meta-item"><span class="meta-icon"><i data-lucide="file-type-2"></i></span><div><dt>内容类型</dt><dd>代码</dd></div></div>
+                <div class="meta-item"><span class="meta-icon"><i data-lucide="clock-3"></i></span><div><dt>复制时间</dt><dd>2026/05/04 10:42:18</dd></div></div>
+                <div class="meta-item"><span class="meta-icon"><i data-lucide="database"></i></span><div><dt>数据大小</dt><dd>148 B</dd></div></div>
+                <div class="meta-item wide"><span class="meta-icon"><i data-lucide="panels-top-left"></i></span><div><dt>来源窗口</dt><dd>auth/session.ts</dd></div></div>
+              </dl>
+              <div class="tags"><span>#typescript</span><span>#auth</span></div>
+              <div class="formats"><strong>可用格式</strong><span>text/plain</span></div>
+            </section>
+          </div>
+          <footer class="actions">
+            <button class="action"><i data-lucide="copy"></i><span>复制</span></button>
+            <button class="action"><i data-lucide="type"></i><span>无格式</span></button>
+            <button class="action"><i data-lucide="pin-off"></i><span>取消固定</span></button>
+            <button class="action delete" title="删除"><i data-lucide="trash-2"></i></button>
+            <button class="action primary"><i data-lucide="clipboard"></i><span>粘贴</span><kbd>Enter</kbd></button>
+          </footer>
+        </section>
+      </section>
+
+      <footer class="status"><div class="shortcuts"><span><kbd>↑↓</kbd> 选择</span><span><kbd>Enter</kbd> 粘贴</span><span><kbd>Esc</kbd> 关闭</span></div><div class="local"><span class="dot"></span><span>仅存于本机</span></div></footer>
+    </main>
+    <script src="https://unpkg.com/lucide@0.468.0"></script>
+    <script>
+      lucide.createIcons();
+      document.querySelectorAll('.filter').forEach((button) => button.addEventListener('click', () => {
+        document.querySelectorAll('.filter').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+      }));
+      document.querySelectorAll('.history-row').forEach((row) => row.addEventListener('click', () => {
+        document.querySelectorAll('.history-row').forEach((item) => item.classList.remove('active'));
+        row.classList.add('active');
+      }));
+      document.querySelector('#theme').addEventListener('click', () => {
+        document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        lucide.createIcons();
+      });
+    </script>
+  </body>
+</html>

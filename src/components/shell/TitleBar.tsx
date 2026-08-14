@@ -1,7 +1,7 @@
 import { Maximize2, Minimize2, Minus, MoreHorizontal, Pin, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
-import cliplyLogo from "@/assets/cliply-logo.png";
+import cliplyLogo from "@/assets/cliply-logo-20.png";
 import {
   hideMainWindow,
   isMainWindowMaximized,
@@ -82,7 +82,7 @@ export function TitleBar({
 
   return (
     <header
-      className="flex h-10 shrink-0 select-none items-center justify-between border-b border-[color:var(--cliply-border-soft)] pl-3 pr-1"
+      className="cliply-titlebar flex h-11 shrink-0 select-none items-center justify-between pl-3 pr-0"
       data-tauri-drag-region
       onDoubleClick={() => void toggleMaximize()}
     >
@@ -90,13 +90,13 @@ export function TitleBar({
         <img
           src={cliplyLogo}
           alt="Cliply"
-          className="size-5 rounded-[4px] object-contain"
+          className="size-5 object-contain"
           draggable={false}
           data-tauri-drag-region
         />
         <div className="min-w-0" data-tauri-drag-region>
           <div
-            className="truncate text-[13px] font-medium text-[color:var(--cliply-text)]"
+            className="truncate text-[12.5px] font-semibold text-[color:var(--cliply-text)]"
             data-tauri-drag-region
           >
             Cliply
@@ -134,11 +134,11 @@ export function TitleBar({
             <MoreHorizontal className="size-4" />
           </TitleBarButton>
           {menuOpen ? (
-            <div className="absolute right-0 top-9 z-20 w-40 overflow-hidden rounded-[8px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]">
+            <div className="absolute right-1 top-9 z-20 w-40 overflow-hidden rounded-[4px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]">
               <MenuButton onClick={() => runMenuAction(onToggleMonitoring)}>
                 {monitoringPaused ? "恢复监听" : "暂停监听"}
               </MenuButton>
-              <MenuButton onClick={() => runMenuAction(onClearHistory)}>清空历史</MenuButton>
+              <MenuButton onClick={() => runMenuAction(onClearHistory)}>清空历史记录</MenuButton>
               <MenuButton onClick={() => runMenuAction(onOpenAbout)}>关于 Cliply</MenuButton>
             </div>
           ) : null}
@@ -194,7 +194,7 @@ function TitleBarButton({
       onMouseDown={onMouseDown}
       onClick={onClick}
       className={clsx(
-        "cliply-interactive grid h-8 w-9 place-items-center text-[color:var(--cliply-muted)]",
+        "cliply-titlebar-button cliply-interactive grid h-11 w-10 place-items-center text-[color:var(--cliply-muted)]",
         "hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]",
         "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color:var(--cliply-accent)]",
         active && "text-[color:var(--cliply-accent)]",

@@ -1,134 +1,223 @@
 @import "tailwindcss";
 
-/*
- * Type: Windows 11 ships the Segoe UI Variable optical-size family. Using the
- * right cut per size (Small for captions, Text for UI, Display for titles) is
- * what makes native Fluent surfaces read as crisp rather than generic. CJK has
- * no coverage there and falls through to Microsoft YaHei UI, same as the OS.
- */
 :root {
   font-family:
-    "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
-    "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+    "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
   color: var(--cliply-text);
-  background: var(--cliply-panel);
+  background: transparent;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Fluent's standard decelerate curve; short enough to feel instant. */
   --cliply-ease: cubic-bezier(0.2, 0, 0, 1);
-  --cliply-duration: 120ms;
+  --cliply-duration: 100ms;
 
-  --cliply-bg: #f5f9fd;
-  --cliply-bg-soft: #fafcfe;
-  --cliply-panel: #f5f9fd;
+  /* Open Design: graphite workspace with one user-controlled accent. */
+  --cliply-bg: #f7f8fa;
+  --cliply-bg-soft: #f4f5f7;
+  --cliply-window-bg: #f7f8fa;
+  --cliply-panel: #f7f8fa;
+  --cliply-panel-bg: #ffffff;
   --cliply-panel-strong: #ffffff;
   --cliply-card: #ffffff;
   --cliply-card-solid: #ffffff;
-  --cliply-border: #e2eaf2;
-  --cliply-border-soft: #edf3f8;
-  --cliply-border-strong: #cedbe8;
-  --cliply-text: #1b2734;
-  --cliply-body-text: #2c3a49;
-  /* Note: `faint` is the darker secondary and `muted` the lighter tertiary —
-     that is the mapping theme.ts injects at runtime, so the static fallbacks
-     here have to agree with it. */
-  --cliply-faint: #5f6f80;
-  --cliply-muted: #64748b;
-  --cliply-placeholder: #7c8b9c;
-  --cliply-disabled: #b9c5d1;
-  --cliply-disabled-bg: #eff5fa;
-  --cliply-disabled-border: #edf3f8;
-  --cliply-input-bg: #ffffff;
-  --cliply-muted-bg: #eff5fa;
-  --cliply-checker-color: rgba(148, 163, 184, 0.1);
-  --cliply-checker-size: 14px;
-  --cliply-checker-half: 7px;
-  --cliply-accent-50: #e8f1fc;
-  --cliply-accent-100: #d3e5f9;
-  --cliply-accent: #1f74cc;
-  --cliply-accent-strong: #1f74cc;
-  --cliply-accent-dark: #1962b0;
-  --cliply-accent-soft: #e8f1fc;
-  --cliply-accent-border: #c2dbf5;
-  /* Accent darkened for text on `accent-soft`; themes override this per-hue. */
-  --cliply-accent-on-soft: #1962b0;
-  --cliply-primary-text: #ffffff;
-  --cliply-success: #15803d;
-  --cliply-warning: #b45309;
-  --cliply-danger: #dc2626;
-  --cliply-danger-soft: #fef2f2;
-  --cliply-info: #1f74cc;
-  --cliply-info-soft: #e8f1fc;
-  --cliply-teal: #0f928b;
-  --cliply-amber: #b7791f;
-  /* Elevation is a hairline plus a tight 1px lift, not a blurry drop shadow. */
-  --cliply-shadow-card: 0 1px 2px rgba(27, 39, 52, 0.04);
-  --cliply-shadow-card-hover: 0 1px 2px rgba(27, 39, 52, 0.06);
-  --cliply-shadow-popover: 0 8px 24px rgba(27, 39, 52, 0.12);
-  --cliply-shadow-dialog:
-    0 12px 32px rgba(27, 39, 52, 0.14),
-    0 2px 6px rgba(27, 39, 52, 0.07);
+  --cliply-canvas: rgb(244 248 247 / 0.56);
+  --cliply-surface: rgb(255 255 255 / 0.5);
+  --cliply-surface-raised: rgb(255 255 255 / 0.68);
+  --cliply-surface-subtle: rgb(244 247 247 / 0.44);
+  --cliply-code-bg: rgb(247 249 250 / 0.62);
+  --cliply-input-bg: rgb(255 255 255 / 0.54);
+  --cliply-muted-bg: rgb(238 243 241 / 0.48);
+
+  --cliply-text: #1f2328;
+  --cliply-body-text: #333940;
+  --cliply-faint: #656d76;
+  --cliply-muted: #6e7781;
+  --cliply-placeholder: #8c959f;
+  --cliply-disabled: #afb8c1;
+  --cliply-disabled-text: #afb8c1;
+  --cliply-disabled-bg: #f3f4f6;
+  --cliply-disabled-border: #e6e8eb;
+
+  --cliply-border: #d8dee4;
+  --cliply-border-soft: #eaeef2;
+  --cliply-border-strong: #afb8c1;
+
+  --cliply-accent: #ff6257;
+  --cliply-accent-strong: #ff6257;
+  --cliply-accent-dark: #f75a50;
+  --cliply-accent-50: #fff0ef;
+  --cliply-accent-100: #ffd2cf;
+  --cliply-accent-soft: #fff0ef;
+  --cliply-accent-border: #ffb9b4;
+  --cliply-accent-on-soft: #c9453d;
+  --cliply-primary: var(--cliply-accent);
+  --cliply-primary-hover: #ff7066;
+  --cliply-primary-active: var(--cliply-accent-dark);
+  --cliply-primary-text: #14161a;
+  --cliply-primary-action-text: #14161a;
+  --cliply-focus-border: var(--cliply-accent);
+  --cliply-focus-ring: color-mix(in srgb, var(--cliply-accent) 18%, transparent);
+
+  --cliply-success: #168f73;
+  --cliply-success-soft: #e8f7f2;
+  --cliply-warning: #9a6700;
+  --cliply-warning-soft: #fff8c5;
+  --cliply-danger: #cf222e;
+  --cliply-danger-soft: #ffebe9;
+  --cliply-info: #0969da;
+  --cliply-info-soft: #ddf4ff;
+
+  --cliply-checker-color: rgba(99, 110, 123, 0.1);
+  --cliply-checker-size: 16px;
+  --cliply-checker-half: 8px;
+
+  --cliply-shadow-card: 0 1px 2px rgb(31 35 40 / 0.05);
+  --cliply-shadow-card-hover: 0 2px 8px rgb(31 35 40 / 0.07);
+  --cliply-shadow-selected: 0 2px 8px color-mix(in srgb, var(--cliply-accent) 10%, transparent);
+  --cliply-shadow-panel: 0 8px 24px rgba(31, 35, 40, 0.12);
+  --cliply-shadow-popover: 0 8px 24px rgba(31, 35, 40, 0.14);
+  --cliply-shadow-dialog: 0 16px 40px rgba(31, 35, 40, 0.18);
   --cliply-shadow: var(--cliply-shadow-dialog);
-  --cliply-shadow-selected: none;
+  --cliply-workbench-shadow: none;
+
+  --cliply-glass-window: rgb(255 255 255 / 0.34);
+  --cliply-glass-chrome: rgb(255 255 255 / 0.58);
+  --cliply-glass-pane: rgb(255 255 255 / 0.36);
+  --cliply-glass-pane-strong: rgb(255 255 255 / 0.48);
+  --cliply-glass-card: rgb(255 255 255 / 0.6);
+  --cliply-glass-surface: rgb(255 255 255 / 0.68);
+  --cliply-glass-control: rgb(255 255 255 / 0.76);
+  --cliply-glass-edge: rgb(255 255 255 / 0.78);
+  --cliply-glass-shadow: 0 12px 32px rgb(31 35 40 / 0.08);
+  --cliply-glass-control-shadow: 0 4px 16px rgb(31 35 40 / 0.07);
+  --cliply-solid-fallback: oklch(99.7% 0.001 255);
 }
 
 :root[data-theme="dark"] {
-  --cliply-bg: #141719;
-  --cliply-bg-soft: #17191c;
-  --cliply-panel: #17191c;
-  --cliply-panel-strong: #1e2125;
-  --cliply-card: #1e2125;
-  --cliply-card-solid: #1e2125;
-  --cliply-border: rgba(255, 255, 255, 0.09);
-  --cliply-border-soft: rgba(255, 255, 255, 0.055);
-  --cliply-border-strong: rgba(255, 255, 255, 0.16);
-  --cliply-primary: #5fa8ee;
-  --cliply-primary-hover: #7cb8f2;
-  --cliply-primary-active: #4d97dd;
-  --cliply-primary-soft: rgba(95, 168, 238, 0.14);
-  --cliply-primary-border: rgba(95, 168, 238, 0.42);
-  --cliply-primary-border-selected: rgba(95, 168, 238, 0.6);
-  --cliply-accent: #5fa8ee;
-  --cliply-accent-strong: #5fa8ee;
-  --cliply-accent-dark: #7cb8f2;
-  --cliply-accent-50: rgba(95, 168, 238, 0.14);
-  --cliply-accent-100: rgba(95, 168, 238, 0.14);
-  --cliply-accent-soft: rgba(95, 168, 238, 0.14);
-  --cliply-accent-border: rgba(95, 168, 238, 0.42);
-  --cliply-accent-border-selected: rgba(95, 168, 238, 0.6);
-  --cliply-accent-on-soft: #5fa8ee;
-  --cliply-primary-text: #10151a;
-  --cliply-focus-border: rgba(95, 168, 238, 0.6);
-  --cliply-focus-ring: rgba(95, 168, 238, 0.16);
-  --cliply-text: #f2f4f6;
-  --cliply-body-text: #dfe3e8;
-  --cliply-muted: #9ba5b1;
-  --cliply-faint: #8a94a0;
-  --cliply-placeholder: #8a94a0;
-  --cliply-disabled: #5d666f;
-  --cliply-disabled-text: #5d666f;
-  --cliply-disabled-bg: rgba(255, 255, 255, 0.05);
-  --cliply-disabled-border: rgba(255, 255, 255, 0.05);
-  --cliply-input-bg: #1a1d21;
-  --cliply-muted-bg: #25292e;
-  --cliply-checker-color: rgba(148, 163, 184, 0.045);
-  --cliply-checker-size: 24px;
-  --cliply-checker-half: 12px;
-  --cliply-success-soft: rgba(34, 197, 94, 0.14);
-  --cliply-warning-soft: rgba(245, 158, 11, 0.16);
-  --cliply-danger-soft: rgba(239, 68, 68, 0.16);
-  --cliply-info-soft: rgba(37, 99, 235, 0.18);
-  --cliply-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --cliply-shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.34);
+  --cliply-bg: #161b22;
+  --cliply-bg-soft: #161b22;
+  --cliply-window-bg: #161b22;
+  --cliply-panel: #161b22;
+  --cliply-panel-bg: #0d1117;
+  --cliply-panel-strong: #21262d;
+  --cliply-card: #21262d;
+  --cliply-card-solid: #21262d;
+  --cliply-canvas: rgb(13 17 23 / 0.58);
+  --cliply-surface: rgb(13 17 23 / 0.62);
+  --cliply-surface-raised: rgb(30 36 44 / 0.7);
+  --cliply-surface-subtle: rgb(22 27 34 / 0.56);
+  --cliply-code-bg: rgb(22 27 34 / 0.7);
+  --cliply-input-bg: rgb(13 17 23 / 0.68);
+  --cliply-muted-bg: rgb(33 38 45 / 0.62);
+
+  --cliply-text: #f0f3f6;
+  --cliply-body-text: #d8dee4;
+  --cliply-faint: #8b949e;
+  --cliply-muted: #9aa4af;
+  --cliply-placeholder: #7d8590;
+  --cliply-disabled: #57606a;
+  --cliply-disabled-text: #57606a;
+  --cliply-disabled-bg: #1c2128;
+  --cliply-disabled-border: #272d35;
+
+  --cliply-border: #30363d;
+  --cliply-border-soft: #21262d;
+  --cliply-border-strong: #484f58;
+  --cliply-primary-text: #0d1117;
+  --cliply-primary-action-text: #10151a;
+  --cliply-checker-color: rgba(139, 148, 158, 0.07);
+
+  --cliply-success: #3dd0ac;
+  --cliply-success-soft: rgba(61, 208, 172, 0.14);
+  --cliply-warning-soft: rgba(187, 128, 9, 0.18);
+  --cliply-danger-soft: rgba(248, 81, 73, 0.16);
+  --cliply-info-soft: rgba(56, 139, 253, 0.16);
+  --cliply-shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.4);
   --cliply-shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.44);
-  --cliply-shadow-dialog:
-    0 12px 32px rgba(0, 0, 0, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  --cliply-shadow: var(--cliply-shadow-dialog);
-  --cliply-shadow-selected: none;
+  --cliply-shadow-dialog: 0 16px 40px rgba(0, 0, 0, 0.52);
+  --cliply-shadow-card: 0 1px 2px rgb(0 0 0 / 0.24);
+  --cliply-shadow-card-hover: 0 3px 12px rgb(0 0 0 / 0.28);
+  --cliply-shadow-selected: 0 3px 12px rgb(0 0 0 / 0.24);
+  --cliply-glass-window: rgb(10 13 17 / 0.38);
+  --cliply-glass-chrome: rgb(28 33 40 / 0.72);
+  --cliply-glass-pane: rgb(18 23 29 / 0.62);
+  --cliply-glass-pane-strong: rgb(22 28 35 / 0.74);
+  --cliply-glass-card: rgb(30 36 44 / 0.78);
+  --cliply-glass-surface: rgb(27 29 33 / 0.78);
+  --cliply-glass-control: rgb(27 29 33 / 0.84);
+  --cliply-glass-edge: rgb(255 255 255 / 0.12);
+  --cliply-glass-shadow: 0 14px 34px rgb(0 0 0 / 0.28);
+  --cliply-glass-control-shadow: 0 4px 16px rgb(0 0 0 / 0.24);
+  --cliply-solid-fallback: oklch(17.5% 0.006 255);
+}
+
+/* User themes control only the accent. Workspace surfaces stay achromatic so
+   custom green, orange, or violet themes remain coherent. */
+:root[data-theme="light"] {
+  --cliply-app-bg: oklch(97.5% 0.003 255) !important;
+  --cliply-window-bg: oklch(97.5% 0.003 255) !important;
+  --cliply-panel-bg: oklch(99.7% 0.001 255) !important;
+  --cliply-card-bg: oklch(99.7% 0.001 255) !important;
+  --cliply-bg: oklch(97.5% 0.003 255) !important;
+  --cliply-bg-soft: oklch(96.2% 0.003 255) !important;
+  --cliply-panel: oklch(97.5% 0.003 255) !important;
+  --cliply-panel-strong: oklch(99.7% 0.001 255) !important;
+  --cliply-card: oklch(99.7% 0.001 255) !important;
+  --cliply-card-solid: oklch(99.7% 0.001 255) !important;
+  --cliply-canvas: color-mix(in srgb, var(--cliply-accent) 4%, oklch(94.5% 0.006 155)) !important;
+  --cliply-surface: rgb(255 255 255 / 0.5) !important;
+  --cliply-surface-raised: rgb(255 255 255 / 0.68) !important;
+  --cliply-surface-subtle: rgb(244 247 247 / 0.44) !important;
+  --cliply-code-bg: rgb(247 249 250 / 0.62) !important;
+  --cliply-input-bg: rgb(255 255 255 / 0.54) !important;
+  --cliply-muted-bg: rgb(238 243 241 / 0.48) !important;
+  --cliply-text: oklch(19% 0.008 255) !important;
+  --cliply-body-text: oklch(31% 0.008 255) !important;
+  --cliply-text-secondary: oklch(49% 0.008 255) !important;
+  --cliply-faint: oklch(49% 0.008 255) !important;
+  --cliply-muted: oklch(54% 0.007 255) !important;
+  --cliply-placeholder: oklch(59% 0.006 255) !important;
+  --cliply-border: oklch(89.5% 0.005 255) !important;
+  --cliply-border-soft: oklch(92.5% 0.004 255) !important;
+  --cliply-border-strong: oklch(82.5% 0.007 255) !important;
+  --cliply-divider: oklch(92.5% 0.004 255) !important;
+  --cliply-disabled: oklch(72% 0.005 255) !important;
+  --cliply-disabled-text: oklch(72% 0.005 255) !important;
+}
+
+:root[data-theme="dark"] {
+  --cliply-app-bg: oklch(14.5% 0.006 255) !important;
+  --cliply-window-bg: oklch(14.5% 0.006 255) !important;
+  --cliply-panel-bg: oklch(17.5% 0.006 255) !important;
+  --cliply-card-bg: oklch(20% 0.006 255) !important;
+  --cliply-bg: oklch(14.5% 0.006 255) !important;
+  --cliply-bg-soft: oklch(20% 0.006 255) !important;
+  --cliply-panel: oklch(14.5% 0.006 255) !important;
+  --cliply-panel-strong: oklch(20% 0.006 255) !important;
+  --cliply-card: oklch(20% 0.006 255) !important;
+  --cliply-card-solid: oklch(20% 0.006 255) !important;
+  --cliply-canvas: color-mix(in srgb, var(--cliply-accent) 5%, oklch(13.5% 0.008 255)) !important;
+  --cliply-surface: rgb(13 17 23 / 0.62) !important;
+  --cliply-surface-raised: rgb(30 36 44 / 0.7) !important;
+  --cliply-surface-subtle: rgb(22 27 34 / 0.56) !important;
+  --cliply-code-bg: rgb(22 27 34 / 0.7) !important;
+  --cliply-input-bg: rgb(13 17 23 / 0.68) !important;
+  --cliply-muted-bg: rgb(33 38 45 / 0.62) !important;
+  --cliply-text: oklch(95% 0.003 255) !important;
+  --cliply-body-text: oklch(84% 0.004 255) !important;
+  --cliply-text-secondary: oklch(67% 0.005 255) !important;
+  --cliply-faint: oklch(62% 0.005 255) !important;
+  --cliply-muted: oklch(67% 0.005 255) !important;
+  --cliply-placeholder: oklch(58% 0.005 255) !important;
+  --cliply-border: oklch(28% 0.007 255) !important;
+  --cliply-border-soft: oklch(23.5% 0.006 255) !important;
+  --cliply-border-strong: oklch(36% 0.009 255) !important;
+  --cliply-divider: oklch(23.5% 0.006 255) !important;
+  --cliply-disabled: oklch(43% 0.005 255) !important;
+  --cliply-disabled-text: oklch(43% 0.005 255) !important;
 }
 
 * {
@@ -136,69 +225,16 @@
 }
 
 html,
-body {
+body,
+#root {
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   margin: 0;
   padding: 0;
-  background: var(--cliply-panel);
   overflow: hidden;
-}
-
-#root {
-  width: 100%;
-  height: 100%;
-  background: var(--cliply-panel);
-  overflow: hidden;
-}
-
-.cliply-root {
-  width: 100vw;
-  height: 100vh;
-  background: var(--cliply-panel);
-  overflow: hidden;
-}
-
-.cliply-window {
-  width: 100%;
-  height: 100%;
-  background: var(--cliply-panel);
-  border: 0;
-  border-radius: 0;
-  box-shadow: inset 0 0 0 1px var(--cliply-border);
-  isolation: isolate;
-  overflow: hidden;
-}
-
-/* Captions use the Small optical cut, which stays legible at 11px. */
-.cliply-caption {
-  font-family:
-    "Segoe UI Variable Small", "Segoe UI", "Microsoft YaHei UI",
-    "Microsoft YaHei", system-ui, sans-serif;
-}
-
-/* Dialog and section titles use the Display cut. */
-.cliply-title {
-  font-family:
-    "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI",
-    "Microsoft YaHei", system-ui, sans-serif;
-  letter-spacing: -0.01em;
-}
-
-@keyframes cliply-window-enter {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-.cliply-window-enter {
-  animation: cliply-window-enter 120ms ease-out both;
+  background: transparent;
 }
 
 button,
@@ -210,27 +246,449 @@ button {
   border: 0;
 }
 
-:root.cliply-theme-applying *,
-:root.cliply-theme-applying *::before,
-:root.cliply-theme-applying *::after {
-  transition: none !important;
-}
-
 ::selection {
-  background: rgba(31, 116, 204, 0.18);
+  background: color-mix(in srgb, var(--cliply-accent) 22%, transparent);
 }
 
-:root[data-theme="dark"] ::selection {
-  background: rgba(95, 168, 238, 0.3);
+.cliply-root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+
+.cliply-window {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--cliply-glass-window);
+  box-shadow: inset 0 0 0 1px var(--cliply-border);
+}
+
+.cliply-caption {
+  font-family:
+    "Segoe UI Variable Small", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.cliply-title {
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+.cliply-code-font {
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+.cliply-interactive {
+  transition: none;
+}
+
+.cliply-titlebar {
+  border-bottom: 1px solid var(--cliply-border);
+  background: var(--cliply-surface-subtle);
+}
+
+.cliply-titlebar-button {
+  border-radius: 0;
+}
+
+.cliply-app-shell,
+.cliply-main-stage {
+  height: 100%;
+  min-height: 0;
+}
+
+.cliply-app-shell {
+  background: var(--cliply-surface);
+}
+
+.cliply-main-stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cliply-command-area {
+  border-bottom: 1px solid var(--cliply-border);
+  background: var(--cliply-canvas);
+}
+
+.cliply-command-row {
+  display: flex;
+  height: 52px;
+  min-width: 0;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 14px;
+}
+
+.cliply-search-shell {
+  width: 100%;
+  max-width: 620px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.cliply-search-shell:focus-within {
+  box-shadow: none;
+}
+
+.cliply-search-shell:focus-within .cliply-search-icon {
+  color: var(--cliply-accent);
+}
+
+.cliply-command-key,
+.cliply-status-key,
+.cliply-primary-shortcut {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.cliply-command-key {
+  color: var(--cliply-faint);
+  font-size: 10px;
+}
+
+.cliply-filter-row {
+  display: flex;
+  min-width: 0;
+  height: 33px;
+  align-items: stretch;
+  justify-content: space-between;
+  border-top: 1px solid var(--cliply-border-soft);
+  padding: 0 8px;
+}
+
+.cliply-history-toolbar {
+  display: flex;
+  align-items: center;
+  background: var(--cliply-surface);
+}
+
+.cliply-filter-tabs {
+  flex: 1;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+
+.cliply-filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.cliply-filter-tab[aria-pressed="true"]::after {
+  content: none;
+}
+
+.cliply-filter-tab {
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.cliply-filter-tab[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--cliply-border) 72%, transparent);
+  background: var(--cliply-surface-raised);
+  color: var(--cliply-accent-on-soft);
+  box-shadow:
+    inset 0 1px 0 var(--cliply-glass-edge),
+    var(--cliply-shadow-card);
+}
+
+.cliply-result-summary {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  color: var(--cliply-faint);
+  font-family:
+    "Segoe UI Variable Small", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+  height: 30px;
+  border-color: color-mix(in srgb, var(--cliply-border) 72%, transparent);
+  background: var(--cliply-surface-raised);
+  font-size: 10.5px;
+  box-shadow:
+    inset 0 1px 0 var(--cliply-glass-edge),
+    var(--cliply-shadow-card);
+}
+
+.cliply-workspace {
+  min-width: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.cliply-workspace-grid {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: clamp(280px, 33%, 344px) minmax(0, 1fr);
+}
+
+.cliply-detail-pane {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--cliply-surface);
+}
+
+.cliply-list-pane {
+  border-right-color: var(--cliply-border-soft);
+  background: var(--cliply-surface-subtle);
+}
+
+.cliply-detail-pane {
+  container-type: inline-size;
+}
+
+.cliply-detail-header {
+  border-bottom: 1px solid var(--cliply-border-soft);
+  background: var(--cliply-surface-raised);
+}
+
+.cliply-detail-type-icon,
+.cliply-type-icon {
+  border: 1px solid var(--cliply-border-soft);
+  background: var(--cliply-surface-raised);
+  color: var(--cliply-faint);
+  box-shadow: var(--cliply-shadow-card);
+}
+
+.cliply-detail-type-icon {
+  color: var(--cliply-accent);
+}
+
+.cliply-row {
+  transition:
+    background-color var(--cliply-duration) ease-out,
+    border-color var(--cliply-duration) ease-out,
+    box-shadow var(--cliply-duration) ease-out;
+}
+
+.cliply-row-selected {
+  border-color: color-mix(in srgb, var(--cliply-accent) 18%, var(--cliply-border));
+  background: color-mix(in srgb, var(--cliply-accent) 7%, var(--cliply-surface-raised));
+  box-shadow: var(--cliply-shadow-selected);
+}
+
+:root[data-theme="dark"] .cliply-row-selected {
+  background: color-mix(in srgb, var(--cliply-accent) 12%, var(--cliply-surface));
+}
+
+.cliply-row-selected::before {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: -1px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  content: "";
+  background: var(--cliply-accent);
+}
+
+.cliply-type-icon {
+  color: var(--cliply-muted);
+}
+
+.cliply-code-surface {
+  margin: 0;
+  background: var(--cliply-code-bg);
+  box-shadow: none;
+}
+
+.cliply-metadata-grid {
+  background: var(--cliply-surface-raised);
+}
+
+.cliply-metadata-row {
+  border-bottom: 1px solid var(--cliply-border-soft);
+}
+
+.cliply-metadata-row:nth-child(odd):not([data-wide="true"]) {
+  border-right: 1px solid var(--cliply-border-soft);
+}
+
+.cliply-metadata-row[data-wide="true"] {
+  grid-column: 1 / -1;
+}
+
+.cliply-preview-panel,
+.cliply-metadata-section {
+  width: min(100%, 980px);
+  margin-right: auto;
+  margin-left: auto;
+  background: var(--cliply-surface-raised);
+  box-shadow: var(--cliply-shadow-card);
+}
+
+.cliply-preview-header,
+.cliply-metadata-header {
+  background: var(--cliply-surface-subtle);
+}
+
+.cliply-link-preview {
+  min-height: 112px;
+  background: var(--cliply-surface-raised);
+}
+
+.cliply-metadata-icon,
+.cliply-format-count,
+.cliply-tags span,
+.cliply-format-chip {
+  border: 1px solid var(--cliply-border-soft);
+  background: var(--cliply-surface-subtle);
+}
+
+.cliply-metadata-icon {
+  color: var(--cliply-muted);
+}
+
+.cliply-format-list {
+  background: var(--cliply-surface-subtle);
+}
+
+.cliply-action-bar {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-top-color: var(--cliply-border-soft);
+  background: var(--cliply-surface);
+}
+
+.cliply-status-bar {
+  background: var(--cliply-surface-subtle);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .cliply-window {
+    background: var(--cliply-glass-window);
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      var(--cliply-glass-shadow);
+  }
+
+  .cliply-titlebar,
+  .cliply-command-area,
+  .cliply-history-toolbar,
+  .cliply-detail-header,
+  .cliply-action-bar,
+  .cliply-status-bar {
+    background: var(--cliply-glass-chrome);
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      var(--cliply-glass-shadow);
+  }
+
+  .cliply-app-shell,
+  .cliply-main-stage,
+  .cliply-workspace {
+    background: transparent;
+  }
+
+  .cliply-list-pane {
+    background: var(--cliply-glass-pane);
+  }
+
+  .cliply-detail-pane {
+    background: var(--cliply-glass-pane-strong);
+  }
+
+  .cliply-row {
+    background: var(--cliply-glass-card);
+  }
+
+  .cliply-row:hover {
+    background: color-mix(in srgb, var(--cliply-glass-card) 78%, var(--cliply-accent-soft));
+    box-shadow: var(--cliply-shadow-card-hover);
+  }
+
+  .cliply-row-selected {
+    background: color-mix(in srgb, var(--cliply-glass-card) 72%, var(--cliply-accent-soft));
+  }
+
+  .cliply-preview-panel,
+  .cliply-metadata-section {
+    background: var(--cliply-glass-card);
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      var(--cliply-shadow-card);
+  }
+
+  .cliply-preview-header,
+  .cliply-metadata-header,
+  .cliply-format-list {
+    background: color-mix(in srgb, var(--cliply-glass-chrome) 72%, transparent);
+  }
+
+  .cliply-titlebar,
+  .cliply-action-bar {
+    background: var(--cliply-glass-surface);
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      var(--cliply-glass-shadow);
+  }
+
+  .cliply-action-bar {
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      0 -8px 22px rgb(31 35 40 / 0.04);
+  }
+
+  :root[data-theme="dark"] .cliply-action-bar {
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      0 -8px 24px rgb(0 0 0 / 0.18);
+  }
+
+  .cliply-search-shell {
+    border-color: color-mix(in srgb, var(--cliply-border) 78%, var(--cliply-glass-edge));
+    background: var(--cliply-glass-control);
+    -webkit-backdrop-filter: blur(14px) saturate(1.14);
+    backdrop-filter: blur(14px) saturate(1.14);
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      var(--cliply-glass-control-shadow);
+  }
+
+  .cliply-search-shell:focus-within {
+    box-shadow:
+      inset 0 1px 0 var(--cliply-glass-edge),
+      0 0 0 2px var(--cliply-focus-ring),
+      var(--cliply-glass-control-shadow);
+  }
+}
+
+.cliply-image-checker {
+  box-shadow: inset 0 0 0 1px var(--cliply-border);
+}
+
+.cliply-primary-shortcut {
+  color: color-mix(in srgb, var(--cliply-primary-action-text) 72%, transparent);
+  font-size: 9.5px;
+  font-weight: 400;
+}
+
+.cliply-status-key {
+  color: var(--cliply-muted);
+  font-size: 9.5px;
+}
+
+.cliply-notice {
+  flex: none;
 }
 
 .cliply-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.32) transparent;
+  scrollbar-color: color-mix(in srgb, var(--cliply-faint) 36%, transparent) transparent;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .cliply-scrollbar::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 .cliply-scrollbar::-webkit-scrollbar-track {
@@ -238,98 +696,83 @@ button {
 }
 
 .cliply-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.36);
-  border: 3px solid transparent;
+  min-height: 32px;
+  border: 2px solid transparent;
   border-radius: 999px;
+  background: color-mix(in srgb, var(--cliply-faint) 34%, transparent);
   background-clip: content-box;
 }
 
 .cliply-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.5);
-  border: 3px solid transparent;
+  background: color-mix(in srgb, var(--cliply-faint) 54%, transparent);
   background-clip: content-box;
 }
 
-.cliply-code-font {
-  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+.cliply-scrollbar::-webkit-scrollbar-button,
+.cliply-scrollbar::-webkit-scrollbar-button:single-button,
+.cliply-scrollbar::-webkit-scrollbar-button:vertical:start:decrement,
+.cliply-scrollbar::-webkit-scrollbar-button:vertical:end:increment,
+.cliply-scrollbar::-webkit-scrollbar-button:horizontal:start:decrement,
+.cliply-scrollbar::-webkit-scrollbar-button:horizontal:end:increment {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+  min-width: 0;
+  min-height: 0;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
-.cliply-detail-pane {
-  container-type: inline-size;
+.cliply-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
-/*
- * List rows: no dividers. Hover and selection are rounded inset blocks, and the
- * selected row carries the Fluent left accent rail.
- */
-.cliply-row {
-  transition: background-color var(--cliply-duration) var(--cliply-ease);
+.cliply-overlay-scroll-viewport {
+  width: 100%;
+  min-width: 0;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
 }
 
-.cliply-row-selected {
-  background-color: var(--cliply-accent-soft);
+.cliply-overlay-scroll-viewport::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
-.cliply-row-selected::before {
-  content: "";
+.cliply-overlay-scroll-track {
   position: absolute;
-  left: 0;
-  top: 50%;
-  height: 56%;
-  width: 3px;
-  transform: translateY(-50%);
-  border-radius: 0 3px 3px 0;
-  background: var(--cliply-accent);
+  z-index: 2;
+  top: 4px;
+  right: 1px;
+  bottom: 4px;
+  width: 8px;
+  border-radius: 999px;
+  outline: none;
+  cursor: default;
+  touch-action: none;
 }
 
-.cliply-interactive {
-  transition:
-    background-color var(--cliply-duration) var(--cliply-ease),
-    border-color var(--cliply-duration) var(--cliply-ease),
-    color var(--cliply-duration) var(--cliply-ease);
+.cliply-overlay-scroll-track:focus-visible {
+  box-shadow: 0 0 0 1px var(--cliply-focus-border);
 }
 
-:root[data-theme="dark"] .cliply-pin-button[data-pinned="true"] {
-  color: var(--cliply-accent) !important;
+.cliply-overlay-scroll-thumb {
+  width: 100%;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cliply-faint) 34%, transparent);
+  background-clip: content-box;
+  cursor: default;
+  touch-action: none;
+  will-change: transform;
 }
 
-:root[data-theme="dark"] .cliply-pin-button[data-pinned="true"] svg {
-  fill: var(--cliply-accent) !important;
-}
-
-:root[data-theme="dark"] .cliply-search-shell {
-  background-color: var(--cliply-input-bg) !important;
-  border-color: var(--cliply-border-strong) !important;
-}
-
-:root[data-theme="dark"] .cliply-search-shell:focus-within {
-  border-color: var(--cliply-focus-border) !important;
-}
-
-:root[data-theme="dark"] .cliply-pill-tab-active {
-  background-color: var(--cliply-accent-soft) !important;
-  color: var(--cliply-accent) !important;
-}
-
-/* Fluent dark theme puts dark text on accent-filled buttons: the dark-mode
-   accent is light, so white text on it would not be readable. */
-:root[data-theme="dark"] .cliply-action-button[data-primary="true"] {
-  background-color: var(--cliply-primary, var(--cliply-accent)) !important;
-  color: #10151a !important;
-}
-
-:root[data-theme="dark"] .cliply-action-button[data-primary="true"] kbd {
-  color: rgba(16, 21, 26, 0.72) !important;
-}
-
-:root[data-theme="dark"] .cliply-action-button[data-primary="true"]:hover {
-  background-color: var(--cliply-primary-hover, var(--cliply-accent-dark)) !important;
-}
-
-@container (max-width: 520px) {
-  .cliply-detail-pane .cliply-action-label {
-    display: none;
-  }
+.cliply-overlay-scroll-thumb:hover,
+.cliply-overlay-scroll-track:focus-visible .cliply-overlay-scroll-thumb {
+  background: color-mix(in srgb, var(--cliply-faint) 54%, transparent);
+  background-clip: content-box;
 }
 
 .cliply-image-checker {
@@ -347,62 +790,51 @@ button {
   background-size: var(--cliply-checker-size) var(--cliply-checker-size);
 }
 
-@keyframes cliply-toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+:root[data-theme="dark"] .cliply-action-button[data-primary="true"] {
+  color: var(--cliply-primary-action-text) !important;
 }
 
-@keyframes cliply-toast-out {
-  from {
-    opacity: 1;
-  }
+:root[data-theme="dark"] .cliply-action-button[data-primary="true"]:hover {
+  background: var(--cliply-primary-active, var(--cliply-accent-dark)) !important;
+}
 
-  to {
-    opacity: 0;
-  }
+:root[data-theme="dark"] .cliply-pin-button[data-pinned="true"] {
+  color: var(--cliply-accent) !important;
 }
 
 .cliply-toast {
-  background: var(--cliply-card);
   border: 1px solid var(--cliply-border);
+  border-radius: 4px;
+  background: var(--cliply-card);
   box-shadow: var(--cliply-shadow-popover);
 }
 
+@keyframes cliply-toast-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cliply-toast-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 .cliply-toast[data-phase="open"] {
-  animation: cliply-toast-in 140ms var(--cliply-ease) both;
+  animation: cliply-toast-in 120ms var(--cliply-ease) both;
 }
 
 .cliply-toast[data-phase="closing"] {
-  animation: cliply-toast-out 100ms ease-in both;
+  animation: cliply-toast-out 80ms ease-in both;
 }
 
 @keyframes cliply-overlay-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes cliply-dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.995);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .cliply-overlay {
@@ -410,7 +842,74 @@ button {
 }
 
 .cliply-dialog {
-  animation: cliply-dialog-in 140ms var(--cliply-ease) both;
+  animation: cliply-dialog-in 120ms var(--cliply-ease) both;
+}
+
+:root.cliply-theme-applying *,
+:root.cliply-theme-applying *::before,
+:root.cliply-theme-applying *::after {
+  transition: none !important;
+}
+
+@media (max-width: 920px) {
+  .cliply-filter-tab {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+}
+
+@media (max-height: 620px) {
+  .cliply-command-row {
+    height: 48px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .cliply-detail-content {
+    padding: 20px;
+  }
+
+  .cliply-image-checker {
+    height: 240px;
+  }
+}
+
+@container (max-width: 680px) {
+  .cliply-action-bar {
+    gap: 4px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .cliply-action-bar .cliply-action-button:not([data-primary="true"]) {
+    width: 32px;
+    flex: 0 0 32px;
+    justify-content: center;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .cliply-action-bar .cliply-action-label,
+  .cliply-action-bar .cliply-primary-shortcut {
+    display: none;
+  }
+
+  .cliply-action-divider {
+    margin-right: 2px;
+    margin-left: 2px;
+  }
+
+  .cliply-action-bar [data-primary="true"] {
+    gap: 6px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}
+
+@container (max-width: 600px) {
+  .cliply-detail-content {
+    padding: 16px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -420,5 +919,40 @@ button {
     animation: none !important;
     scroll-behavior: auto !important;
     transition: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .cliply-window,
+  .cliply-titlebar {
+    background: var(--cliply-solid-fallback);
+  }
+
+  .cliply-command-area,
+  .cliply-history-toolbar,
+  .cliply-detail-header,
+  .cliply-status-bar {
+    background: var(--cliply-solid-fallback);
+  }
+
+  .cliply-list-pane,
+  .cliply-detail-pane,
+  .cliply-preview-panel,
+  .cliply-metadata-section,
+  .cliply-row {
+    background: var(--cliply-solid-fallback);
+  }
+
+  .cliply-search-shell,
+  .cliply-action-bar {
+    background: var(--cliply-solid-fallback);
+  }
+
+  .cliply-titlebar,
+  .cliply-search-shell,
+  .cliply-action-bar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
   }
 }

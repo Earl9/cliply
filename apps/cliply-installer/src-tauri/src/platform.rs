@@ -3,16 +3,16 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum PlatformError {
     #[cfg_attr(windows, allow(dead_code))]
-    #[error("当前安装器 MVP 仅支持 Windows")]
+    #[error("当前安装程序仅支持 Windows")]
     UnsupportedPlatform,
     #[error("Windows API 调用失败：{0}")]
     WindowsApi(String),
-    #[error("无法创建目录 {path}: {source}")]
+    #[error("无法创建目录 {path}：{source}")]
     CreateDir {
         path: String,
         source: std::io::Error,
     },
-    #[error("无法创建快捷方式 {path}: {message}")]
+    #[error("无法创建快捷方式 {path}：{message}")]
     Shortcut { path: String, message: String },
     #[error("注册表写入失败：{0}")]
     Registry(String),
@@ -51,7 +51,6 @@ mod windows_impl {
     };
     use winreg::{enums::*, RegKey};
 
-    const PRODUCT_ICON: &str = "cliply.ico";
     const PRODUCT_UNINSTALLER: &str = "uninstall.exe";
     const CLIPLY_SHORTCUT_NAME: &str = "Cliply.lnk";
     const UNINSTALL_SHORTCUT_NAME: &str = "卸载 Cliply.lnk";
@@ -106,7 +105,7 @@ mod windows_impl {
     }
 
     pub fn browse_install_dir(current_dir: &str) -> PlatformResult<Option<String>> {
-        let title = wide_null("选择 Cliply 安装位置");
+        let title = wide_null("选择 Cliply 安装目录");
         let mut display_name = [0u16; MAX_PATH_LEN];
         let info = BROWSEINFOW {
             hwndOwner: HWND(std::ptr::null_mut()),
@@ -140,6 +139,7 @@ mod windows_impl {
         product_reg_key: &str,
         uninstall_key: &str,
         install_dir: &Path,
+        icon_path: &Path,
     ) -> PlatformResult<()> {
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
         let (product_key, _) = hklm
@@ -160,7 +160,6 @@ mod windows_impl {
         let (uninstall, _) = hklm
             .create_subkey_with_flags(uninstall_key, KEY_WRITE | KEY_WOW64_64KEY)
             .map_err(|error| PlatformError::Registry(error.to_string()))?;
-        let display_icon = install_dir.join(PRODUCT_ICON);
         uninstall
             .set_value("DisplayName", &product_name)
             .map_err(|error| PlatformError::Registry(error.to_string()))?;
@@ -177,7 +176,7 @@ mod windows_impl {
             )
             .map_err(|error| PlatformError::Registry(error.to_string()))?;
         uninstall
-            .set_value("DisplayIcon", &display_icon.to_string_lossy().to_string())
+            .set_value("DisplayIcon", &icon_path.to_string_lossy().to_string())
             .map_err(|error| PlatformError::Registry(error.to_string()))?;
         let uninstall_command = format!("\"{}\" --uninstall", uninstall_exe.to_string_lossy());
         uninstall
@@ -518,6 +517,7 @@ pub fn write_install_registry(
     _product_reg_key: &str,
     _uninstall_key: &str,
     _install_dir: &Path,
+    _icon_path: &Path,
 ) -> PlatformResult<()> {
     Err(PlatformError::UnsupportedPlatform)
 }

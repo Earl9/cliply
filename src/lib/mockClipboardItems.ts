@@ -1,6 +1,6 @@
 ﻿import type { ClipboardItem } from "@/lib/clipboardTypes";
 
-export const mockClipboardItems: ClipboardItem[] = [
+const baseMockClipboardItems: ClipboardItem[] = [
   {
     id: "clip-code-auth",
     type: "code",
@@ -211,3 +211,44 @@ ORDER BY rank;`,
     ],
   },
 ];
+
+function getDevelopmentStressCount() {
+  if (!import.meta.env.DEV || typeof window === "undefined") {
+    return 0;
+  }
+
+  const rawValue = new URLSearchParams(window.location.search).get("stressItems");
+  const count = rawValue ? Number.parseInt(rawValue, 10) : 0;
+  return Number.isFinite(count) ? Math.min(Math.max(count, 0), 10_000) : 0;
+}
+
+function buildDevelopmentStressItems(count: number): ClipboardItem[] {
+  if (count <= baseMockClipboardItems.length) {
+    return baseMockClipboardItems;
+  }
+
+  const now = Date.now();
+  return Array.from({ length: count }, (_, index) => {
+    const source = baseMockClipboardItems[index % baseMockClipboardItems.length];
+    const copiedAt = new Date(now - index * 1_000).toISOString();
+    return {
+      ...source,
+      id: `stress-${index}`,
+      title: `${source.title} ${index + 1}`,
+      previewText: `${source.previewText} · 压力记录 ${index + 1}`,
+      fullText: source.fullText ? `${source.fullText}\n\n压力记录 ${index + 1}` : source.fullText,
+      copiedAt,
+      createdAt: copiedAt,
+      isPinned: index % 37 === 0,
+      tags: [...source.tags, "stress"],
+      formats: source.formats.map((format) => ({
+        ...format,
+        id: `${format.id}-${index}`,
+      })),
+    };
+  });
+}
+
+// This path is development-only and lets the UI be profiled without writing
+// synthetic records into a user's SQLite database.
+export const mockClipboardItems = buildDevelopmentStressItems(getDevelopmentStressCount());

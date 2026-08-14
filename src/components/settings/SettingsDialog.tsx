@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Badge } from "@/components/common/Badge";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { IconButton } from "@/components/common/IconButton";
 import { ContextualToast, type ToastMessage } from "@/components/common/Toast";
 import {
@@ -38,6 +39,7 @@ import {
   type CliplyDebugInfo,
 } from "@/lib/debugInfo";
 import {
+  abandonSyncQueue,
   checkGlobalShortcut,
   clearAutoSyncPassword,
   exportSyncPackage,
@@ -110,17 +112,17 @@ const SETTINGS_TABS: Array<{
   description: string;
   icon: LucideIcon;
 }> = [
-  { id: "general", label: "通用", description: "启动、监听和窗口行为。", icon: Settings2 },
-  { id: "shortcuts", label: "快捷键", description: "打开窗口和列表内操作快捷键。", icon: Keyboard },
-  { id: "history", label: "历史记录", description: "容量、清理和重复内容策略。", icon: History },
-  { id: "appearance", label: "外观", description: "主题方案和当前视觉预览。", icon: Sparkles },
-  { id: "sync", label: "同步", description: "加密同步包、远程目录和自动同步。", icon: RefreshCw },
-  { id: "about", label: "关于", description: "版本、数据目录和调试信息。", icon: CircleHelp },
+  { id: "general", label: "通用", description: "启动方式、剪贴板监听与窗口行为", icon: Settings2 },
+  { id: "shortcuts", label: "快捷键", description: "全局快捷键与列表操作", icon: Keyboard },
+  { id: "history", label: "历史记录", description: "保存范围、容量限制与自动清理", icon: History },
+  { id: "appearance", label: "外观", description: "显示模式、主题方案与强调色", icon: Sparkles },
+  { id: "sync", label: "同步", description: "同步方式、加密选项与自动同步", icon: RefreshCw },
+  { id: "about", label: "关于", description: "版本信息、数据目录与诊断工具", icon: CircleHelp },
 ];
 
 const CLIPLY_VERSION = "0.4.1-beta.10";
 const ACCENT_PRESET_COLORS = [
-  "#1F74CC",
+  "#2F69FA",
   "#1D5FD6",
   "#4F46E5",
   "#6D4CFF",
@@ -132,17 +134,18 @@ const ACCENT_PRESET_COLORS = [
   "#0D9488",
 ];
 const THEME_SUMMARIES: Record<CliplyThemeName, string> = {
-  "system-blue": "安静、中性",
-  "lake-blue": "清晰、有力",
-  "indigo-spark": "冷冽、有速度感",
-  "purple-default": "明快、有创意",
-  "magenta-pop": "张扬、最抢眼",
-  "rose-violet": "明亮、柔中带锐",
-  "coral-orange": "热烈、温暖",
-  "amber-glow": "明亮、不刺眼",
-  "lime-punch": "轻快、有生气",
-  "mint-green": "清新、自然",
-  "teal-fresh": "沉稳、专业",
+  "coral-pulse": "默认强调色",
+  "system-blue": "Windows 系统蓝",
+  "lake-blue": "深蓝强调色",
+  "indigo-spark": "靛蓝强调色",
+  "purple-default": "紫色强调色",
+  "magenta-pop": "洋红强调色",
+  "rose-violet": "玫红强调色",
+  "coral-orange": "橙红强调色",
+  "amber-glow": "琥珀强调色",
+  "lime-punch": "青柠绿强调色",
+  "mint-green": "薄荷绿强调色",
+  "teal-fresh": "青绿色强调色",
 };
 const IMAGE_SYNC_MODE_OPTIONS: Array<{
   value: ImageSyncMode;
@@ -152,22 +155,22 @@ const IMAGE_SYNC_MODE_OPTIONS: Array<{
   {
     value: "metadata-only",
     label: "不同步图片",
-    description: "只同步图片记录和删除状态，图片内容仅保留在本机。",
+    description: "同步图片记录和删除状态，不同步图片文件。",
   },
   {
     value: "compressed",
     label: "同步压缩图",
-    description: "生成较小 JPEG，适合跨设备预览，默认会移除元数据。",
+    description: "同步经压缩的 JPEG 预览图，并默认移除元数据。",
   },
   {
     value: "original",
     label: "同步原图",
-    description: "保留最高质量，占用空间最大，可能包含更多本地图片信息。",
+    description: "同步原始图片文件。占用空间较大，可能包含图片元数据。",
   },
   {
     value: "original-with-preview",
     label: "原图 + 预览",
-    description: "同时记录原图和压缩预览，后续远端同步速度和空间成本最高。",
+    description: "同时同步原始图片和压缩预览图。占用空间和传输量最大。",
   },
 ];
 
@@ -197,6 +200,15 @@ export function SettingsDialog({
     autoSyncEnabled: false,
     autoSyncIntervalMinutes: 5,
     syncPasswordSaved: false,
+    pendingItemCount: 0,
+    pendingTombstoneCount: 0,
+    pendingEventCount: 0,
+    pendingBlobCount: 0,
+    fullExportRequired: false,
+    lastAbandonedItemCount: 0,
+    lastAbandonedTombstoneCount: 0,
+    lastAbandonedEventCount: 0,
+    lastAbandonedBlobCount: 0,
   });
   const [savedSyncProvider, setSavedSyncProvider] = useState<SyncProviderConfig>({
     type: "disabled",
@@ -207,6 +219,8 @@ export function SettingsDialog({
     useState<SyncProviderConfig["type"]>("disabled");
   const [syncBusy, setSyncBusy] = useState<"export" | "import" | "sync" | null>(null);
   const [providerBusy, setProviderBusy] = useState(false);
+  const [queueBusy, setQueueBusy] = useState(false);
+  const [confirmAbandonQueue, setConfirmAbandonQueue] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => getSystemPrefersDark());
@@ -220,6 +234,8 @@ export function SettingsDialog({
       setSyncPassword(sessionSyncPassword);
       setSyncMessage(null);
       setSyncError(null);
+      setQueueBusy(false);
+      setConfirmAbandonQueue(false);
       setSavingSettings(false);
       setSettingsFeedback(null);
       void refreshDebugInfo();
@@ -392,15 +408,15 @@ export function SettingsDialog({
       setSettingsFeedback({
         id: `settings-saved-${Date.now()}`,
         title: "设置已保存",
-        description: "本地配置已更新",
+        description: "更改已生效。",
         tone: "success",
         at: Date.now(),
       });
     } catch (error) {
       setSettingsFeedback({
         id: `settings-error-${Date.now()}`,
-        title: "设置保存失败",
-        description: errorMessage(error, "本地配置未保存"),
+        title: "无法保存设置",
+        description: errorMessage(error, "更改未保存，请检查快捷键和本地文件权限。"),
         tone: "error",
         at: Date.now(),
         durationMs: 6400,
@@ -453,7 +469,7 @@ export function SettingsDialog({
               ? webdavDraft
               : defaultWebdavConfig();
       setWebdavDraft(nextWebdav);
-      setSyncMessage("请填写 WebDAV 信息后点击保存");
+      setSyncMessage("请填写 WebDAV 配置并保存。");
       setSyncError(null);
       return;
     }
@@ -469,7 +485,7 @@ export function SettingsDialog({
               ? ftpDraft
               : defaultFtpConfig();
       setFtpDraft(nextFtp);
-      setSyncMessage("请填写 FTP/FTPS 信息后点击保存");
+      setSyncMessage("请填写 FTP/FTPS 配置并保存。");
       setSyncError(null);
       return;
     }
@@ -483,7 +499,7 @@ export function SettingsDialog({
               path: "",
             } as const);
       if (!nextProvider.path) {
-        setSyncMessage("请点击“选择文件夹”设置本地同步目录");
+      setSyncMessage("请选择本地同步文件夹。");
         setSyncError(null);
         return;
       }
@@ -491,7 +507,7 @@ export function SettingsDialog({
         const status = await setRemoteSyncProvider(nextProvider);
         setRemoteSyncStatus(status);
         setSavedSyncProvider(status.provider);
-        setSyncMessage("本地同步文件夹已启用");
+      setSyncMessage("本地同步文件夹已启用。");
         setSyncError(null);
       } catch (error) {
         setSyncError(errorMessage(error, "本地同步文件夹启用失败"));
@@ -505,7 +521,7 @@ export function SettingsDialog({
       const status = await setRemoteSyncProvider(nextProvider);
       setRemoteSyncStatus(status);
       setSavedSyncProvider(status.provider);
-      setSyncMessage("同步已关闭");
+      setSyncMessage("同步已关闭。");
       setSyncError(null);
     } catch (error) {
       setSyncError(errorMessage(error, "同步方式保存失败"));
@@ -530,7 +546,7 @@ export function SettingsDialog({
       setRemoteSyncStatus(status);
       setSavedSyncProvider(status.provider);
       setSelectedSyncProviderType("local-folder");
-      setSyncMessage("本地同步文件夹已设置");
+      setSyncMessage("本地同步文件夹已设置并启用。");
     } catch (error) {
       setSyncError(errorMessage(error, "同步文件夹设置失败"));
     } finally {
@@ -543,12 +559,12 @@ export function SettingsDialog({
     const hasSavedPassword = syncProviderConfigSaved("webdav", remoteSyncStatus);
     if (!nextConfig.url.trim() || !nextConfig.username.trim() || (!nextConfig.password && !hasSavedPassword)) {
       setSyncMessage(null);
-      setSyncError("请填写 WebDAV 地址、用户名和密码");
+      setSyncError("请填写 WebDAV 地址、用户名和密码。");
       return;
     }
     if (!/^https?:\/\//i.test(nextConfig.url)) {
       setSyncMessage(null);
-      setSyncError("WebDAV 地址必须以 http:// 或 https:// 开头");
+      setSyncError("WebDAV 地址必须以 http:// 或 https:// 开头。");
       return;
     }
 
@@ -563,7 +579,7 @@ export function SettingsDialog({
       setRemoteSyncStatus(status);
       setSavedSyncProvider(status.provider);
       setSelectedSyncProviderType("webdav");
-      setSyncMessage("WebDAV 配置已保存。导出、导入和自动同步会使用该地址。");
+      setSyncMessage("WebDAV 配置已保存并启用。");
       setSyncError(null);
     } catch (error) {
       setSyncError(errorMessage(error, "WebDAV 同步配置保存失败"));
@@ -577,7 +593,7 @@ export function SettingsDialog({
     const hasSavedPassword = syncProviderConfigSaved("ftp", remoteSyncStatus);
     if (!nextConfig.host.trim() || !nextConfig.username.trim() || (!nextConfig.password && !hasSavedPassword)) {
       setSyncMessage(null);
-      setSyncError("请填写 FTP 主机、用户名和密码");
+      setSyncError("请填写 FTP 主机、用户名和密码。");
       return;
     }
 
@@ -593,7 +609,7 @@ export function SettingsDialog({
       setSavedSyncProvider(status.provider);
       setSelectedSyncProviderType("ftp");
       setSyncMessage(
-        `${nextConfig.secure ? "FTPS" : "FTP"} 配置已保存。导出或导入时会连接服务器。`,
+        `${nextConfig.secure ? "FTPS" : "FTP"} 配置已保存并启用。`,
       );
       setSyncError(null);
     } catch (error) {
@@ -605,7 +621,7 @@ export function SettingsDialog({
 
   const handleExportToRemoteFolder = async () => {
     if (!syncPassword.trim()) {
-      setSyncError("请输入同步密码");
+      setSyncError("请输入同步密码。");
       return;
     }
 
@@ -621,6 +637,7 @@ export function SettingsDialog({
         ),
       );
       applyRemoteSyncResult(result);
+      await refreshSyncStatus();
     } catch (error) {
       setSyncError(errorMessage(error, "导出到同步文件夹失败"));
     } finally {
@@ -630,7 +647,7 @@ export function SettingsDialog({
 
   const handleImportFromRemoteFolder = async () => {
     if (!syncPassword.trim()) {
-      setSyncError("请输入同步密码");
+      setSyncError("请输入同步密码。");
       return;
     }
 
@@ -646,6 +663,7 @@ export function SettingsDialog({
         ),
       );
       applyRemoteSyncResult(result);
+      await refreshSyncStatus();
     } catch (error) {
       setSyncError(errorMessage(error, "从同步文件夹导入失败"));
     } finally {
@@ -657,7 +675,7 @@ export function SettingsDialog({
     if (autoSyncEnabled && selectedSyncProviderType !== remoteSyncStatus.provider.type) {
       setSyncMessage(null);
       setSyncError(
-        `正在编辑 ${syncProviderLabel(selectedSyncProviderType)}。请先保存该同步方式，或切回当前启用的 ${syncProviderLabel(remoteSyncStatus.provider.type)}。`,
+        `当前正在编辑 ${syncProviderLabel(selectedSyncProviderType)}。请保存该配置后再执行同步，或选择当前启用的 ${syncProviderLabel(remoteSyncStatus.provider.type)}。`,
       );
       return;
     }
@@ -668,7 +686,7 @@ export function SettingsDialog({
         !canUseRemoteProvider(remoteSyncStatus.provider))
     ) {
       setSyncMessage(null);
-      setSyncError("请先保存并启用本地文件夹、WebDAV 或 FTP/FTPS");
+      setSyncError("请先保存并启用本地文件夹、WebDAV 或 FTP/FTPS 配置。");
       return;
     }
 
@@ -682,7 +700,7 @@ export function SettingsDialog({
         syncPassword,
       );
       setRemoteSyncStatus(status);
-      setSyncMessage(autoSyncEnabled ? "自动同步已开启" : "自动同步已关闭");
+      setSyncMessage(autoSyncEnabled ? "自动同步已启用。" : "自动同步已关闭。");
     } catch (error) {
       setSyncError(errorMessage(error, "自动同步配置保存失败"));
     } finally {
@@ -698,7 +716,7 @@ export function SettingsDialog({
       const status = await clearAutoSyncPassword();
       setRemoteSyncStatus(status);
       setAutoSyncEnabled(false);
-      setSyncMessage("已保存的同步密码已清除，自动同步已关闭");
+      setSyncMessage("已清除保存的同步密码，并关闭自动同步。");
     } catch (error) {
       setSyncError(errorMessage(error, "清除同步密码失败"));
     } finally {
@@ -706,9 +724,40 @@ export function SettingsDialog({
     }
   };
 
+  const handleAbandonSyncQueue = async () => {
+    if (queueBusy) {
+      return;
+    }
+
+    setQueueBusy(true);
+    setSyncMessage(null);
+    setSyncError(null);
+    try {
+      const status = await abandonSyncQueue();
+      const abandonedCount =
+        status.lastAbandonedItemCount +
+        status.lastAbandonedTombstoneCount +
+        status.lastAbandonedEventCount +
+        status.lastAbandonedBlobCount;
+      setRemoteSyncStatus(status);
+      setAutoSyncEnabled(false);
+      setConfirmAbandonQueue(false);
+      setSyncMessage(
+        abandonedCount > 0
+          ? `已放弃 ${abandonedCount} 项待同步更改。自动同步已关闭，本地历史记录未删除。`
+          : "当前同步队列为空。自动同步已关闭，本地历史记录未删除。",
+      );
+    } catch (error) {
+      setConfirmAbandonQueue(false);
+      setSyncError(errorMessage(error, "无法放弃当前同步队列"));
+    } finally {
+      setQueueBusy(false);
+    }
+  };
+
   const handleSyncWithRemoteNow = async () => {
     if (!syncPassword.trim() && !remoteSyncStatus.syncPasswordSaved) {
-      setSyncError("请输入同步密码，或先保存同步密码");
+      setSyncError("请输入同步密码，或先保存同步密码。");
       return;
     }
 
@@ -729,7 +778,7 @@ export function SettingsDialog({
 
   const handleExportSyncPackage = async () => {
     if (!syncPassword.trim()) {
-      setSyncError("请输入同步密码");
+      setSyncError("请输入同步密码。");
       return;
     }
 
@@ -747,7 +796,7 @@ export function SettingsDialog({
     setSyncError(null);
     try {
       await exportSyncPackage(selectedPath, syncPassword);
-      setSyncMessage("同步包已导出");
+      setSyncMessage("同步包已导出。");
       await refreshSyncStatus();
     } catch (error) {
       setSyncError(errorMessage(error, "同步包导出失败"));
@@ -769,7 +818,7 @@ export function SettingsDialog({
 
   const handleImportSyncPackage = async () => {
     if (!syncPassword.trim()) {
-      setSyncError("请输入同步密码");
+      setSyncError("请输入同步密码。");
       return;
     }
 
@@ -842,6 +891,7 @@ export function SettingsDialog({
             autoSyncIntervalMinutes={autoSyncIntervalMinutes}
             syncBusy={syncBusy}
             providerBusy={providerBusy}
+            queueBusy={queueBusy}
             syncMessage={syncMessage}
             syncError={syncError}
             syncActionDisabled={syncActionDisabled}
@@ -862,6 +912,7 @@ export function SettingsDialog({
             onSaveFtpProvider={handleSaveFtpProvider}
             onSaveAutoSync={handleSaveAutoSync}
             onClearAutoSyncPassword={handleClearAutoSyncPassword}
+            onRequestAbandonQueue={() => setConfirmAbandonQueue(true)}
             onSyncNow={handleSyncWithRemoteNow}
             onExportSyncPackage={handleExportSyncPackage}
             onImportSyncPackage={handleImportSyncPackage}
@@ -975,10 +1026,29 @@ export function SettingsDialog({
             onClick={() => void handleSaveSettings()}
             className="h-8 rounded-[5px] bg-[color:var(--cliply-accent)] px-3 text-[13px] font-medium text-[color:var(--cliply-primary-text)] hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-disabled-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
-            {savingSettings ? "保存中..." : "保存设置"}
+              {savingSettings ? "保存中…" : "保存设置"}
           </button>
         </footer>
       </section>
+      <ConfirmDialog
+        open={confirmAbandonQueue}
+        title="放弃当前同步队列"
+        description={`将关闭自动同步，并放弃当前 ${
+          remoteSyncStatus.pendingItemCount +
+          remoteSyncStatus.pendingTombstoneCount +
+          remoteSyncStatus.pendingEventCount +
+          remoteSyncStatus.pendingBlobCount
+        } 项待同步更改。本地历史记录不会删除；以后恢复同步时，Cliply 会先创建完整快照。`}
+        confirmLabel={queueBusy ? "处理中…" : "放弃同步队列"}
+        cancelLabel="取消"
+        danger
+        onConfirm={() => void handleAbandonSyncQueue()}
+        onClose={() => {
+          if (!queueBusy) {
+            setConfirmAbandonQueue(false);
+          }
+        }}
+      />
     </div>
   );
 }
@@ -1402,23 +1472,23 @@ function AppearancePreview({
               <div className="flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-input-bg)] px-3 shadow-[0_0_0_4px_var(--cliply-focus-ring)]">
                 <span className="size-2 rounded-full bg-[color:var(--cliply-accent)]" />
                 <span className="text-xs font-medium text-[color:var(--cliply-placeholder)]">
-                  搜索剪贴板...
+                  搜索剪贴板…
                 </span>
               </div>
 
               <div className="mt-3 flex gap-2">
-                <span className="rounded-full bg-[color:var(--cliply-accent-50)] px-3 py-1 text-xs font-semibold text-[color:var(--cliply-accent-strong)]">
+                <span className="rounded-[5px] border border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-surface-raised)] px-3 py-1 text-xs font-semibold text-[color:var(--cliply-accent-on-soft)]">
                   全部
                 </span>
-                <span className="rounded-full bg-[color:var(--cliply-muted-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--cliply-muted)]">
+                <span className="rounded-[5px] bg-[color:var(--cliply-muted-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--cliply-muted)]">
                   图片
                 </span>
-                <span className="rounded-full bg-[color:var(--cliply-muted-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--cliply-muted)]">
+                <span className="rounded-[5px] bg-[color:var(--cliply-muted-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--cliply-muted)]">
                   固定
                 </span>
               </div>
 
-              <div className="mt-3 rounded-[6px] border border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] p-3 shadow-[var(--cliply-shadow-selected)]">
+              <div className="relative mt-3 overflow-hidden rounded-[6px] border border-[color:var(--cliply-accent-border)] bg-[color:var(--cliply-surface-raised)] p-3 shadow-[var(--cliply-shadow-selected)] before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r-[3px] before:bg-[color:var(--cliply-accent)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-[color:var(--cliply-muted)]">
@@ -1427,12 +1497,9 @@ function AppearancePreview({
                     <div className="mt-1 truncate text-[13px] font-semibold text-[color:var(--cliply-text)]">
                       选中剪贴板记录
                     </div>
-                    <div className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]">刚刚复制</div>
+                    <div className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]">最近复制</div>
                   </div>
-                  <span
-                    className="grid size-8 shrink-0 place-items-center rounded-[6px] text-xs font-semibold text-[color:var(--cliply-primary-text)]"
-                    style={{ backgroundColor: accentColor }}
-                  >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-[6px] bg-[color:var(--cliply-success-soft)] text-xs font-semibold text-[color:var(--cliply-success)]">
                     ✓
                   </span>
                 </div>
@@ -1479,6 +1546,7 @@ function SyncSettingsTab({
   autoSyncIntervalMinutes,
   syncBusy,
   providerBusy,
+  queueBusy,
   syncMessage,
   syncError,
   syncActionDisabled,
@@ -1495,6 +1563,7 @@ function SyncSettingsTab({
   onSaveFtpProvider,
   onSaveAutoSync,
   onClearAutoSyncPassword,
+  onRequestAbandonQueue,
   onSyncNow,
   onExportSyncPackage,
   onImportSyncPackage,
@@ -1512,6 +1581,7 @@ function SyncSettingsTab({
   autoSyncIntervalMinutes: number;
   syncBusy: "export" | "import" | "sync" | null;
   providerBusy: boolean;
+  queueBusy: boolean;
   syncMessage: string | null;
   syncError: string | null;
   syncActionDisabled: boolean;
@@ -1528,6 +1598,7 @@ function SyncSettingsTab({
   onSaveFtpProvider: () => void | Promise<void>;
   onSaveAutoSync: () => void | Promise<void>;
   onClearAutoSyncPassword: () => void | Promise<void>;
+  onRequestAbandonQueue: () => void;
   onSyncNow: () => void | Promise<void>;
   onExportSyncPackage: () => void | Promise<void>;
   onImportSyncPackage: () => void | Promise<void>;
@@ -1548,6 +1619,16 @@ function SyncSettingsTab({
     : remoteSyncStatus.autoSyncEnabled && !autoSyncReady
       ? "自动同步待配置"
       : "自动同步关闭";
+  const pendingQueueCount =
+    remoteSyncStatus.pendingItemCount +
+    remoteSyncStatus.pendingTombstoneCount +
+    remoteSyncStatus.pendingEventCount +
+    remoteSyncStatus.pendingBlobCount;
+  const lastAbandonedCount =
+    remoteSyncStatus.lastAbandonedItemCount +
+    remoteSyncStatus.lastAbandonedTombstoneCount +
+    remoteSyncStatus.lastAbandonedEventCount +
+    remoteSyncStatus.lastAbandonedBlobCount;
 
   return (
     <div className="grid gap-4">
@@ -1604,16 +1685,60 @@ function SyncSettingsTab({
         </div>
         {editingProvider ? (
           <p className="rounded-[6px] bg-[color:var(--cliply-info-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-info)]">
-            正在编辑 {selectedProviderLabel}，保存后才会成为当前启用的同步方式。
+            正在编辑 {selectedProviderLabel}。保存后将设为当前同步方式。
           </p>
         ) : null}
         <p className="rounded-[6px] bg-[color:var(--cliply-accent-50)] px-3 py-2 text-xs leading-5 text-[color:var(--cliply-muted)]">
-          同步包已加密，请妥善保存同步密码。Cliply 不会把明文剪贴板内容写入远程目录。
+          同步包使用密码加密。远程目录仅存储加密数据，不存储明文剪贴板内容。
         </p>
         <div className="grid grid-cols-3 gap-2 text-xs font-medium text-[color:var(--cliply-muted)]">
-          <SyncStat label="Manifest" value={remoteSyncStatus.manifestExists ? "已检测" : "未检测"} />
+          <SyncStat label="同步清单" value={remoteSyncStatus.manifestExists ? "已检测" : "未检测"} />
           <SyncStat label="快照" value={String(remoteSyncStatus.snapshotCount)} />
           <SyncStat label="状态" value={syncStatusLabel(remoteSyncStatus.lastStatus)} />
+        </div>
+      </SettingSection>
+
+      <SettingSection icon={History} title="同步队列">
+        <div className="grid grid-cols-4 gap-2 text-xs font-medium text-[color:var(--cliply-muted)]">
+          <SyncStat label="记录" value={String(remoteSyncStatus.pendingItemCount)} />
+          <SyncStat label="删除记录" value={String(remoteSyncStatus.pendingTombstoneCount)} />
+          <SyncStat label="事件" value={String(remoteSyncStatus.pendingEventCount)} />
+          <SyncStat label="图片" value={String(remoteSyncStatus.pendingBlobCount)} />
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-2.5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[13px] font-semibold text-[color:var(--cliply-text)]">
+                {pendingQueueCount > 0
+                  ? `${pendingQueueCount} 项更改等待同步`
+                  : remoteSyncStatus.fullExportRequired
+                    ? "等待创建完整快照"
+                    : "没有待同步更改"}
+              </span>
+              {remoteSyncStatus.fullExportRequired ? (
+                <Badge tone="amber">需完整快照</Badge>
+              ) : null}
+            </div>
+            <p className="mt-1 text-xs leading-5 text-[color:var(--cliply-muted)]">
+              {remoteSyncStatus.fullExportRequired
+                ? "恢复同步后，Cliply 会先写入完整快照，再清理已放弃的队列状态。"
+                : "无法继续使用当前远程服务时，可以放弃这批待同步更改；本地历史记录不会删除。"}
+            </p>
+            {remoteSyncStatus.lastQueueAbandonedAt ? (
+              <p className="mt-1 text-[11px] font-medium text-[color:var(--cliply-muted)]">
+                上次放弃：{formatSyncTime(remoteSyncStatus.lastQueueAbandonedAt)}
+                {lastAbandonedCount > 0 ? ` · ${lastAbandonedCount} 项` : ""}
+              </p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            disabled={queueBusy || pendingQueueCount === 0}
+            onClick={onRequestAbandonQueue}
+            className="h-8 shrink-0 rounded-[6px] border border-[color:var(--cliply-danger)] px-3 text-xs font-semibold text-[color:var(--cliply-danger)] transition hover:bg-[color:var(--cliply-danger-soft)] disabled:cursor-not-allowed disabled:border-[color:var(--cliply-border)] disabled:text-[color:var(--cliply-disabled-text)]"
+          >
+            {queueBusy ? "处理中…" : "放弃当前队列"}
+          </button>
         </div>
       </SettingSection>
 
@@ -1726,7 +1851,7 @@ function SyncSettingsTab({
               onClick={() => void onSaveWebdavProvider()}
               className="h-8 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
             >
-              {providerBusy ? "保存中..." : "保存 WebDAV"}
+              {providerBusy ? "保存中…" : "保存 WebDAV"}
             </button>
           </div>
         </SettingSection>
@@ -1790,7 +1915,7 @@ function SyncSettingsTab({
               onClick={() => void onSaveFtpProvider()}
               className="h-8 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
             >
-              {providerBusy ? "保存中..." : "保存 FTP"}
+              {providerBusy ? "保存中…" : "保存 FTP"}
             </button>
           </div>
           <ToggleRow
@@ -1818,7 +1943,7 @@ function SyncSettingsTab({
           />
           <div className="flex min-w-0 items-center justify-between gap-3 rounded-[6px] bg-[color:var(--cliply-muted-bg)] px-2.5 py-1.5 text-[12px] font-medium text-[color:var(--cliply-muted)]">
             <span>自动同步：{remoteSyncStatus.autoSyncEnabled ? "已开启" : "已关闭"}</span>
-            <span className="truncate">最近自动：{formatSyncTime(remoteSyncStatus.lastAutoSyncAt)}</span>
+            <span className="truncate">最近自动同步：{formatSyncTime(remoteSyncStatus.lastAutoSyncAt)}</span>
           </div>
         </SettingSection>
       ) : null}
@@ -1828,7 +1953,7 @@ function SyncSettingsTab({
       <SettingSection icon={Shield} title="加密">
         <div className="flex items-center justify-between gap-3 rounded-[6px] bg-[color:var(--cliply-muted-bg)] px-3 py-2">
           <span className="text-xs font-medium text-[color:var(--cliply-muted)]">
-            同一个密码用于同步包加密和自动同步。
+            该密码用于同步包加密和自动同步。
           </span>
           <Badge tone={remoteSyncStatus.syncPasswordSaved ? "teal" : "neutral"}>
             {remoteSyncStatus.syncPasswordSaved ? "已保存密码" : "未保存密码"}
@@ -1843,7 +1968,7 @@ function SyncSettingsTab({
             placeholder={
               remoteSyncStatus.syncPasswordSaved
                 ? "留空则继续使用已保存密码"
-                : "用于加密 .cliply-sync 文件，也可保存给自动同步"
+                : "用于加密 .cliply-sync 文件；保存后可用于自动同步"
             }
             className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
           />
@@ -1855,7 +1980,7 @@ function SyncSettingsTab({
             onClick={() => void onSaveAutoSync()}
             className="h-9 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
-            {providerBusy ? "保存中..." : "保存同步配置"}
+            {providerBusy ? "保存中…" : "保存同步配置"}
           </button>
           <button
             type="button"
@@ -1880,7 +2005,7 @@ function SyncSettingsTab({
             onClick={() => void onSyncNow()}
             className="h-9 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
-            {syncBusy === "sync" ? "同步中..." : "立即同步"}
+              {syncBusy === "sync" ? "同步中…" : "立即同步"}
           </button>
           <button
             type="button"
@@ -1888,7 +2013,7 @@ function SyncSettingsTab({
             onClick={() => void onExportSyncPackage()}
             className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
           >
-            {syncBusy === "export" ? "导出中..." : "导出同步包"}
+              {syncBusy === "export" ? "导出中…" : "导出同步包"}
           </button>
           <button
             type="button"
@@ -1896,7 +2021,7 @@ function SyncSettingsTab({
             onClick={() => void onImportSyncPackage()}
             className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
           >
-            {syncBusy === "import" ? "导入中..." : "导入同步包"}
+              {syncBusy === "import" ? "导入中…" : "导入同步包"}
           </button>
         </div>
         {selectedSyncProviderType !== "disabled" ? (
@@ -1912,7 +2037,7 @@ function SyncSettingsTab({
               className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
             >
               {syncBusy === "export"
-                ? "导出中..."
+                ? "导出中…"
                 : remoteSyncActionLabel(selectedSyncProviderType, "export")}
             </button>
             <button
@@ -1926,7 +2051,7 @@ function SyncSettingsTab({
               className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
             >
               {syncBusy === "import"
-                ? "导入中..."
+                ? "导入中…"
                 : remoteSyncActionLabel(selectedSyncProviderType, "import")}
             </button>
           </div>
@@ -2006,7 +2131,7 @@ function ImageSyncSettingsSection({
           <span className="font-semibold text-[color:var(--cliply-text)]">{selectedMode.label}</span>
         </span>
         <span>
-          本阶段只生成本地同步 blob 和元数据，不会上传远端图片文件。
+          当前仅生成本地同步文件和元数据，不会上传远程图片文件。
         </span>
       </div>
 
@@ -2042,8 +2167,8 @@ function ImageSyncSettingsSection({
       </div>
 
       <div className="rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-2 text-xs leading-5 text-[color:var(--cliply-muted)]">
-        压缩图会按最大边长缩放并使用 JPEG 质量参数；原图模式会受最大单张图片大小限制。
-        选择“移除图片元数据”时，原图同步 blob 会重新编码为 PNG。
+        压缩图将按最大边长缩放，并使用所选 JPEG 质量参数；原图模式受单张图片大小上限限制。
+        启用“移除图片元数据”后，原图同步文件将重新编码为 PNG。
       </div>
     </SettingSection>
   );
@@ -2070,7 +2195,7 @@ function AboutSettingsTab({
 
   const copyDiagnostics = async () => {
     if (!debugInfo) {
-      showDiagnosticMessage("诊断信息还在读取中");
+    showDiagnosticMessage("诊断信息尚未加载，请稍后重试");
       return;
     }
 
@@ -2098,7 +2223,7 @@ function AboutSettingsTab({
           <div>
             <div className="text-[15px] font-semibold text-[color:var(--cliply-text)]">Cliply</div>
             <div className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]">
-              Local-first clipboard manager
+              剪贴板历史管理工具
             </div>
           </div>
           <Badge tone="accent">v{appVersion}</Badge>
@@ -2229,7 +2354,7 @@ function UpdatePanel({
       setStatus(result ? "available" : "current");
     } catch (updateError) {
       setStatus("failed");
-      setError(errorMessage(updateError, "检查更新失败"));
+      setError(errorMessage(updateError, "无法检查更新"));
     } finally {
       updateDraft("update", {
         ...draft.update,
@@ -2249,7 +2374,7 @@ function UpdatePanel({
       setDownloadProgress(1);
     } catch (updateError) {
       setStatus("failed");
-      setError(errorMessage(updateError, "下载更新失败"));
+      setError(errorMessage(updateError, "无法下载更新"));
     }
   };
 
@@ -2261,21 +2386,21 @@ function UpdatePanel({
       await launchModernUpdateInstaller();
     } catch (updateError) {
       setStatus("failed");
-      setError(errorMessage(updateError, "安装更新失败，请下载完整安装器手动更新。"));
+      setError(errorMessage(updateError, "无法安装更新。请前往发布页面下载完整安装程序后手动更新。"));
     }
   };
 
   const statusLabel = {
     idle: "尚未检查",
     checking: "正在检查更新",
-    current: "已是最新版本",
+    current: "当前已是最新版本",
     available: "发现新版本",
     downloading: "正在下载更新",
-    ready: "准备安装",
-    installing: "正在启动安装器",
-    failed: "更新失败",
+    ready: "更新包可安装",
+    installing: "正在启动安装程序",
+    failed: "无法完成更新",
   }[status];
-  const updateChannelLabel = draft.update.channel === "stable" ? "Stable" : "Beta";
+  const updateChannelLabel = draft.update.channel === "stable" ? "稳定版" : "测试版";
   const knownProgress = typeof downloadProgress === "number";
 
   return (
@@ -2327,8 +2452,8 @@ function UpdatePanel({
             }
             className="h-9 min-w-0 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-[13px] font-semibold text-[color:var(--cliply-text)] outline-none focus:border-[color:var(--cliply-accent)]"
           >
-            <option value="beta">Beta</option>
-            <option value="stable">Stable</option>
+            <option value="beta">测试版</option>
+            <option value="stable">稳定版</option>
           </select>
         </div>
 
@@ -2340,7 +2465,7 @@ function UpdatePanel({
             className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
             <RefreshCw className={clsx("size-4", status === "checking" && "animate-spin")} />
-            {status === "checking" ? "正在检查..." : "检查更新"}
+            {status === "checking" ? "正在检查…" : "检查更新"}
           </button>
           {status === "available" && updateInfo ? (
             <button
@@ -2367,7 +2492,7 @@ function UpdatePanel({
               className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
             >
               <ExternalLink className="size-4" />
-              打开 Release 页面
+              打开发布页面
             </button>
           ) : null}
         </div>
@@ -2375,10 +2500,10 @@ function UpdatePanel({
         {confirmInstall ? (
           <div className="grid gap-2 rounded-[6px] border border-[color:var(--cliply-warning)] bg-[color:var(--cliply-warning-soft)] px-3 py-3">
             <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
-              Modern Installer 将接管更新。
+              安装更新
             </div>
             <p className="text-xs leading-5 text-[color:var(--cliply-muted)]">
-              更新包已下载并通过 SHA256 校验。继续后会打开 Modern Installer，Cliply 会暂时退出，安装器会覆盖程序文件并在完成后重新启动。
+              更新包完整性校验通过。继续后，Cliply 将关闭并启动安装程序。剪贴板历史记录和应用设置不会更改。
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -2386,7 +2511,7 @@ function UpdatePanel({
                 onClick={() => void installUpdate()}
                 className="inline-flex h-9 items-center rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)]"
               >
-                继续安装
+                开始安装
               </button>
               <button
                 type="button"
@@ -2401,20 +2526,19 @@ function UpdatePanel({
 
         {status === "current" ? (
           <p className="rounded-[6px] bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-success)]">
-            当前已经是最新版本。
+            当前已安装最新版本。
           </p>
         ) : null}
 
         {status === "failed" ? (
           <p className="rounded-[6px] bg-[color:var(--cliply-danger-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-danger)]">
-            {error || "更新失败"}
+            {error || "无法完成更新"}
           </p>
         ) : null}
 
         {status === "failed" ? (
           <p className="rounded-[6px] bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-xs font-medium leading-5 text-[color:var(--cliply-muted)]">
-            如果自动安装失败，请在 Release 页面下载
-            `Cliply_*_x64-modern-installer.exe` 完整安装器手动更新。
+            如无法自动安装，请从发布页面下载完整安装程序并手动更新。
           </p>
         ) : null}
 
@@ -2423,13 +2547,13 @@ function UpdatePanel({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
-                  新版本 v{updateInfo.version}
+                  可用版本 v{updateInfo.version}
                 </div>
                 <div className="mt-1 text-xs font-medium text-[color:var(--cliply-muted)]">
                   发布时间：{formatSyncTime(updateInfo.date)}
                 </div>
               </div>
-              <Badge tone="accent">签名更新</Badge>
+              <Badge tone="accent">GitHub Release</Badge>
             </div>
             <p className="line-clamp-4 whitespace-pre-line text-xs leading-5 text-[color:var(--cliply-muted)]">
               {summarizeReleaseNotes(updateInfo.body)}
@@ -2441,7 +2565,7 @@ function UpdatePanel({
           <div className="grid gap-2 rounded-[6px] bg-[color:var(--cliply-muted-bg)] px-3 py-2">
             <div className="flex items-center justify-between text-xs font-semibold text-[color:var(--cliply-muted)]">
               <span>{knownProgress ? "下载进度" : "正在下载更新包"}</span>
-              <span>{knownProgress ? `${Math.round((downloadProgress ?? 0) * 100)}%` : "计算中"}</span>
+              <span>{knownProgress ? `${Math.round((downloadProgress ?? 0) * 100)}%` : "正在连接"}</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-[color:var(--cliply-border-soft)]">
               <div
@@ -2457,18 +2581,18 @@ function UpdatePanel({
 
         {status === "ready" ? (
           <p className="rounded-[6px] bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[color:var(--cliply-success)]">
-              更新包已下载。安装时 Cliply 会暂时关闭，完成后可重新启动。Modern Installer 会保留用户数据并接管后续更新步骤。
+              更新包已下载并通过完整性校验。安装程序启动后 Cliply 将关闭；剪贴板历史记录和应用设置不会更改。
           </p>
         ) : null}
 
         {status === "installing" ? (
           <p className="rounded-[6px] bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-muted)]">
-            正在启动 Modern Installer，Cliply 将暂时退出。
+            正在启动 Cliply 安装程序，Cliply 即将关闭。
           </p>
         ) : null}
 
         <div className="text-xs leading-5 text-[color:var(--cliply-muted)]">
-          Cliply 会下载 GitHub Release 中的 Modern Installer 并校验 SHA256，再启动安装器的 update mode。不会强制更新、跳过校验或静默替换 exe。
+          更新包来自 GitHub Releases，安装前会核对 SHA-256 校验值。
         </div>
       </div>
     </SettingSection>
@@ -2491,7 +2615,7 @@ function DebugPathRow({ label, value }: { label: string; value?: string | null }
     <div className="rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 py-2">
       <div className="text-xs font-medium text-[color:var(--cliply-muted)]">{label}</div>
       <div className="cliply-code-font mt-1 cursor-text select-text break-all text-[12px] font-semibold text-[color:var(--cliply-text)]">
-        {value || "正在读取..."}
+        {value || "正在读取…"}
       </div>
     </div>
   );
@@ -2609,10 +2733,10 @@ function ShortcutRecorder({
         )}
       >
         <span className="cliply-code-font truncate">
-          {capturing ? "按下新的快捷键..." : value || "点击录制快捷键"}
+          {capturing ? "请按新的快捷键组合…" : value || "选择以录制快捷键"}
         </span>
         <span className="ml-3 shrink-0 text-xs text-[color:var(--cliply-muted)]">
-          {capturing ? "Esc 取消" : "点击修改"}
+          {capturing ? "Esc 取消" : "修改快捷键"}
         </span>
       </button>
       <p
@@ -2626,8 +2750,8 @@ function ShortcutRecorder({
         )}
       >
         {capturing
-          ? "需要包含 Ctrl、Alt 或 Win；按 Backspace/Delete 可清空。"
-          : check?.message ?? "正在检测快捷键是否可用..."}
+          ? "快捷键必须包含 Ctrl、Alt 或 Win。按 Backspace 或 Delete 可清除设置。"
+          : check?.message ?? "正在检测快捷键…"}
       </p>
     </div>
   );
@@ -2739,7 +2863,7 @@ function getAccentToneWarning(hex: string) {
 
   const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
   if (luminance < 0.16 || luminance > 0.86) {
-    return "该颜色在浅色主题下可能显得过重。";
+    return "该颜色与浅色主题的对比度较高。";
   }
 
   return null;
@@ -3001,17 +3125,17 @@ function syncStatusLabel(value?: string | null) {
 
 function buildDiagnosticText(info: CliplyDebugInfo) {
   const lines = [
-    "Cliply Diagnostics",
-    `App version: ${info.appVersion}`,
-    `Data directory: ${info.dataDir}`,
-    `Log directory: ${info.logDir}`,
-    `Database path: ${info.databasePath}`,
-    `Database size: ${formatBytes(info.databaseSizeBytes)}`,
-    `History count: ${formatCount(info.historyCount)}`,
-    `Last synced at: ${info.lastSyncedAt || "N/A"}`,
-    `Last sync status: ${info.lastSyncStatus || "N/A"}`,
-    `Last sync error: ${redactDiagnosticLine(info.lastSyncError) || "N/A"}`,
-    `Recent error: ${redactDiagnosticLine(info.recentError) || "N/A"}`,
+    "Cliply 诊断信息",
+    `应用版本：${info.appVersion}`,
+    `数据目录：${info.dataDir}`,
+    `日志目录：${info.logDir}`,
+    `数据库路径：${info.databasePath}`,
+    `数据库大小：${formatBytes(info.databaseSizeBytes)}`,
+    `历史记录数量：${formatCount(info.historyCount)}`,
+    `最近同步时间：${info.lastSyncedAt || "无"}`,
+    `最近同步状态：${info.lastSyncStatus || "无"}`,
+    `最近同步错误：${redactDiagnosticLine(info.lastSyncError) || "无"}`,
+    `最近错误：${redactDiagnosticLine(info.recentError) || "无"}`,
   ];
   return lines.join("\n");
 }
@@ -3029,7 +3153,7 @@ function redactDiagnosticLine(value?: string | null) {
     lower.includes("private key") ||
     lower.includes("secret")
   ) {
-    return "[redacted]";
+    return "[已隐藏]";
   }
 
   return value;

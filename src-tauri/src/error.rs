@@ -2,15 +2,15 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum CliplyError {
-    #[error("storage is not available yet: {0}")]
+    #[error("存储服务尚未就绪：{0}")]
     StorageUnavailable(String),
-    #[error("database error: {0}")]
+    #[error("数据库错误：{0}")]
     Database(#[from] rusqlite::Error),
-    #[error("filesystem error: {0}")]
+    #[error("文件系统错误：{0}")]
     Filesystem(#[from] std::io::Error),
-    #[error("sync error: {0}")]
+    #[error("同步错误：{0}")]
     Sync(String),
-    #[error("platform API is not available yet: {0}")]
+    #[error("系统接口不可用：{0}")]
     PlatformUnavailable(String),
 }
 
