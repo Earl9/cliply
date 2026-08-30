@@ -14,15 +14,18 @@ but no longer relies on divider lines alone for hierarchy.
 - UI skill context: Open Design `ui-skills` entry, routed to upstream
   `ui-skills-root`, `impeccable`, and `colorize`
 
-The Open Design palette uses achromatic graphite workspace surfaces:
+The Open Design palette uses airy green-mist workspace surfaces with one
+understated accent:
 
-- Background: `oklch(97.5% 0.003 255)`
-- Surface: `oklch(99.7% 0.001 255)`
-- Foreground: `oklch(19% 0.008 255)`
-- Muted: `oklch(54% 0.007 255)`
-- Border: `oklch(89.5% 0.005 255)`
-- Default accent: coral `#FF6257`
-- Coral hover / active: `#FF7066` / `#F75A50`
+- Background: `oklch(97.9% 0.004 155)`
+- Surface: `oklch(99.5% 0.003 155)`
+- Foreground: `oklch(23% 0.014 160)`
+- Muted: `oklch(53% 0.011 160)`
+- Border: `oklch(89.9% 0.006 155)`
+- Default accent: celadon `#3BA97C` (小清新: fresh, light, never tech-blue)
+- Celadon hover / active: `#46B387` / `#339A70`; filled controls take deep
+  pine ink `#123529`
+- Coral `#FF6257` remains available as an optional theme
 - Semantic mint: `#168F73` in light mode, `#3DD0AC` in dark mode
 - Installer artwork uses the same coral/mint paper mark in the app icon,
   NSIS header, NSIS sidebar, setup logo, and standalone installer window.
@@ -30,9 +33,10 @@ The Open Design palette uses achromatic graphite workspace surfaces:
 The Windows shell uses native Acrylic behind the WebView. CSS materials then
 layer translucent chrome, panes, cards, and controls over that system blur.
 
-The Cliply mark is a flat two-sheet symbol: coral for the active clip, mint
-for its history, a warm paper fold, and graphite content rules at larger
-sizes. Small Windows sizes are optically simplified instead of downscaling the
+The Cliply mark is a flat two-sheet symbol: celadon for the active clip, soft
+coral for its history, a warm paper fold, and graphite content rules at larger
+sizes. The warm-cool sheet pairing keeps the two papers legible at every size.
+Small Windows sizes are optically simplified instead of downscaling the
 full artwork. Avoid blue document stacks, clipboard outlines, lettermarks,
 gradients, sparkles, glow, and mascot-like AI imagery.
 At 16-48px Windows sizes, the mark uses an optically enlarged variant whose
@@ -42,9 +46,9 @@ taskbar icons without touching the raster edge.
 User theme choices change the only accent hue. The accent is derived into
 hover, active, selection, focus, link, pinned, and filled-primary roles.
 Content types remain neutral and are distinguished by icon shape and text.
-The default coral is shared with the active sheet in the Cliply mark. Mint is
-reserved for local, successful, and history-complete states; it does not
-compete with coral for primary actions. Glass surfaces remain neutral.
+Mint communicates local, successful, and history-complete states; semantic
+mint sits deeper than the celadon accent so status colors and primary actions
+stay distinguishable. Glass surfaces remain neutral.
 
 ## Product posture
 
