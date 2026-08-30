@@ -4,6 +4,7 @@
 //   applyCliplyTheme(DEFAULT_THEME_NAME);
 
 export type CliplyThemeName =
+  | "jade-mist"
   | "coral-pulse"
   | "system-blue"
   | "lake-blue"
@@ -97,7 +98,7 @@ export type CliplyAutoThemeColorSources = {
   systemAccent?: string | null;
 };
 
-export const DEFAULT_THEME_NAME: CliplyThemeName = "coral-pulse";
+export const DEFAULT_THEME_NAME: CliplyThemeName = "jade-mist";
 
 export const CLIPLY_THEME_STORAGE_KEY = "cliply.theme.name";
 
@@ -109,44 +110,94 @@ export const DEFAULT_AUTO_THEME_SETTINGS: CliplyAutoThemeSettings = {
 };
 
 const AUTO_THEME_FALLBACK_COLORS: Record<CliplyAutoThemeSource, string> = {
-  "system-accent": "#FF6257",
+  "system-accent": "#3BA97C",
   wallpaper: "#22B793",
 };
 
 let themeTransitionResetTimer: number | undefined;
 
 export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
+  "jade-mist": {
+    name: "jade-mist",
+    label: "青瓷",
+    description: "清新青瓷色，默认主题。",
+
+    primary: "#3BA97C",
+    primaryHover: "#46B387",
+    primaryActive: "#339A70",
+    primarySoft: "#E9F7F0",
+    primaryBorder: "#C4E8D7",
+    primaryText: "#123529",
+    primaryOnSoft: "#23805D",
+
+    appBg: "#F7FAF8",
+    windowBg: "#F7FAF8",
+    panelBg: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    mutedBg: "#EFF5F1",
+
+    border: "#E3EBE6",
+    borderStrong: "#D1DCD5",
+    divider: "#EDF2EE",
+    focusRing: "rgba(59, 169, 124, 0.16)",
+
+    text: "#1F2823",
+    bodyText: "#303B34",
+    textSecondary: "#5C6B62",
+    muted: "#63736A",
+    placeholder: "#79897F",
+    disabledText: "#B2BFB7",
+
+    success: "#168F73",
+    successSoft: "#E8F7F2",
+    warning: "#B45309",
+    warningSoft: "#FFF7E6",
+    danger: "#DC2626",
+    dangerSoft: "#FEF2F2",
+    info: "#3BA97C",
+    infoSoft: "#E9F7F0",
+
+    shadowWindow:
+      "0 12px 32px rgba(31, 42, 36, 0.12), 0 2px 6px rgba(31, 42, 36, 0.06)",
+    shadowPanel: "0 1px 2px rgba(31, 42, 36, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(31, 42, 36, 0.06)",
+    shadowSelected: "none",
+
+    swatch: "#3BA97C",
+  },
+
   "coral-pulse": {
     name: "coral-pulse",
     label: "珊瑚红",
     description: "使用珊瑚红作为默认强调色。",
 
-    primary: "#FF6257",
-    primaryHover: "#FF7066",
-    primaryActive: "#F75A50",
+    primary: "#F08573",
+    primaryHover: "#F39686",
+    primaryActive: "#E47662",
     primarySoft: "#FFEFEE",
     primaryBorder: "#FFD8D5",
-    primaryText: "#14161A",
-    primaryOnSoft: "#B8473F",
+    primaryText: "#4A2018",
+    primaryOnSoft: "#BA4F3C",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(255, 98, 87, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(240, 133, 115, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -158,12 +209,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#FFEFEE",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#FF6257",
+    swatch: "#F08573",
   },
 
   "system-blue": {
@@ -171,32 +222,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "系统蓝",
     description: "使用 Windows 系统蓝作为强调色。",
 
-    primary: "#2F69FA",
-    primaryHover: "#295CDC",
-    primaryActive: "#2552C3",
+    primary: "#5B8FC7",
+    primaryHover: "#6E9ECF",
+    primaryActive: "#4F81B8",
     primarySoft: "#ECF2FF",
     primaryBorder: "#CBDAFE",
-    primaryText: "#FFFFFF",
-    primaryOnSoft: "#2B61E6",
+    primaryText: "#14283F",
+    primaryOnSoft: "#35679E",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(47, 105, 250, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(91, 143, 199, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -208,12 +259,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#ECF2FF",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#2F69FA",
+    swatch: "#5B8FC7",
   },
 
   "lake-blue": {
@@ -221,32 +272,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "深蓝",
     description: "使用深蓝色作为强调色。",
 
-    primary: "#1D5FD6",
-    primaryHover: "#1A54BC",
-    primaryActive: "#174AA7",
+    primary: "#6C93BE",
+    primaryHover: "#7FA2C8",
+    primaryActive: "#5C84B1",
     primarySoft: "#EDF2FC",
     primaryBorder: "#C7D7F5",
-    primaryText: "#FFFFFF",
-    primaryOnSoft: "#1D5FD6",
+    primaryText: "#122A40",
+    primaryOnSoft: "#3B6A99",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(29, 95, 214, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(108, 147, 190, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -258,12 +309,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#EDF2FC",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#1D5FD6",
+    swatch: "#6C93BE",
   },
 
   "indigo-spark": {
@@ -271,32 +322,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "靛蓝",
     description: "使用靛蓝色作为强调色。",
 
-    primary: "#4F46E5",
-    primaryHover: "#463ECA",
-    primaryActive: "#3E37B3",
+    primary: "#7D8CD9",
+    primaryHover: "#8E9BE0",
+    primaryActive: "#6F7ECF",
     primarySoft: "#F1F0FD",
     primaryBorder: "#D3D1F9",
-    primaryText: "#FFFFFF",
-    primaryOnSoft: "#4F46E5",
+    primaryText: "#1D2145",
+    primaryOnSoft: "#5362C2",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(79, 70, 229, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(125, 140, 217, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -308,12 +359,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#F1F0FD",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#4F46E5",
+    swatch: "#7D8CD9",
   },
 
   "purple-default": {
@@ -321,32 +372,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "紫色",
     description: "使用紫色作为强调色。",
 
-    primary: "#6D4CFF",
-    primaryHover: "#6043E0",
-    primaryActive: "#553BC7",
+    primary: "#9186D2",
+    primaryHover: "#A096DA",
+    primaryActive: "#8377C7",
     primarySoft: "#F2EFFF",
     primaryBorder: "#DBD2FF",
-    primaryText: "#FFFFFF",
-    primaryOnSoft: "#6B4AFA",
+    primaryText: "#271E4E",
+    primaryOnSoft: "#6656BE",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(109, 76, 255, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(145, 134, 210, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -358,12 +409,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#F2EFFF",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#6D4CFF",
+    swatch: "#9186D2",
   },
 
   "magenta-pop": {
@@ -371,32 +422,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "洋红",
     description: "使用洋红色作为强调色。",
 
-    primary: "#D6218C",
-    primaryHover: "#BC1D7B",
-    primaryActive: "#A71A6D",
+    primary: "#C86D9C",
+    primaryHover: "#D281AB",
+    primaryActive: "#BA5F8D",
     primarySoft: "#FCEDF6",
     primaryBorder: "#F5C8E2",
-    primaryText: "#FFFFFF",
-    primaryOnSoft: "#C91F84",
+    primaryText: "#43152E",
+    primaryOnSoft: "#A64677",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(214, 33, 140, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(200, 109, 156, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -408,12 +459,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#FCEDF6",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#D6218C",
+    swatch: "#C86D9C",
   },
 
   "rose-violet": {
@@ -421,32 +472,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "玫红",
     description: "使用玫红色作为强调色。",
 
-    primary: "#DB2777",
-    primaryHover: "#C12269",
-    primaryActive: "#AB1E5D",
+    primary: "#CE7B90",
+    primaryHover: "#D88FA2",
+    primaryActive: "#C0687E",
     primarySoft: "#FCEEF4",
     primaryBorder: "#F6C9DD",
-    primaryText: "#FFFFFF",
-    primaryOnSoft: "#C9246D",
+    primaryText: "#421A26",
+    primaryOnSoft: "#A95367",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(219, 39, 119, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(206, 123, 144, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -458,12 +509,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#FCEEF4",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#DB2777",
+    swatch: "#CE7B90",
   },
 
   "coral-orange": {
@@ -471,32 +522,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "橙红",
     description: "使用橙红色作为强调色。",
 
-    primary: "#E8552D",
-    primaryHover: "#EA633E",
-    primaryActive: "#DF522B",
+    primary: "#E0905E",
+    primaryHover: "#E6A075",
+    primaryActive: "#D5814C",
     primarySoft: "#FDEEEA",
     primaryBorder: "#F9D5CB",
-    primaryText: "#14161A",
-    primaryOnSoft: "#BA4424",
+    primaryText: "#432309",
+    primaryOnSoft: "#B06328",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(232, 85, 45, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(224, 144, 94, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -508,12 +559,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#FDEEEA",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#E8552D",
+    swatch: "#E0905E",
   },
 
   "amber-glow": {
@@ -521,32 +572,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "琥珀色",
     description: "使用琥珀色作为强调色。",
 
-    primary: "#C2820A",
-    primaryHover: "#C78C1E",
-    primaryActive: "#BA7D0A",
+    primary: "#D2A24E",
+    primaryHover: "#DAB163",
+    primaryActive: "#C59340",
     primarySoft: "#F9F3E7",
     primaryBorder: "#F0E0C2",
-    primaryText: "#14161A",
-    primaryOnSoft: "#936308",
+    primaryText: "#3D2B06",
+    primaryOnSoft: "#96690B",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(194, 130, 10, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(210, 162, 78, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -558,12 +609,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#F9F3E7",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#C2820A",
+    swatch: "#D2A24E",
   },
 
   "lime-punch": {
@@ -571,32 +622,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "青柠绿",
     description: "使用青柠绿色作为强调色。",
 
-    primary: "#4E9F0D",
-    primaryHover: "#5CA720",
-    primaryActive: "#4B990C",
+    primary: "#86B85C",
+    primaryHover: "#94C26D",
+    primaryActive: "#78A94F",
     primarySoft: "#EDF5E7",
     primaryBorder: "#D3E7C3",
-    primaryText: "#14161A",
-    primaryOnSoft: "#3D7C0A",
+    primaryText: "#243509",
+    primaryOnSoft: "#5F8B2E",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(78, 159, 13, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(134, 184, 92, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -608,12 +659,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#EDF5E7",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#4E9F0D",
+    swatch: "#86B85C",
   },
 
   "mint-green": {
@@ -621,32 +672,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "薄荷绿",
     description: "使用薄荷绿色作为强调色。",
 
-    primary: "#1BA36B",
-    primaryHover: "#2DAA77",
-    primaryActive: "#1A9C67",
+    primary: "#45BD90",
+    primaryHover: "#57C79D",
+    primaryActive: "#3AAB80",
     primarySoft: "#E8F6F0",
     primaryBorder: "#C6E8DA",
-    primaryText: "#14161A",
-    primaryOnSoft: "#157C51",
+    primaryText: "#0E3524",
+    primaryOnSoft: "#1F8A62",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(27, 163, 107, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(69, 189, 144, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -658,12 +709,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#E8F6F0",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#1BA36B",
+    swatch: "#45BD90",
   },
 
   "teal-fresh": {
@@ -671,32 +722,32 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     label: "青绿色",
     description: "使用青绿色作为强调色。",
 
-    primary: "#0D9488",
-    primaryHover: "#209D92",
-    primaryActive: "#0C8E83",
+    primary: "#45A29A",
+    primaryHover: "#57AFA8",
+    primaryActive: "#3C938B",
     primarySoft: "#E7F4F3",
     primaryBorder: "#C3E4E1",
-    primaryText: "#14161A",
-    primaryOnSoft: "#0B7970",
+    primaryText: "#0C3230",
+    primaryOnSoft: "#2A7D77",
 
-    appBg: "#F5F9FD",
-    windowBg: "#F5F9FD",
+    appBg: "#F7F9FC",
+    windowBg: "#F7F9FC",
     panelBg: "#FFFFFF",
     cardBg: "#FFFFFF",
     inputBg: "#FFFFFF",
-    mutedBg: "#EFF5FA",
+    mutedBg: "#EFF3F8",
 
-    border: "#E2EAF2",
-    borderStrong: "#CEDBE8",
-    divider: "#EDF3F8",
-    focusRing: "rgba(13, 148, 136, 0.15)",
+    border: "#E4E9F0",
+    borderStrong: "#D2DAE4",
+    divider: "#EDF0F5",
+    focusRing: "rgba(69, 162, 154, 0.16)",
 
-    text: "#1B2734",
-    bodyText: "#2C3A49",
-    textSecondary: "#5F6F80",
-    muted: "#64748B",
-    placeholder: "#7C8B9C",
-    disabledText: "#B9C5D1",
+    text: "#212831",
+    bodyText: "#313943",
+    textSecondary: "#5F6B78",
+    muted: "#67737F",
+    placeholder: "#7B8793",
+    disabledText: "#B4BDC7",
 
     success: "#168F73",
     successSoft: "#E8F7F2",
@@ -708,12 +759,12 @@ export const CLIPLY_THEMES: Record<CliplyThemeName, CliplyThemeTokens> = {
     infoSoft: "#E7F4F3",
 
     shadowWindow:
-      "0 12px 32px rgba(27, 39, 52, 0.14), 0 2px 6px rgba(27, 39, 52, 0.07)",
-    shadowPanel: "0 1px 2px rgba(27, 39, 52, 0.04)",
-    shadowCardHover: "0 1px 2px rgba(27, 39, 52, 0.06)",
+      "0 12px 32px rgba(33, 40, 49, 0.14), 0 2px 6px rgba(33, 40, 49, 0.07)",
+    shadowPanel: "0 1px 2px rgba(33, 40, 49, 0.04)",
+    shadowCardHover: "0 1px 2px rgba(33, 40, 49, 0.06)",
     shadowSelected: "none",
 
-    swatch: "#0D9488",
+    swatch: "#45A29A",
   },
 };
 
@@ -721,7 +772,7 @@ export const CLIPLY_THEME_OPTIONS = Object.values(CLIPLY_THEMES);
 
 // 推荐首屏展示这几个，其余在“更多主题”里。
 export const RECOMMENDED_THEME_NAMES: CliplyThemeName[] = [
-  "coral-pulse",
+  "jade-mist",
   "mint-green",
   "lake-blue",
   "magenta-pop",
@@ -1103,27 +1154,30 @@ function createDarkThemeTokens(theme: CliplyThemeTokens): CliplyThemeTokens {
     primaryText: "#10151A",
     primaryOnSoft: darkAccent,
     swatch: darkAccent,
-    appBg: "#141719",
-    windowBg: "#17191C",
-    panelBg: "#1E2125",
-    cardBg: "#1E2125",
-    inputBg: "#1A1D21",
-    mutedBg: "#25292E",
+    appBg: "#151B18",
+    windowBg: "#171E1B",
+    panelBg: "#1D2421",
+    cardBg: "#1D2421",
+    inputBg: "#191F1C",
+    mutedBg: "#262E2A",
     border: "rgba(255, 255, 255, 0.09)",
     borderStrong: "rgba(255, 255, 255, 0.16)",
     divider: "rgba(255, 255, 255, 0.055)",
-    text: "#F2F4F6",
-    bodyText: "#DFE3E8",
-    textSecondary: "#9BA5B1",
-    muted: "#79838F",
-    placeholder: "#79838F",
-    disabledText: "#5D666F",
+    text: "#F1F5F2",
+    bodyText: "#DDE4E0",
+    textSecondary: "#9AAAA1",
+    muted: "#7B8981",
+    placeholder: "#7B8981",
+    disabledText: "#5C6B63",
     focusBorder: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`,
     focusRing: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`,
     success: "#3DD0AC",
     successSoft: "rgba(61, 208, 172, 0.14)",
+    warning: "#D29922",
     warningSoft: "rgba(245, 158, 11, 0.16)",
+    danger: "#F85149",
     dangerSoft: "rgba(239, 68, 68, 0.16)",
+    info: "#4493F8",
     infoSoft: "rgba(37, 99, 235, 0.18)",
     shadowWindow:
       "0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3)",
@@ -1186,7 +1240,7 @@ function contrastRatio(a: string, b: string) {
 
 // Reference surface the dark-mode accent has to stay legible against: the dark
 // card colour, warmed slightly to stand in for the translucent accent wash.
-const DARK_SURFACE_REFERENCE = "#262A30";
+const DARK_SURFACE_REFERENCE = "#262E2A";
 
 function normalizeDefaultDarkAccent(accent: string) {
   const normalized = normalizeHexColor(accent);

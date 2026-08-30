@@ -40,7 +40,7 @@ pub enum InstallError {
         source: std::io::Error,
     },
     #[error(
-        "程序文件仍被占用，更新尚未完成。关闭 Cliply 后可重新尝试；如仍失败，请重启 Windows。"
+        "程序文件仍被占用，更新未完成。请关闭 Cliply 后重试；如仍失败，请重启 Windows。"
     )]
     ReplaceLockedFile {
         path: String,

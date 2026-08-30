@@ -134,7 +134,7 @@ export function TitleBar({
             <MoreHorizontal className="size-4" />
           </TitleBarButton>
           {menuOpen ? (
-            <div className="absolute right-1 top-9 z-20 w-40 overflow-hidden rounded-[4px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]">
+            <div className="cliply-menu absolute right-1 top-9 z-20 w-40 overflow-hidden rounded-[8px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]" style={{ transformOrigin: "top right" }}>
               <MenuButton onClick={() => runMenuAction(onToggleMonitoring)}>
                 {monitoringPaused ? "恢复监听" : "暂停监听"}
               </MenuButton>

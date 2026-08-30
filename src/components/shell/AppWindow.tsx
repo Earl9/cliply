@@ -416,7 +416,7 @@ export function AppWindow() {
 
   return (
     <main className="cliply-root" onContextMenu={showAppContextMenu}>
-      <div className="cliply-window cliply-window-enter relative flex flex-col">
+      <div className="cliply-window relative flex flex-col">
         <TitleBar
           windowPinned={windowPinned}
           monitoringPaused={settings.pauseMonitoring}
@@ -630,13 +630,13 @@ function buildContextMenuSections(config: ContextMenuConfig): ContextMenuSection
         },
         {
           id: "copy-log-path",
-          label: "复制日志路径",
+          label: "复制日志文件路径",
           icon: FileText,
           onSelect: config.onCopyLogPath,
         },
         {
           id: "copy-database-path",
-          label: "复制数据库路径",
+          label: "复制数据库文件路径",
           icon: Database,
           onSelect: config.onCopyDatabasePath,
         },

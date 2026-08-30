@@ -14,50 +14,53 @@
   --cliply-ease: cubic-bezier(0.2, 0, 0, 1);
   --cliply-duration: 100ms;
 
-  /* Open Design: graphite workspace with one user-controlled accent. */
-  --cliply-bg: #f7f8fa;
-  --cliply-bg-soft: #f4f5f7;
-  --cliply-window-bg: #f7f8fa;
-  --cliply-panel: #f7f8fa;
-  --cliply-panel-bg: #ffffff;
-  --cliply-panel-strong: #ffffff;
-  --cliply-card: #ffffff;
-  --cliply-card-solid: #ffffff;
-  --cliply-canvas: rgb(244 248 247 / 0.56);
-  --cliply-surface: rgb(255 255 255 / 0.5);
-  --cliply-surface-raised: rgb(255 255 255 / 0.68);
-  --cliply-surface-subtle: rgb(244 247 247 / 0.44);
-  --cliply-code-bg: rgb(247 249 250 / 0.62);
-  --cliply-input-bg: rgb(255 255 255 / 0.54);
-  --cliply-muted-bg: rgb(238 243 241 / 0.48);
+  /* Open Design: airy green-mist workspace with one understated accent.
+     小清新: near-white neutrals carry the faintest green cast (hue ~155-165,
+     chroma <= 0.014) so the celadon accent reads fresh, never tech-blue.
+     Fallbacks mirror the data-theme blocks below. */
+  --cliply-bg: oklch(97.9% 0.004 155);
+  --cliply-bg-soft: oklch(96.6% 0.005 155);
+  --cliply-window-bg: oklch(97.9% 0.004 155);
+  --cliply-panel: oklch(97.9% 0.004 155);
+  --cliply-panel-bg: oklch(99.5% 0.003 155);
+  --cliply-panel-strong: oklch(99.5% 0.003 155);
+  --cliply-card: oklch(99.5% 0.003 155);
+  --cliply-card-solid: oklch(99.5% 0.003 155);
+  --cliply-canvas: rgb(246 250 247 / 0.56);
+  --cliply-surface: rgb(251 253 252 / 0.5);
+  --cliply-surface-raised: rgb(251 253 252 / 0.68);
+  --cliply-surface-subtle: rgb(244 248 246 / 0.44);
+  --cliply-code-bg: rgb(247 251 249 / 0.62);
+  --cliply-input-bg: rgb(251 253 252 / 0.54);
+  --cliply-muted-bg: rgb(237 243 240 / 0.48);
 
-  --cliply-text: #1f2328;
-  --cliply-body-text: #333940;
-  --cliply-faint: #656d76;
-  --cliply-muted: #6e7781;
-  --cliply-placeholder: #8c959f;
-  --cliply-disabled: #afb8c1;
-  --cliply-disabled-text: #afb8c1;
-  --cliply-disabled-bg: #f3f4f6;
-  --cliply-disabled-border: #e6e8eb;
+  --cliply-text: oklch(23% 0.014 160);
+  --cliply-body-text: oklch(34% 0.013 160);
+  --cliply-faint: oklch(49% 0.012 160);
+  --cliply-muted: oklch(53% 0.011 160);
+  --cliply-placeholder: oklch(58% 0.01 160);
+  --cliply-disabled: oklch(72% 0.009 160);
+  --cliply-disabled-text: oklch(72% 0.009 160);
+  --cliply-disabled-bg: oklch(96% 0.004 155);
+  --cliply-disabled-border: oklch(91.3% 0.005 155);
 
-  --cliply-border: #d8dee4;
-  --cliply-border-soft: #eaeef2;
-  --cliply-border-strong: #afb8c1;
+  --cliply-border: oklch(89.9% 0.006 155);
+  --cliply-border-soft: oklch(93.1% 0.005 155);
+  --cliply-border-strong: oklch(82% 0.01 160);
 
-  --cliply-accent: #ff6257;
-  --cliply-accent-strong: #ff6257;
-  --cliply-accent-dark: #f75a50;
-  --cliply-accent-50: #fff0ef;
-  --cliply-accent-100: #ffd2cf;
-  --cliply-accent-soft: #fff0ef;
-  --cliply-accent-border: #ffb9b4;
-  --cliply-accent-on-soft: #c9453d;
+  --cliply-accent: #3ba97c;
+  --cliply-accent-strong: #3ba97c;
+  --cliply-accent-dark: #339a70;
+  --cliply-accent-50: #e9f7f0;
+  --cliply-accent-100: #d2eee2;
+  --cliply-accent-soft: #e9f7f0;
+  --cliply-accent-border: #c4e8d7;
+  --cliply-accent-on-soft: #23805d;
   --cliply-primary: var(--cliply-accent);
-  --cliply-primary-hover: #ff7066;
-  --cliply-primary-active: var(--cliply-accent-dark);
-  --cliply-primary-text: #14161a;
-  --cliply-primary-action-text: #14161a;
+  --cliply-primary-hover: #46b387;
+  --cliply-primary-active: #339a70;
+  --cliply-primary-text: #123529;
+  --cliply-primary-action-text: #123529;
   --cliply-focus-border: var(--cliply-accent);
   --cliply-focus-ring: color-mix(in srgb, var(--cliply-accent) 18%, transparent);
 
@@ -67,73 +70,78 @@
   --cliply-warning-soft: #fff8c5;
   --cliply-danger: #cf222e;
   --cliply-danger-soft: #ffebe9;
+  --cliply-danger-solid: var(--cliply-danger);
   --cliply-info: #0969da;
   --cliply-info-soft: #ddf4ff;
 
-  --cliply-checker-color: rgba(99, 110, 123, 0.1);
+  --cliply-checker-color: rgba(101, 116, 108, 0.1);
   --cliply-checker-size: 16px;
   --cliply-checker-half: 8px;
 
-  --cliply-shadow-card: 0 1px 2px rgb(31 35 40 / 0.05);
-  --cliply-shadow-card-hover: 0 2px 8px rgb(31 35 40 / 0.07);
+  --cliply-shadow-card: 0 1px 2px rgb(27 36 31 / 0.05);
+  --cliply-shadow-card-hover: 0 2px 8px rgb(27 36 31 / 0.07);
   --cliply-shadow-selected: 0 2px 8px color-mix(in srgb, var(--cliply-accent) 10%, transparent);
-  --cliply-shadow-panel: 0 8px 24px rgba(31, 35, 40, 0.12);
-  --cliply-shadow-popover: 0 8px 24px rgba(31, 35, 40, 0.14);
-  --cliply-shadow-dialog: 0 16px 40px rgba(31, 35, 40, 0.18);
+  --cliply-shadow-panel: 0 8px 24px rgba(27, 36, 31, 0.1);
+  --cliply-shadow-popover: 0 8px 24px rgba(27, 36, 31, 0.12);
+  --cliply-shadow-dialog: 0 16px 40px rgba(27, 36, 31, 0.16);
   --cliply-shadow: var(--cliply-shadow-dialog);
   --cliply-workbench-shadow: none;
 
-  --cliply-glass-window: rgb(255 255 255 / 0.34);
-  --cliply-glass-chrome: rgb(255 255 255 / 0.58);
-  --cliply-glass-pane: rgb(255 255 255 / 0.36);
-  --cliply-glass-pane-strong: rgb(255 255 255 / 0.48);
-  --cliply-glass-card: rgb(255 255 255 / 0.6);
-  --cliply-glass-surface: rgb(255 255 255 / 0.68);
-  --cliply-glass-control: rgb(255 255 255 / 0.76);
+  --cliply-glass-window: rgb(251 253 252 / 0.34);
+  --cliply-glass-chrome: rgb(251 253 252 / 0.58);
+  --cliply-glass-pane: rgb(251 253 252 / 0.36);
+  --cliply-glass-pane-strong: rgb(251 253 252 / 0.48);
+  --cliply-glass-card: rgb(251 253 252 / 0.6);
+  --cliply-glass-surface: rgb(251 253 252 / 0.68);
+  --cliply-glass-control: rgb(251 253 252 / 0.76);
   --cliply-glass-edge: rgb(255 255 255 / 0.78);
-  --cliply-glass-shadow: 0 12px 32px rgb(31 35 40 / 0.08);
-  --cliply-glass-control-shadow: 0 4px 16px rgb(31 35 40 / 0.07);
-  --cliply-solid-fallback: oklch(99.7% 0.001 255);
+  --cliply-glass-shadow: 0 12px 32px rgb(27 36 31 / 0.07);
+  --cliply-glass-control-shadow: 0 4px 16px rgb(27 36 31 / 0.06);
+  --cliply-solid-fallback: oklch(99.5% 0.003 155);
 }
 
 :root[data-theme="dark"] {
-  --cliply-bg: #161b22;
-  --cliply-bg-soft: #161b22;
-  --cliply-window-bg: #161b22;
-  --cliply-panel: #161b22;
-  --cliply-panel-bg: #0d1117;
-  --cliply-panel-strong: #21262d;
-  --cliply-card: #21262d;
-  --cliply-card-solid: #21262d;
-  --cliply-canvas: rgb(13 17 23 / 0.58);
-  --cliply-surface: rgb(13 17 23 / 0.62);
-  --cliply-surface-raised: rgb(30 36 44 / 0.7);
-  --cliply-surface-subtle: rgb(22 27 34 / 0.56);
-  --cliply-code-bg: rgb(22 27 34 / 0.7);
-  --cliply-input-bg: rgb(13 17 23 / 0.68);
-  --cliply-muted-bg: rgb(33 38 45 / 0.62);
+  --cliply-bg: #161c19;
+  --cliply-bg-soft: #1b2320;
+  --cliply-window-bg: #161c19;
+  --cliply-panel: #161c19;
+  --cliply-panel-bg: #1b2320;
+  --cliply-panel-strong: #202925;
+  --cliply-card: #202925;
+  --cliply-card-solid: #202925;
+  --cliply-canvas: rgb(18 24 21 / 0.58);
+  --cliply-surface: rgb(20 26 23 / 0.62);
+  --cliply-surface-raised: rgb(34 43 39 / 0.7);
+  --cliply-surface-subtle: rgb(22 29 25 / 0.56);
+  --cliply-code-bg: rgb(22 29 25 / 0.7);
+  --cliply-input-bg: rgb(20 26 23 / 0.68);
+  --cliply-muted-bg: rgb(34 43 39 / 0.62);
 
-  --cliply-text: #f0f3f6;
-  --cliply-body-text: #d8dee4;
-  --cliply-faint: #8b949e;
-  --cliply-muted: #9aa4af;
-  --cliply-placeholder: #7d8590;
-  --cliply-disabled: #57606a;
-  --cliply-disabled-text: #57606a;
-  --cliply-disabled-bg: #1c2128;
-  --cliply-disabled-border: #272d35;
+  --cliply-text: #eff4f1;
+  --cliply-body-text: #dce4df;
+  --cliply-faint: #9aaaa1;
+  --cliply-muted: #9aaaa1;
+  --cliply-placeholder: #7d8d84;
+  --cliply-disabled: #5c6b63;
+  --cliply-disabled-text: #5c6b63;
+  --cliply-disabled-bg: #1a211e;
+  --cliply-disabled-border: #232c28;
 
-  --cliply-border: #30363d;
-  --cliply-border-soft: #21262d;
-  --cliply-border-strong: #484f58;
-  --cliply-primary-text: #0d1117;
-  --cliply-primary-action-text: #10151a;
-  --cliply-checker-color: rgba(139, 148, 158, 0.07);
+  --cliply-border: #2d3732;
+  --cliply-border-soft: #222b26;
+  --cliply-border-strong: #43504a;
+  --cliply-primary-text: #0e1712;
+  --cliply-primary-action-text: #0f1813;
+  --cliply-checker-color: rgba(140, 155, 147, 0.07);
 
   --cliply-success: #3dd0ac;
   --cliply-success-soft: rgba(61, 208, 172, 0.14);
+  --cliply-warning: #d29922;
   --cliply-warning-soft: rgba(187, 128, 9, 0.18);
+  --cliply-danger: #f85149;
   --cliply-danger-soft: rgba(248, 81, 73, 0.16);
+  --cliply-danger-solid: #da3633;
+  --cliply-info: #4493f8;
   --cliply-info-soft: rgba(56, 139, 253, 0.16);
   --cliply-shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.4);
   --cliply-shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.44);
@@ -141,83 +149,88 @@
   --cliply-shadow-card: 0 1px 2px rgb(0 0 0 / 0.24);
   --cliply-shadow-card-hover: 0 3px 12px rgb(0 0 0 / 0.28);
   --cliply-shadow-selected: 0 3px 12px rgb(0 0 0 / 0.24);
-  --cliply-glass-window: rgb(10 13 17 / 0.38);
-  --cliply-glass-chrome: rgb(28 33 40 / 0.72);
-  --cliply-glass-pane: rgb(18 23 29 / 0.62);
-  --cliply-glass-pane-strong: rgb(22 28 35 / 0.74);
-  --cliply-glass-card: rgb(30 36 44 / 0.78);
-  --cliply-glass-surface: rgb(27 29 33 / 0.78);
-  --cliply-glass-control: rgb(27 29 33 / 0.84);
+  --cliply-glass-window: rgb(12 17 15 / 0.38);
+  --cliply-glass-chrome: rgb(30 38 34 / 0.72);
+  --cliply-glass-pane: rgb(20 26 23 / 0.62);
+  --cliply-glass-pane-strong: rgb(24 31 27 / 0.74);
+  --cliply-glass-card: rgb(34 43 39 / 0.78);
+  --cliply-glass-surface: rgb(31 39 35 / 0.78);
+  --cliply-glass-control: rgb(31 39 35 / 0.84);
   --cliply-glass-edge: rgb(255 255 255 / 0.12);
   --cliply-glass-shadow: 0 14px 34px rgb(0 0 0 / 0.28);
   --cliply-glass-control-shadow: 0 4px 16px rgb(0 0 0 / 0.24);
-  --cliply-solid-fallback: oklch(17.5% 0.006 255);
+  --cliply-solid-fallback: oklch(18.3% 0.01 165);
 }
 
 /* User themes control only the accent. Workspace surfaces stay achromatic so
    custom green, orange, or violet themes remain coherent. */
 :root[data-theme="light"] {
-  --cliply-app-bg: oklch(97.5% 0.003 255) !important;
-  --cliply-window-bg: oklch(97.5% 0.003 255) !important;
-  --cliply-panel-bg: oklch(99.7% 0.001 255) !important;
-  --cliply-card-bg: oklch(99.7% 0.001 255) !important;
-  --cliply-bg: oklch(97.5% 0.003 255) !important;
-  --cliply-bg-soft: oklch(96.2% 0.003 255) !important;
-  --cliply-panel: oklch(97.5% 0.003 255) !important;
-  --cliply-panel-strong: oklch(99.7% 0.001 255) !important;
-  --cliply-card: oklch(99.7% 0.001 255) !important;
-  --cliply-card-solid: oklch(99.7% 0.001 255) !important;
-  --cliply-canvas: color-mix(in srgb, var(--cliply-accent) 4%, oklch(94.5% 0.006 155)) !important;
-  --cliply-surface: rgb(255 255 255 / 0.5) !important;
-  --cliply-surface-raised: rgb(255 255 255 / 0.68) !important;
-  --cliply-surface-subtle: rgb(244 247 247 / 0.44) !important;
-  --cliply-code-bg: rgb(247 249 250 / 0.62) !important;
-  --cliply-input-bg: rgb(255 255 255 / 0.54) !important;
-  --cliply-muted-bg: rgb(238 243 241 / 0.48) !important;
-  --cliply-text: oklch(19% 0.008 255) !important;
-  --cliply-body-text: oklch(31% 0.008 255) !important;
-  --cliply-text-secondary: oklch(49% 0.008 255) !important;
-  --cliply-faint: oklch(49% 0.008 255) !important;
-  --cliply-muted: oklch(54% 0.007 255) !important;
-  --cliply-placeholder: oklch(59% 0.006 255) !important;
-  --cliply-border: oklch(89.5% 0.005 255) !important;
-  --cliply-border-soft: oklch(92.5% 0.004 255) !important;
-  --cliply-border-strong: oklch(82.5% 0.007 255) !important;
-  --cliply-divider: oklch(92.5% 0.004 255) !important;
-  --cliply-disabled: oklch(72% 0.005 255) !important;
-  --cliply-disabled-text: oklch(72% 0.005 255) !important;
+  --cliply-app-bg: oklch(97.9% 0.004 155) !important;
+  --cliply-window-bg: oklch(97.9% 0.004 155) !important;
+  --cliply-panel-bg: oklch(99.5% 0.003 155) !important;
+  --cliply-card-bg: oklch(99.5% 0.003 155) !important;
+  --cliply-bg: oklch(97.9% 0.004 155) !important;
+  --cliply-bg-soft: oklch(96.6% 0.005 155) !important;
+  --cliply-panel: oklch(97.9% 0.004 155) !important;
+  --cliply-panel-strong: oklch(99.5% 0.003 155) !important;
+  --cliply-card: oklch(99.5% 0.003 155) !important;
+  --cliply-card-solid: oklch(99.5% 0.003 155) !important;
+  --cliply-canvas: color-mix(in srgb, var(--cliply-accent) 4%, oklch(94.7% 0.006 155)) !important;
+  --cliply-surface: rgb(251 253 252 / 0.5) !important;
+  --cliply-surface-raised: rgb(251 253 252 / 0.68) !important;
+  --cliply-surface-subtle: rgb(244 248 246 / 0.44) !important;
+  --cliply-code-bg: rgb(247 251 249 / 0.62) !important;
+  --cliply-input-bg: rgb(251 253 252 / 0.54) !important;
+  --cliply-muted-bg: rgb(237 243 240 / 0.48) !important;
+  --cliply-text: oklch(23% 0.014 160) !important;
+  --cliply-body-text: oklch(34% 0.013 160) !important;
+  --cliply-text-secondary: oklch(49% 0.012 160) !important;
+  --cliply-faint: oklch(49% 0.012 160) !important;
+  --cliply-muted: oklch(53% 0.011 160) !important;
+  --cliply-placeholder: oklch(58% 0.01 160) !important;
+  --cliply-border: oklch(89.9% 0.006 155) !important;
+  --cliply-border-soft: oklch(93.1% 0.005 155) !important;
+  --cliply-border-strong: oklch(82% 0.01 160) !important;
+  --cliply-divider: oklch(93.1% 0.005 155) !important;
+  --cliply-disabled: oklch(72% 0.009 160) !important;
+  --cliply-disabled-text: oklch(72% 0.009 160) !important;
 }
 
 :root[data-theme="dark"] {
-  --cliply-app-bg: oklch(14.5% 0.006 255) !important;
-  --cliply-window-bg: oklch(14.5% 0.006 255) !important;
-  --cliply-panel-bg: oklch(17.5% 0.006 255) !important;
-  --cliply-card-bg: oklch(20% 0.006 255) !important;
-  --cliply-bg: oklch(14.5% 0.006 255) !important;
-  --cliply-bg-soft: oklch(20% 0.006 255) !important;
-  --cliply-panel: oklch(14.5% 0.006 255) !important;
-  --cliply-panel-strong: oklch(20% 0.006 255) !important;
-  --cliply-card: oklch(20% 0.006 255) !important;
-  --cliply-card-solid: oklch(20% 0.006 255) !important;
-  --cliply-canvas: color-mix(in srgb, var(--cliply-accent) 5%, oklch(13.5% 0.008 255)) !important;
-  --cliply-surface: rgb(13 17 23 / 0.62) !important;
-  --cliply-surface-raised: rgb(30 36 44 / 0.7) !important;
-  --cliply-surface-subtle: rgb(22 27 34 / 0.56) !important;
-  --cliply-code-bg: rgb(22 27 34 / 0.7) !important;
-  --cliply-input-bg: rgb(13 17 23 / 0.68) !important;
-  --cliply-muted-bg: rgb(33 38 45 / 0.62) !important;
-  --cliply-text: oklch(95% 0.003 255) !important;
-  --cliply-body-text: oklch(84% 0.004 255) !important;
-  --cliply-text-secondary: oklch(67% 0.005 255) !important;
-  --cliply-faint: oklch(62% 0.005 255) !important;
-  --cliply-muted: oklch(67% 0.005 255) !important;
-  --cliply-placeholder: oklch(58% 0.005 255) !important;
-  --cliply-border: oklch(28% 0.007 255) !important;
-  --cliply-border-soft: oklch(23.5% 0.006 255) !important;
-  --cliply-border-strong: oklch(36% 0.009 255) !important;
-  --cliply-divider: oklch(23.5% 0.006 255) !important;
-  --cliply-disabled: oklch(43% 0.005 255) !important;
-  --cliply-disabled-text: oklch(43% 0.005 255) !important;
+  --cliply-app-bg: oklch(15.8% 0.009 165) !important;
+  --cliply-window-bg: oklch(15.8% 0.009 165) !important;
+  --cliply-panel-bg: oklch(18.6% 0.011 165) !important;
+  --cliply-card-bg: oklch(20.6% 0.012 165) !important;
+  --cliply-bg: oklch(15.8% 0.009 165) !important;
+  --cliply-bg-soft: oklch(20.6% 0.012 165) !important;
+  --cliply-panel: oklch(15.8% 0.009 165) !important;
+  --cliply-panel-strong: oklch(20.6% 0.012 165) !important;
+  --cliply-card: oklch(20.6% 0.012 165) !important;
+  --cliply-card-solid: oklch(20.6% 0.012 165) !important;
+  --cliply-canvas: color-mix(in srgb, var(--cliply-accent) 5%, oklch(14.6% 0.012 165)) !important;
+  --cliply-surface: rgb(20 26 23 / 0.62) !important;
+  --cliply-surface-raised: rgb(34 43 39 / 0.7) !important;
+  --cliply-surface-subtle: rgb(22 29 25 / 0.56) !important;
+  --cliply-code-bg: rgb(22 29 25 / 0.7) !important;
+  --cliply-input-bg: rgb(20 26 23 / 0.68) !important;
+  --cliply-muted-bg: rgb(34 43 39 / 0.62) !important;
+  --cliply-text: oklch(95% 0.004 160) !important;
+  --cliply-body-text: oklch(86% 0.005 160) !important;
+  --cliply-text-secondary: oklch(69% 0.007 160) !important;
+  --cliply-faint: oklch(64% 0.007 160) !important;
+  --cliply-muted: oklch(68% 0.007 160) !important;
+  --cliply-placeholder: oklch(59% 0.007 160) !important;
+  --cliply-border: oklch(29.5% 0.013 165) !important;
+  --cliply-border-soft: oklch(24.2% 0.011 165) !important;
+  --cliply-border-strong: oklch(37.5% 0.015 165) !important;
+  --cliply-divider: oklch(24.2% 0.011 165) !important;
+  --cliply-disabled: oklch(44% 0.01 165) !important;
+  --cliply-disabled-text: oklch(44% 0.01 165) !important;
+  --cliply-success: #3dd0ac !important;
+  --cliply-warning: #d29922 !important;
+  --cliply-danger: #f85149 !important;
+  --cliply-danger-solid: #da3633 !important;
+  --cliply-info: #4493f8 !important;
 }
 
 * {
@@ -282,7 +295,31 @@ button {
 }
 
 .cliply-interactive {
-  transition: none;
+  transition:
+    background-color var(--cliply-duration) ease-out,
+    border-color var(--cliply-duration) ease-out,
+    color var(--cliply-duration) ease-out,
+    box-shadow var(--cliply-duration) ease-out,
+    opacity var(--cliply-duration) ease-out,
+    transform 120ms var(--cliply-ease);
+}
+
+/* Press feedback for content controls. Caption buttons keep native Windows
+   behavior; rows and disabled controls stay still. */
+.cliply-interactive:not(.cliply-titlebar-button):not(:disabled):active,
+.cliply-dialog button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Dialog controls ride the same motion tokens; the progress bar and other
+   non-button elements keep their own transitions. */
+.cliply-dialog button:not(:disabled) {
+  transition:
+    background-color var(--cliply-duration) ease-out,
+    border-color var(--cliply-duration) ease-out,
+    color var(--cliply-duration) ease-out,
+    box-shadow var(--cliply-duration) ease-out,
+    transform 120ms var(--cliply-ease);
 }
 
 .cliply-titlebar {
@@ -376,10 +413,6 @@ button {
 
 .cliply-filter-tabs::-webkit-scrollbar {
   display: none;
-}
-
-.cliply-filter-tab[aria-pressed="true"]::after {
-  content: none;
 }
 
 .cliply-filter-tab {
@@ -633,7 +666,7 @@ button {
   .cliply-action-bar {
     box-shadow:
       inset 0 1px 0 var(--cliply-glass-edge),
-      0 -8px 22px rgb(31 35 40 / 0.04);
+      0 -8px 22px rgb(31 26 21 / 0.04);
   }
 
   :root[data-theme="dark"] .cliply-action-bar {
@@ -804,7 +837,7 @@ button {
 
 .cliply-toast {
   border: 1px solid var(--cliply-border);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--cliply-card);
   box-shadow: var(--cliply-shadow-popover);
 }
@@ -835,6 +868,15 @@ button {
 @keyframes cliply-dialog-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cliply-menu-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.cliply-menu {
+  animation: cliply-menu-in 120ms var(--cliply-ease) both;
 }
 
 .cliply-overlay {

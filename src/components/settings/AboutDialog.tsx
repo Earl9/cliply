@@ -79,7 +79,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
           <button
             type="button"
             onClick={() => void openCliplyGitHubPage()}
-            className="mt-4 inline-flex max-w-full items-center gap-2 rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
+            className="mt-4 inline-flex max-w-full items-center gap-2 rounded-lg border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-text)] transition-colors hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
           >
             <ExternalLink className="size-4 shrink-0 text-[color:var(--cliply-accent)]" />
             <span className="cliply-code-font min-w-0 truncate">{CLIPLY_GITHUB_PAGE_URL}</span>

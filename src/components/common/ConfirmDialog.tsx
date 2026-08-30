@@ -62,9 +62,10 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
+            data-danger-solid={danger ? "true" : undefined}
             className={
               danger
-                ? "cliply-interactive h-8 rounded-[6px] bg-[color:var(--cliply-danger)] px-3 text-[13px] font-medium text-white hover:opacity-90"
+                ? "cliply-interactive h-8 rounded-[6px] bg-[color:var(--cliply-danger-solid)] px-3 text-[13px] font-medium text-white hover:bg-[color:color-mix(in_srgb,var(--cliply-danger-solid)_88%,#000)]"
                 : "cliply-interactive h-8 rounded-[6px] bg-[color:var(--cliply-accent)] px-3 text-[13px] font-medium text-[color:var(--cliply-primary-text)] hover:bg-[color:var(--cliply-accent-dark)]"
             }
           >

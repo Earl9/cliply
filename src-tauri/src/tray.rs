@@ -88,7 +88,7 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         .text(MENU_OPEN, "打开 Cliply")
         .separator()
         .text(MENU_TOGGLE_MONITORING, monitoring_label)
-        .text(MENU_CLEAR_HISTORY, "清空历史")
+        .text(MENU_CLEAR_HISTORY, "清空历史记录")
         .text(MENU_SETTINGS, "设置")
         .text(MENU_ABOUT, "关于 Cliply")
         .separator()

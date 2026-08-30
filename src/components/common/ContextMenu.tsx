@@ -107,11 +107,12 @@ export function ContextMenu({ menu, onClose }: ContextMenuProps) {
     >
       <div
         ref={menuRef}
-        className="cliply-scrollbar absolute w-[250px] overflow-auto rounded-[8px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]"
+        className="cliply-menu cliply-scrollbar absolute w-[250px] overflow-auto rounded-[8px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-panel-strong)] py-1 shadow-[var(--cliply-shadow-popover)]"
         style={{
           left,
           top,
           maxHeight: `calc(100vh - ${MENU_MARGIN * 2}px)`,
+          transformOrigin: openUp ? "bottom left" : "top left",
         }}
         onPointerDown={(event) => event.stopPropagation()}
       >
@@ -168,7 +169,7 @@ function ContextMenuButton({
         item.onSelect?.();
       }}
       className={clsx(
-        "grid h-[34px] w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2 px-2.5 text-left text-[13px] font-medium transition",
+        "grid h-[34px] w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2 px-2.5 text-left text-[13px] font-medium transition-colors",
         "disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled)]",
         item.danger
           ? "text-[color:var(--cliply-text)] hover:bg-[color:var(--cliply-danger-soft)] hover:text-[color:var(--cliply-danger)]"

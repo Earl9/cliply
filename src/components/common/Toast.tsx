@@ -120,7 +120,7 @@ function ToastCard({
   return (
     <div
       className={clsx(
-        "cliply-toast pointer-events-auto grid min-w-[260px] max-w-[340px] grid-cols-[auto_minmax(0,1fr)_auto] gap-2.5 rounded-[6px] px-3 py-2.5 text-left",
+        "cliply-toast pointer-events-auto grid min-w-[260px] max-w-[340px] grid-cols-[auto_minmax(0,1fr)_auto] gap-2.5 px-3 py-2.5 text-left",
         contextual ? "w-[300px]" : "w-full",
       )}
       data-phase={phase}

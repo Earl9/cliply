@@ -612,7 +612,7 @@ function WorkingScreen({
           <h1>{title}</h1>
           <p>
             {error
-              ? "处理未完成，请根据提示处理后重新尝试。"
+              ? "操作未完成，请根据提示处理后重试。"
               : isUninstall
                 ? "正在移除程序文件、快捷方式和开机启动项。"
                 : isUpdate
@@ -646,7 +646,7 @@ function WorkingScreen({
                 onClick={onRetry}
               >
                 <RefreshCw size={14} />
-                重新尝试
+                重试
               </button>
             </div>
           </div>

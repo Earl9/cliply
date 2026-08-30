@@ -6,7 +6,7 @@ LangString appRunningOkKill ${LANG_SIMPCHINESE} "Cliply 正在运行。$\n选择
 LangString chooseMaintenanceOption ${LANG_SIMPCHINESE} "请选择要执行的操作。"
 LangString choowHowToInstall ${LANG_SIMPCHINESE} "请选择现有版本的处理方式。"
 LangString createDesktop ${LANG_SIMPCHINESE} "创建桌面快捷方式"
-LangString dontUninstall ${LANG_SIMPCHINESE} "更新并保留记录与设置"
+LangString dontUninstall ${LANG_SIMPCHINESE} "更新并保留历史记录与设置"
 LangString dontUninstallDowngrade ${LANG_SIMPCHINESE} "保留当前版本"
 LangString failedToKillApp ${LANG_SIMPCHINESE} "无法关闭 Cliply。请退出程序后重试。"
 LangString installingWebview2 ${LANG_SIMPCHINESE} "正在安装 WebView2 Runtime…"

@@ -120,21 +120,22 @@ const SETTINGS_TABS: Array<{
   { id: "about", label: "关于", description: "版本信息、数据目录与诊断工具", icon: CircleHelp },
 ];
 
-const CLIPLY_VERSION = "0.4.1-beta.12";
+const CLIPLY_VERSION = "0.4.1-beta.13";
 const ACCENT_PRESET_COLORS = [
-  "#2F69FA",
-  "#1D5FD6",
-  "#4F46E5",
-  "#6D4CFF",
-  "#D6218C",
-  "#E8552D",
-  "#C2820A",
-  "#4E9F0D",
-  "#1BA36B",
-  "#0D9488",
+  "#3BA97C",
+  "#45BD90",
+  "#45A29A",
+  "#5B8FC7",
+  "#7D8CD9",
+  "#9186D2",
+  "#C86D9C",
+  "#CE7B90",
+  "#E0905E",
+  "#D2A24E",
 ];
 const THEME_SUMMARIES: Record<CliplyThemeName, string> = {
-  "coral-pulse": "默认强调色",
+  "jade-mist": "青瓷强调色",
+  "coral-pulse": "珊瑚红强调色",
   "system-blue": "Windows 系统蓝",
   "lake-blue": "深蓝强调色",
   "indigo-spark": "靛蓝强调色",
@@ -1078,7 +1079,7 @@ function GeneralSettingsTab({
         onChange={(value) => updateDraft("startMinimized", value)}
       />
       <ToggleRow
-        label="打开后自动聚焦搜索框"
+        label="打开窗口后自动聚焦搜索框"
         checked={draft.focusSearchOnOpen}
         onChange={(value) => updateDraft("focusSearchOnOpen", value)}
       />
@@ -1158,7 +1159,7 @@ function HistorySettingsTab({
           onChange={(value) => updateDraft("ignoreDuplicate", value)}
         />
       </SettingSection>
-      <SettingSection icon={HardDrive} title="容量和清理">
+      <SettingSection icon={HardDrive} title="存储与清理">
         <NumberRow
           label="最大历史条数"
           value={draft.maxHistoryItems}
@@ -1176,9 +1177,9 @@ function HistorySettingsTab({
         <button
           type="button"
           onClick={onClearHistory}
-          className="h-10 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-danger-soft)] px-3 text-left text-sm font-semibold text-[color:var(--cliply-danger)] transition hover:border-[color:var(--cliply-danger)]"
+          className="h-10 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-danger-soft)] px-3 text-left text-sm font-semibold text-[color:var(--cliply-danger)] transition-colors hover:border-[color:var(--cliply-danger)]"
         >
-          清空未固定历史
+          清空未固定记录
         </button>
       </SettingSection>
     </div>
@@ -1271,7 +1272,7 @@ function AppearanceSettingsTab({
                     updateAutoTheme({ enabled: false });
                   }}
                   className={clsx(
-                    "grid size-9 place-items-center rounded-[6px] border bg-[color:var(--cliply-card)] transition",
+                    "grid size-9 place-items-center rounded-[6px] border bg-[color:var(--cliply-card)] transition-colors",
                     selected
                       ? "border-[color:var(--cliply-accent)] shadow-[0_0_0_3px_var(--cliply-focus-ring)]"
                       : "border-[color:var(--cliply-border)] hover:border-[color:var(--cliply-border-strong)]",
@@ -1312,9 +1313,9 @@ function AppearanceSettingsTab({
                 updateAutoTheme({ enabled: false });
               }}
               disabled={!hasCustomAccent}
-              className="h-10 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-xs font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
+              className="h-10 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-xs font-semibold text-[color:var(--cliply-text)] transition-colors hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
             >
-              恢复方案色
+              恢复方案默认色
             </button>
           </div>
 
@@ -1339,7 +1340,7 @@ function AppearanceSettingsTab({
               updateDraft("accentColor", defaultTheme.primary);
               updateAutoTheme({ enabled: false });
             }}
-            className="h-7 shrink-0 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-xs font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)]"
+            className="h-7 shrink-0 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-2.5 text-xs font-semibold text-[color:var(--cliply-text)] transition-colors hover:bg-[color:var(--cliply-muted-bg)]"
           >
             恢复默认
           </button>
@@ -1373,7 +1374,7 @@ function ThemeModeButton({
       disabled={disabled}
       onClick={onClick}
       className={clsx(
-        "flex h-10 items-center justify-center gap-2 rounded-[6px] border text-xs font-semibold transition",
+        "flex h-10 items-center justify-center gap-2 rounded-[6px] border text-xs font-semibold transition-colors",
         selected
           ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)]"
           : "border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] text-[color:var(--cliply-muted)] hover:border-[color:var(--cliply-border-strong)] hover:text-[color:var(--cliply-text)]",
@@ -1404,7 +1405,7 @@ function CompactThemePicker({
             type="button"
             onClick={() => onChange(theme.name)}
             className={clsx(
-              "flex h-[72px] items-center gap-3 rounded-[6px] border bg-[color:var(--cliply-card)] px-3 text-left transition",
+              "flex h-[72px] items-center gap-3 rounded-[6px] border bg-[color:var(--cliply-card)] px-3 text-left transition-colors",
               selected
                 ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] shadow-[0_0_0_3px_var(--cliply-focus-ring)]"
                 : "border-[color:var(--cliply-border)] hover:border-[color:var(--cliply-border-strong)] hover:bg-[color:var(--cliply-muted-bg)]",
@@ -1735,7 +1736,7 @@ function SyncSettingsTab({
             type="button"
             disabled={queueBusy || pendingQueueCount === 0}
             onClick={onRequestAbandonQueue}
-            className="h-8 shrink-0 rounded-[6px] border border-[color:var(--cliply-danger)] px-3 text-xs font-semibold text-[color:var(--cliply-danger)] transition hover:bg-[color:var(--cliply-danger-soft)] disabled:cursor-not-allowed disabled:border-[color:var(--cliply-border)] disabled:text-[color:var(--cliply-disabled-text)]"
+            className="h-8 shrink-0 rounded-[6px] border border-[color:var(--cliply-danger)] px-3 text-xs font-semibold text-[color:var(--cliply-danger)] transition-colors hover:bg-[color:var(--cliply-danger-soft)] disabled:cursor-not-allowed disabled:border-[color:var(--cliply-border)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
             {queueBusy ? "处理中…" : "放弃当前队列"}
           </button>
@@ -1758,7 +1759,7 @@ function SyncSettingsTab({
                 type="button"
                 onClick={() => void onProviderChange(option.type)}
                 className={clsx(
-                  "flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-[6px] border px-2 text-center transition",
+                  "flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-[6px] border px-2 text-center transition-colors",
                   enabled
                     ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] text-[color:var(--cliply-accent-strong)]"
                     : selected
@@ -1801,7 +1802,7 @@ function SyncSettingsTab({
               type="button"
               disabled={providerBusy}
               onClick={() => void onChooseSyncFolder()}
-              className="h-8 shrink-0 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+              className="h-8 shrink-0 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition-colors hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
             >
               选择文件夹
             </button>
@@ -1849,7 +1850,7 @@ function SyncSettingsTab({
               type="button"
               disabled={providerBusy}
               onClick={() => void onSaveWebdavProvider()}
-              className="h-8 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+              className="h-8 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition-colors hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
             >
               {providerBusy ? "保存中…" : "保存 WebDAV"}
             </button>
@@ -1913,7 +1914,7 @@ function SyncSettingsTab({
               type="button"
               disabled={providerBusy}
               onClick={() => void onSaveFtpProvider()}
-              className="h-8 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+              className="h-8 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-xs font-semibold text-[color:var(--cliply-primary-text)] transition-colors hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
             >
               {providerBusy ? "保存中…" : "保存 FTP"}
             </button>
@@ -1978,7 +1979,7 @@ function SyncSettingsTab({
             type="button"
             disabled={providerBusy}
             onClick={() => void onSaveAutoSync()}
-            className="h-9 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+            className="h-9 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition-colors hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
             {providerBusy ? "保存中…" : "保存同步配置"}
           </button>
@@ -1986,14 +1987,14 @@ function SyncSettingsTab({
             type="button"
             disabled={providerBusy || !remoteSyncStatus.syncPasswordSaved}
             onClick={() => void onClearAutoSyncPassword()}
-            className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border-strong)] hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+            className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:border-[color:var(--cliply-border-strong)] hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
             清除已保存密码
           </button>
         </div>
       </SettingSection>
 
-      <SettingSection icon={RefreshCw} title="手动操作">
+      <SettingSection icon={RefreshCw} title="手动同步">
         <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
@@ -2003,7 +2004,7 @@ function SyncSettingsTab({
               !canUseRemoteProvider(remoteSyncStatus.provider)
             }
             onClick={() => void onSyncNow()}
-            className="h-9 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+            className="h-9 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition-colors hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
               {syncBusy === "sync" ? "同步中…" : "立即同步"}
           </button>
@@ -2011,7 +2012,7 @@ function SyncSettingsTab({
             type="button"
             disabled={syncActionDisabled}
             onClick={() => void onExportSyncPackage()}
-            className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
+            className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
           >
               {syncBusy === "export" ? "导出中…" : "导出同步包"}
           </button>
@@ -2019,7 +2020,7 @@ function SyncSettingsTab({
             type="button"
             disabled={syncActionDisabled}
             onClick={() => void onImportSyncPackage()}
-            className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
+            className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
           >
               {syncBusy === "import" ? "导入中…" : "导入同步包"}
           </button>
@@ -2034,7 +2035,7 @@ function SyncSettingsTab({
                 !canUseRemoteProvider(remoteSyncStatus.provider)
               }
               onClick={() => void onExportToRemote()}
-              className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
+              className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
             >
               {syncBusy === "export"
                 ? "导出中…"
@@ -2048,7 +2049,7 @@ function SyncSettingsTab({
                 !canUseRemoteProvider(remoteSyncStatus.provider)
               }
               onClick={() => void onImportFromRemote()}
-              className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
+              className="h-9 rounded-[6px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:bg-[color:var(--cliply-muted-bg)] disabled:cursor-not-allowed disabled:text-[color:var(--cliply-disabled-text)]"
             >
               {syncBusy === "import"
                 ? "导入中…"
@@ -2105,7 +2106,7 @@ function ImageSyncSettingsSection({
               type="button"
               onClick={() => updateImageSync({ mode: option.value })}
               className={clsx(
-                "min-h-[76px] rounded-[6px] border px-3 py-2 text-left transition",
+                "min-h-[76px] rounded-[6px] border px-3 py-2 text-left transition-colors",
                 selected
                   ? "border-[color:var(--cliply-accent)] bg-[color:var(--cliply-accent-50)] shadow-[0_0_0_3px_var(--cliply-focus-ring)]"
                   : "border-[color:var(--cliply-border)] bg-[color:var(--cliply-card)] hover:border-[color:var(--cliply-border-strong)]",
@@ -2151,7 +2152,7 @@ function ImageSyncSettingsSection({
           onChange={(value) => updateImageSync({ quality: clampNumber(value, 40, 95) })}
         />
         <NumberRow
-          label="最大单张图片 MB"
+          label="单张图片大小上限（MB）"
           value={imageSync.maxImageSizeMB}
           min={1}
           max={512}
@@ -2238,7 +2239,7 @@ function AboutSettingsTab({
           <button
             type="button"
             onClick={() => void openCliplyGitHubPage()}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-2.5 text-[12px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-2.5 text-[12px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
           >
             <ExternalLink className="size-3.5 text-[color:var(--cliply-accent)]" />
             打开
@@ -2254,7 +2255,7 @@ function AboutSettingsTab({
           <button
             type="button"
             onClick={() => void openLogs()}
-            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
+            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
           >
             <ExternalLink className="size-4 text-[color:var(--cliply-accent)]" />
             打开日志目录
@@ -2262,7 +2263,7 @@ function AboutSettingsTab({
           <button
             type="button"
             onClick={() => void copyDiagnostics()}
-            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
+            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
           >
             <ClipboardCopy className="size-4 text-[color:var(--cliply-accent)]" />
             复制诊断信息
@@ -2270,7 +2271,7 @@ function AboutSettingsTab({
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
+            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-muted-bg)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-focus-ring)]"
           >
             <RefreshCw className="size-4 text-[color:var(--cliply-accent)]" />
             刷新
@@ -2323,7 +2324,6 @@ type UpdatePanelStatus =
   | "current"
   | "available"
   | "downloading"
-  | "ready"
   | "installing"
   | "failed";
 
@@ -2340,13 +2340,11 @@ function UpdatePanel({
   const [updateInfo, setUpdateInfo] = useState<CliplyUpdateInfo | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmInstall, setConfirmInstall] = useState(false);
 
   const runUpdateCheck = async () => {
     setStatus("checking");
     setError(null);
     setDownloadProgress(null);
-    setConfirmInstall(false);
     const checkedAt = new Date().toISOString();
     try {
       const result = await checkCliplyUpdate();
@@ -2366,12 +2364,11 @@ function UpdatePanel({
   const downloadUpdate = async () => {
     setStatus("downloading");
     setError(null);
-    setConfirmInstall(false);
     setDownloadProgress(0);
     try {
       await downloadCliplyUpdate(setDownloadProgress);
-      setStatus("ready");
       setDownloadProgress(1);
+      await installUpdate();
     } catch (updateError) {
       setStatus("failed");
       setError(errorMessage(updateError, "无法下载更新"));
@@ -2381,7 +2378,6 @@ function UpdatePanel({
   const installUpdate = async () => {
     setStatus("installing");
     setError(null);
-    setConfirmInstall(false);
     try {
       await launchModernUpdateInstaller();
     } catch (updateError) {
@@ -2396,7 +2392,6 @@ function UpdatePanel({
     current: "当前已是最新版本",
     available: "发现新版本",
     downloading: "正在下载更新",
-    ready: "更新包可安装",
     installing: "正在启动安装程序",
     failed: "无法完成更新",
   }[status];
@@ -2462,67 +2457,22 @@ function UpdatePanel({
             type="button"
             disabled={status === "checking" || status === "downloading" || status === "installing"}
             onClick={() => void runUpdateCheck()}
-            className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
+            className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition-colors hover:bg-[color:var(--cliply-accent-dark)] disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-muted-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
           >
             <RefreshCw className={clsx("size-4", status === "checking" && "animate-spin")} />
             {status === "checking" ? "正在检查…" : "检查更新"}
           </button>
-          {status === "available" && updateInfo ? (
-            <button
-              type="button"
-              onClick={() => void downloadUpdate()}
-              className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)]"
-            >
-              下载更新
-            </button>
-          ) : null}
-          {status === "ready" ? (
-            <button
-              type="button"
-              onClick={() => setConfirmInstall(true)}
-              className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)]"
-            >
-              安装更新
-            </button>
-          ) : null}
           {status === "failed" ? (
             <button
               type="button"
               onClick={() => void openCliplyReleasePage()}
-              className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
+              className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition-colors hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
             >
               <ExternalLink className="size-4" />
               打开发布页面
             </button>
           ) : null}
         </div>
-
-        {confirmInstall ? (
-          <div className="grid gap-2 rounded-[6px] border border-[color:var(--cliply-warning)] bg-[color:var(--cliply-warning-soft)] px-3 py-3">
-            <div className="text-sm font-semibold text-[color:var(--cliply-text)]">
-              安装更新
-            </div>
-            <p className="text-xs leading-5 text-[color:var(--cliply-muted)]">
-              更新包完整性校验通过。继续后，Cliply 将关闭并启动安装程序。剪贴板历史记录和应用设置不会更改。
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void installUpdate()}
-                className="inline-flex h-9 items-center rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition hover:bg-[color:var(--cliply-accent-dark)]"
-              >
-                开始安装
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmInstall(false)}
-                className="inline-flex h-9 items-center rounded-[6px] border border-[color:var(--cliply-border-soft)] bg-[color:var(--cliply-card)] px-3 text-[13px] font-semibold text-[color:var(--cliply-text)] transition hover:border-[color:var(--cliply-border)] hover:bg-[color:var(--cliply-muted-bg)]"
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        ) : null}
 
         {status === "current" ? (
           <p className="rounded-[6px] bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-success)]">
@@ -2558,6 +2508,18 @@ function UpdatePanel({
             <p className="line-clamp-4 whitespace-pre-line text-xs leading-5 text-[color:var(--cliply-muted)]">
               {summarizeReleaseNotes(updateInfo.body)}
             </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void downloadUpdate()}
+                className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-[color:var(--cliply-accent-strong)] px-3 text-[13px] font-semibold text-[color:var(--cliply-primary-text)] transition-colors hover:bg-[color:var(--cliply-accent-dark)]"
+              >
+                立即更新
+              </button>
+              <span className="text-xs text-[color:var(--cliply-muted)]">
+                将自动下载更新包并启动安装程序，期间 Cliply 会自动关闭
+              </span>
+            </div>
           </div>
         ) : null}
 
@@ -2570,7 +2532,7 @@ function UpdatePanel({
             <div className="h-2 overflow-hidden rounded-full bg-[color:var(--cliply-border-soft)]">
               <div
                 className={clsx(
-                  "h-full rounded-full bg-[color:var(--cliply-accent-strong)] transition-all",
+                  "h-full rounded-full bg-[color:var(--cliply-accent-strong)] transition-[width] duration-200 ease-out",
                   !knownProgress && "w-1/2 animate-pulse",
                 )}
                 style={knownProgress ? { width: `${Math.round((downloadProgress ?? 0) * 100)}%` } : undefined}
@@ -2579,15 +2541,9 @@ function UpdatePanel({
           </div>
         ) : null}
 
-        {status === "ready" ? (
-          <p className="rounded-[6px] bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[color:var(--cliply-success)]">
-              更新包已下载并通过完整性校验。安装程序启动后 Cliply 将关闭；剪贴板历史记录和应用设置不会更改。
-          </p>
-        ) : null}
-
         {status === "installing" ? (
-          <p className="rounded-[6px] bg-[color:var(--cliply-muted-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--cliply-muted)]">
-            正在启动 Cliply 安装程序，Cliply 即将关闭。
+          <p className="rounded-[6px] bg-[color:var(--cliply-success-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[color:var(--cliply-success)]">
+            更新包已下载并通过完整性校验，正在启动 Cliply 安装程序。Cliply 将自动关闭，剪贴板历史记录和应用设置不会更改。
           </p>
         ) : null}
 
@@ -2722,7 +2678,7 @@ function ShortcutRecorder({
         onBlur={onStopCapture}
         onKeyDown={handleKeyDown}
         className={clsx(
-          "flex h-9 items-center justify-between rounded-[5px] border bg-[color:var(--cliply-input-bg)] px-3 text-left text-[13px] font-medium outline-none",
+          "flex h-9 items-center justify-between rounded-[5px] border bg-[color:var(--cliply-input-bg)] px-3 text-left text-[13px] font-medium outline-none transition-colors focus-visible:border-[color:var(--cliply-accent)] focus-visible:shadow-[0_0_0_4px_var(--cliply-focus-ring)]",
           capturing
             ? "border-[color:var(--cliply-accent)] text-[color:var(--cliply-accent)]"
             : check?.ok
@@ -2767,14 +2723,24 @@ function ToggleRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex h-8 items-center justify-between gap-3 text-[13px] font-medium text-[color:var(--cliply-muted)]">
+    <label className="flex h-8 cursor-pointer items-center justify-between gap-3 text-[13px] font-medium text-[color:var(--cliply-muted)]">
       {label}
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[color:var(--cliply-accent)]"
-      />
+      <span className="relative inline-flex h-[18px] w-8 shrink-0 items-center">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          className="peer sr-only"
+        />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full bg-[color:var(--cliply-border-strong)] transition-colors duration-150 ease-out peer-checked:bg-[color:var(--cliply-accent)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[color:var(--cliply-accent)]"
+        />
+        <span
+          aria-hidden="true"
+          className="absolute left-[3px] size-3 rounded-full bg-white shadow-sm transition-transform duration-150 ease-out peer-checked:translate-x-[14px]"
+        />
+      </span>
     </label>
   );
 }
@@ -2803,7 +2769,7 @@ function TextInput({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
-        className="h-8 w-full min-w-0 rounded-[5px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-input-bg)] px-2.5 text-[13px] text-[color:var(--cliply-text)] outline-none placeholder:text-[color:var(--cliply-placeholder)] disabled:cursor-not-allowed disabled:border-[color:var(--cliply-disabled-border)] disabled:bg-[color:var(--cliply-disabled-bg)] disabled:text-[color:var(--cliply-disabled-text)] focus:border-[color:var(--cliply-accent)]"
+          className="h-8 w-full min-w-0 rounded-[5px] border border-[color:var(--cliply-border)] bg-[color:var(--cliply-input-bg)] px-2.5 text-[13px] text-[color:var(--cliply-text)] outline-none placeholder:text-[color:var(--cliply-placeholder)] focus:border-[color:var(--cliply-accent)] focus:shadow-[0_0_0_4px_var(--cliply-focus-ring)] disabled:cursor-not-allowed disabled:border-[color:var(--cliply-disabled-border)] disabled:bg-[color:var(--cliply-disabled-bg)] disabled:text-[color:var(--cliply-disabled-text)]"
       />
     </label>
   );
@@ -2863,7 +2829,7 @@ function getAccentToneWarning(hex: string) {
 
   const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
   if (luminance < 0.16 || luminance > 0.86) {
-    return "该颜色与浅色主题的对比度较高。";
+    return "该颜色过暗或过亮，可能影响界面文字的可读性。";
   }
 
   return null;
@@ -3047,13 +3013,13 @@ function syncProviderOptionStateLabel(
   status: RemoteSyncStatus,
 ) {
   if (status.provider.type === type) {
-    return type === "disabled" ? "当前状态" : "已启用";
+    return type === "disabled" ? "已关闭" : "已启用";
   }
   if (selectedType === type) {
     return "正在编辑";
   }
   if (type === "disabled") {
-    return "可选择";
+    return "未启用";
   }
   return syncProviderConfigSaved(type, status) ? "已配置" : "未配置";
 }

@@ -25,7 +25,7 @@ export const ClipboardSearchBar = forwardRef<HTMLInputElement, ClipboardSearchBa
             aria-label="清空搜索"
             title="清空搜索"
             onClick={() => onQueryChange("")}
-            className="cliply-interactive grid size-6 place-items-center text-[color:var(--cliply-muted)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]"
+            className="cliply-interactive grid size-6 place-items-center rounded-[5px] text-[color:var(--cliply-muted)] hover:bg-[color:var(--cliply-muted-bg)] hover:text-[color:var(--cliply-text)]"
           >
             <X className="size-3.5" />
           </button>

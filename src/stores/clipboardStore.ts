@@ -580,8 +580,8 @@ export function useClipboardStore() {
       await navigator.clipboard.writeText(value);
       const labels = {
         dataDir: "数据目录路径已复制",
-        logPath: "日志路径已复制",
-        databasePath: "数据库路径已复制",
+        logPath: "日志文件路径已复制",
+        databasePath: "数据库文件路径已复制",
       };
       setActionStatus({
         label: labels[pathKind],

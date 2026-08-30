@@ -76,7 +76,7 @@ pub fn check_shortcut(
             normalized: normalized.normalized,
             display: normalized.display,
             reason: "current".to_string(),
-            message: "当前快捷键可用".to_string(),
+            message: "快捷键可用".to_string(),
         };
     }
 

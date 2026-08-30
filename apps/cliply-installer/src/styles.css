@@ -1,8 +1,8 @@
 :root {
-  --cliply-accent: #ff6257;
-  --cliply-accent-hover: #ff7066;
-  --cliply-accent-active: #f75a50;
-  --cliply-accent-soft: rgba(255, 98, 87, 0.1);
+  --cliply-accent: #3ba97c;
+  --cliply-accent-hover: #46b387;
+  --cliply-accent-active: #339a70;
+  --cliply-accent-soft: rgba(59, 169, 124, 0.1);
   --cliply-success: #0f7a63;
   --cliply-success-soft: rgba(22, 143, 115, 0.1);
   --cliply-danger: #c53b3b;
@@ -65,7 +65,7 @@ input {
 }
 
 ::selection {
-  background: rgba(255, 98, 87, 0.22);
+  background: rgba(59, 169, 124, 0.22);
   color: var(--cliply-text);
 }
 
@@ -363,9 +363,9 @@ p {
 }
 
 .path-input-shell:focus-within {
-  border-color: rgba(255, 98, 87, 0.55);
+  border-color: rgba(59, 169, 124, 0.55);
   background: var(--cliply-control-hover);
-  box-shadow: 0 0 0 3px rgba(255, 98, 87, 0.11);
+  box-shadow: 0 0 0 3px rgba(59, 169, 124, 0.13);
 }
 
 .path-input-shell > svg,
@@ -576,7 +576,7 @@ p {
 }
 
 .check-option:has(input:checked) {
-  border-color: rgba(255, 98, 87, 0.24);
+  border-color: rgba(59, 169, 124, 0.28);
   background: rgba(255, 248, 247, 0.72);
 }
 

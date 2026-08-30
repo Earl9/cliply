@@ -20,7 +20,7 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
   }> = [
     { label: "复制", keys: ["Ctrl", "C"], icon: Copy, kind: "copy", disabled: !availability.copy },
     {
-    label: "无格式粘贴",
+      label: "无格式粘贴",
       keys: ["Shift", "Enter"],
       icon: Type,
       kind: "pastePlain",
@@ -80,7 +80,7 @@ export function ClipboardActions({ item, onAction }: ClipboardActionsProps) {
         data-primary="true"
         title="粘贴 (Enter)"
         className={clsx(
-          "cliply-action-button ml-auto flex h-9 shrink-0 items-center gap-2 rounded-md px-4 text-[12px] font-semibold",
+          "cliply-action-button cliply-interactive ml-auto flex h-9 shrink-0 items-center gap-2 rounded-md px-4 text-[12px] font-semibold",
           "bg-[color:var(--cliply-primary)] text-[color:var(--cliply-primary-action-text)] hover:bg-[color:var(--cliply-primary-hover)] active:bg-[color:var(--cliply-primary-active)]",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--cliply-accent)]",
           "disabled:cursor-not-allowed disabled:bg-[color:var(--cliply-disabled-bg)] disabled:text-[color:var(--cliply-disabled)]",

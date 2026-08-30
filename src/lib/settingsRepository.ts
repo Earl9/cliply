@@ -418,7 +418,7 @@ function checkMockShortcut(shortcut: string, currentShortcut?: string): Shortcut
     return {
       ...parsed,
       reason: "current",
-      message: "当前快捷键可用",
+      message: "快捷键可用",
     };
   }
 
