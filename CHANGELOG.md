@@ -7,6 +7,32 @@ semantic versioning where practical during the beta period.
 
 ## Unreleased
 
+## 0.4.1-beta.13 - 2026-08-30
+
+### Changed
+
+- The About-tab update flow is now one click: "Update Now" downloads the update
+  package, verifies SHA-256, and launches the Modern Installer directly,
+  removing the separate download, install, and confirmation steps.
+- User-facing copy across settings, tray menu, context menus, dialogs, and the
+  installer was standardized for clearer, more consistent wording.
+- Installer retry actions and error recovery text were simplified, including a
+  clearer message when program files are still in use.
+
+### Documentation
+
+- The README was refreshed with grouped features, a keyboard shortcut table,
+  one-click update documentation, newly captured light/dark/settings
+  screenshots, and verified development prerequisites.
+- Removed unused design drafts, comparison screenshots, and superseded
+  internal documents from the repository root; extended `.gitignore` for local
+  scratch folders and release assets.
+
+### Validation
+
+- Main and installer frontend type checks, `vite build`, and both Rust
+  `cargo check` runs pass.
+
 ## 0.4.1-beta.12 - 2026-08-14
 
 ### Changed
