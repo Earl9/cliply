@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>Cliply 图标概念预览</title>
+<style>
+  :root {
+    --bg: #f2f7f4;
+    --card: #ffffff;
+    --ink: #1f2823;
+    --muted: #63736a;
+    --line: #e3ebe6;
+    --tile-dark: #202925;
+    --jade: #3ba97c;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 40px 48px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 20px; font-weight: 600; }
+  .sub { margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .grid { margin-top: 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; max-width: 1060px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 22px 18px;
+  }
+  .card h2 { font-size: 15px; font-weight: 600; }
+  .card p { margin-top: 4px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+  .row { margin-top: 16px; display: flex; align-items: flex-end; gap: 18px; }
+  .cell { display: grid; gap: 8px; justify-items: center; }
+  .cell span { font-size: 10.5px; color: var(--muted); }
+  .tile {
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    width: 64px; height: 64px;
+  }
+  .tile.light { background: #f4f8f6; border: 1px solid var(--line); }
+  .tile.dark { background: var(--tile-dark); }
+  .current { opacity: 0.92; }
+  .tag {
+    display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+    background: #e9f7f0; color: #23805d;
+  }
+  .tag.old { background: #fdeee9; color: #b8473f; }
+</style>
+</head>
+<body>
+  <h1>Cliply 图标概念 · 小清新青瓷</h1>
+  <p class="sub">全部为纯色平面图形，无渐变、无光晕。每格依次为 96 / 48 / 32px，右侧两块分别是浅色与深色任务栏底上的 48px 表现。</p>
+
+  <div class="grid" id="grid"></div>
+
+<script>
+// —— 概念 SVG 定义（viewBox 0 0 96 96）——
+const concepts = [
+  {
+    id: "A",
+    name: "青瓷双笺",
+    tag: "现有标志的青瓷化演进",
+    desc: "保留「前后两张纸」的现有识别：前笺改青瓷绿、后笺改淡雾绿、折角保留暖纸色。用户零学习成本，任务栏里和旧版是同一个图形。",
+    svg: `
+      <rect x="27" y="7" width="60" height="60" rx="11" fill="#A9D9C4"/>
+      <rect x="9" y="27" width="60" height="60" rx="11" fill="#3BA97C"/>
+      <path d="M53 27 H69 V43 Z" fill="#F0E6D2"/>
+      <rect x="20" y="52" width="34" height="4.6" rx="2.3" fill="#123529" opacity="0.78"/>
+      <rect x="20" y="65" width="24" height="4.6" rx="2.3" fill="#123529" opacity="0.78"/>`,
+  },
+  {
+    id: "B",
+    name: "单笺折角",
+    tag: "更简的剪影",
+    desc: "只留一张纸：青瓷笺 + 深绿折角 + 两条墨线。剪影最简，24px 下依然清晰，和所有便签类产品拉开的地方在折角方向与墨线。",
+    svg: `
+      <path d="M22 14 H60 L78 32 V74 A8 8 0 0 1 70 82 H22 A8 8 0 0 1 14 74 V22 A8 8 0 0 1 22 14 Z" fill="#3BA97C"/>
+      <path d="M60 14 L78 32 H66 A6 6 0 0 1 60 26 Z" fill="#2E8A63"/>
+      <rect x="26" y="46" width="32" height="4.8" rx="2.4" fill="#123529" opacity="0.8"/>
+      <rect x="26" y="59" width="22" height="4.8" rx="2.4" fill="#123529" opacity="0.8"/>`,
+  },
+  {
+    id: "C",
+    name: "墨线剪贴板",
+    tag: "线描风格",
+    desc: "深松墨细线勾出剪贴板轮廓与顶夹，中间一张青瓷小笺。线描在浅色桌面上最「轻」，与填充类图标差异最大。",
+    svg: `
+      <rect x="21" y="17" width="54" height="66" rx="12" fill="none" stroke="#23423A" stroke-width="5.5"/>
+      <rect x="37" y="9" width="22" height="13" rx="5.5" fill="#23423A"/>
+      <rect x="31" y="36" width="34" height="37" rx="7" fill="#3BA97C"/>
+      <rect x="38" y="46" width="20" height="4" rx="2" fill="#123529" opacity="0.75"/>
+      <rect x="38" y="57" width="14" height="4" rx="2" fill="#123529" opacity="0.75"/>`,
+  },
+  {
+    id: "D",
+    name: "瓷面纸砖",
+    tag: "带容器底",
+    desc: "淡雾绿圆角砖上叠一白一青两张小笺。有容器底的任务栏图标在 Windows 深浅色任务栏上都最稳定，小尺寸识别度最高。",
+    svg: `
+      <rect x="8" y="8" width="80" height="80" rx="21" fill="#E3F2EA"/>
+      <rect x="36" y="20" width="40" height="40" rx="8" fill="#BFDECE"/>
+      <rect x="24" y="30" width="42" height="42" rx="8" fill="#FFFFFF"/>
+      <rect x="32" y="44" width="26" height="4.4" rx="2.2" fill="#3BA97C"/>
+      <rect x="32" y="56" width="18" height="4.4" rx="2.2" fill="#3BA97C" opacity="0.55"/>`,
+  },
+];
+
+// —— 当前珊瑚红旧标（对比用，按 generate-app-icon.mjs 几何重绘）——
+const currentSvg = `
+  <rect x="27" y="7" width="60" height="60" rx="11" fill="#22B793"/>
+  <rect x="9" y="27" width="60" height="60" rx="11" fill="#FF6257"/>
+  <path d="M53 27 H69 V43 Z" fill="#FFDFC9"/>
+  <rect x="20" y="52" width="34" height="4.6" rx="2.3" fill="#21282D" opacity="0.82"/>
+  <rect x="20" y="65" width="24" height="4.6" rx="2.3" fill="#21282D" opacity="0.82"/>`;
+
+function svgAt(svg, size) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 96 96" aria-hidden="true">${svg}</svg>`;
+}
+
+const grid = document.getElementById("grid");
+
+// 当前标志对比卡
+grid.insertAdjacentHTML(
+  "beforeend",
+  `<div class="card current">
+     <h2>旧版对照<span class="tag old">珊瑚红 · 已替换</span></h2>
+     <p>对照用。色相已与新配色脱节，是这次重绘的出发点。</p>
+     <div class="row">
+       <div class="cell">${svgAt(currentSvg, 96)}<span>96</span></div>
+       <div class="cell">${svgAt(currentSvg, 48)}<span>48</span></div>
+       <div class="cell">${svgAt(currentSvg, 32)}<span>32</span></div>
+       <div class="cell"><div class="tile light">${svgAt(currentSvg, 40)}</div><span>浅色底</span></div>
+       <div class="cell"><div class="tile dark">${svgAt(currentSvg, 40)}</div><span>深色底</span></div>
+     </div>
+   </div>`,
+);
+
+for (const c of concepts) {
+  grid.insertAdjacentHTML(
+    "beforeend",
+    `<div class="card">
+      <h2>${c.id} · ${c.name}<span class="tag">${c.tag}</span></h2>
+      <p>${c.desc}</p>
+      <div class="row">
+        <div class="cell">${svgAt(c.svg, 96)}<span>96</span></div>
+        <div class="cell">${svgAt(c.svg, 48)}<span>48</span></div>
+        <div class="cell">${svgAt(c.svg, 32)}<span>32</span></div>
+        <div class="cell"><div class="tile light">${svgAt(c.svg, 40)}</div><span>浅色底</span></div>
+        <div class="cell"><div class="tile dark">${svgAt(c.svg, 40)}</div><span>深色底</span></div>
+      </div>
+    </div>`,
+  );
+}
+</script>
+</body>
+</html>

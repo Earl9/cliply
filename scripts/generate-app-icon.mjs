@@ -14,11 +14,17 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const PAPER_FRONT = [0xff, 0x62, 0x57];
-const PAPER_BACK = [0x22, 0xb7, 0x93];
-const PAPER_FOLD = [0xff, 0xdf, 0xc9];
-const INK = [0x21, 0x28, 0x2d];
+const PAPER_FRONT = [0x3b, 0xa9, 0x7c];
+// Small sizes (titlebar 20px, tray/taskbar 32-48px) sit on light titlebars and
+// dark taskbars where the mid celadon washes out, so they run one step brighter.
+const PAPER_FRONT_SMALL = [0x58, 0xc7, 0x9e];
+const PAPER_BACK = [0xec, 0x7a, 0x64];
+const PAPER_BACK_SMALL = [0xff, 0x9d, 0x8b];
+const PAPER_FOLD = [0xff, 0xe8, 0xce];
+const INK = [0x16, 0x34, 0x2a];
+const INK_SMALL = [0x0f, 0x2a, 0x20];
 const CAST_SHADOW = [0x21, 0x28, 0x2d];
+const SMALL_MAX_SIZE = 48;
 
 // Windows taskbar icons need a denser optical fill than in-app artwork. The
 // sheets use roughly 90% of the 32px canvas so the narrow paper silhouette has
@@ -45,6 +51,9 @@ const RULES_MIN_SIZE = 32;
 
 function layersFor(size) {
   const mark = size <= 24 ? MARK_SMALL : MARK_LARGE;
+  const paperFront = size <= SMALL_MAX_SIZE ? PAPER_FRONT_SMALL : PAPER_FRONT;
+  const paperBack = size <= SMALL_MAX_SIZE ? PAPER_BACK_SMALL : PAPER_BACK;
+  const ink = size <= SMALL_MAX_SIZE ? INK_SMALL : INK;
   const layers = [
     {
       ...mark.back,
@@ -54,7 +63,7 @@ function layersFor(size) {
       shadow: 0.028,
       alpha: 0.14,
     },
-    { ...mark.back, fill: PAPER_BACK },
+    { ...mark.back, fill: paperBack },
     {
       ...mark.front,
       x0: mark.front.x0 - 0.004,
@@ -65,14 +74,14 @@ function layersFor(size) {
       shadow: 0.03,
       alpha: 0.18,
     },
-    { ...mark.front, fill: PAPER_FRONT },
+    { ...mark.front, fill: paperFront },
   ];
 
   if (size >= FOLD_MIN_SIZE) {
     layers.push({
       points: [
         {
-          x: mark.front.x1 - 0.2 * DETAIL_SCALE_X,
+          x: mark.front.x1 - 0.215 * DETAIL_SCALE_X,
           y: mark.front.y0 + 0.025 * DETAIL_SCALE_Y,
         },
         {
@@ -96,7 +105,7 @@ function layersFor(size) {
         x1: rule.x1,
         y1: rule.cy + RULE_HEIGHT / 2,
         r: RULE_HEIGHT / 2,
-        fill: INK,
+        fill: ink,
         alpha: 0.82,
       });
     }
