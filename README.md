@@ -3,8 +3,8 @@
 [English](README.md) | [Simplified Chinese](README.zh-CN.md)
 
 Cliply is a local-first clipboard manager for Windows. It keeps clipboard
-history fast, searchable, and under your control without requiring an account
-or sending clipboard contents to a Cliply-hosted cloud service.
+history fast, searchable, and under your control — no account required, and
+clipboard contents are never sent to a Cliply-hosted cloud service.
 
 Status: Beta. Cliply is Windows-first and currently focused on stabilization,
 installer validation, and sync reliability.
@@ -25,18 +25,46 @@ installer validation, and sync reliability.
 
 ## Features
 
-- Clipboard history for text, links, code snippets, and images
-- Fast search with type filters, pinned items, deletion, and detail preview
-- Paste, copy, plain-text paste, and automatic paste back to the previous app
+**Clipboard history**
+
+- Text, link, code snippet, and image history
+- Fast search with type filters, pinned items, and detail preview
+- Paste, copy, and paste as plain text back to the previous app
+
+**Privacy and local storage**
+
 - Local SQLite storage with configurable retention and duplicate handling
-- Image thumbnails with local image blob storage
-- Customizable shortcuts, startup behavior, and paste behavior
-- Light/dark themes, accent colors, and Windows-friendly UI controls
-- Encrypted `.cliply-sync` import/export packages
+- Sensitive content such as passwords and verification codes is masked by default
+- Copies from common password managers are ignored by default (configurable)
+
+**Appearance**
+
+- Light, dark, and system-follow themes with customizable accent colors
+- Windows-friendly UI controls and system tray integration
+
+**Sync**
+
+- Encrypted `.cliply-sync` package import and export
 - Sync through user-controlled storage: Local Folder, WebDAV, FTP, and FTPS
 - Auto sync with configurable intervals and image sync modes
+
+**Install and updates**
+
 - Windows installer with install, update, uninstall, startup, and data-retention controls
-- Signed update checks from the About tab with a Modern Installer update flow
+- One-click in-app updates from the About tab: automatic download, SHA-256 verification, and Modern Installer launch
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl + Shift + V` | Open the Cliply window (global, customizable) |
+| `↑` / `↓` | Select an item |
+| `Enter` | Paste the selected item |
+| `Shift + Enter` | Paste as plain text |
+| `Ctrl + P` | Pin or unpin the selected item |
+| `Delete` | Delete the selected item |
+| `Ctrl + K` | Focus the search box |
+| `Esc` | Close the window |
 
 ## Privacy
 
@@ -45,6 +73,7 @@ Cliply is local-first by design:
 - Clipboard history is stored locally on your Windows machine.
 - Cliply does not require an account.
 - Cliply does not provide or use a hosted cloud service for your clipboard data.
+- Sensitive content such as passwords and verification codes is masked by default.
 - Sync packages are encrypted before they are written to disk or uploaded to a
   provider you configure.
 - Remote sync providers receive encrypted sync packages, not plaintext
@@ -76,9 +105,10 @@ security or privacy issue, follow [SECURITY.md](SECURITY.md).
 ## Updates
 
 Cliply checks GitHub Releases for `latest.json`. The manifest points to the
-Modern Installer asset and includes a SHA256 checksum. The About tab shows
-update availability and download progress, then Cliply verifies the installer
-before launching Modern Installer in update mode.
+Modern Installer asset and includes a SHA256 checksum. In the About tab, one
+click on "Update Now" downloads the update package, verifies its SHA-256
+checksum, and launches the Modern Installer in update mode. Update checks can
+run automatically on a daily or weekly schedule, or be triggered manually.
 
 During installation, Cliply temporarily closes while Modern Installer replaces
 program files, preserves user data, updates shortcuts, and starts Cliply again.
@@ -87,10 +117,13 @@ If automatic installation fails, download the full
 
 ## Development
 
+Prerequisites: Windows 10/11, Node.js 20.19+ or 22+, and Rust with the MSVC
+toolchain.
+
 Clone the repository:
 
 ```powershell
-git clone https://github.com/<owner>/cliply.git
+git clone https://github.com/Earl9/cliply.git
 cd cliply
 ```
 
@@ -106,9 +139,10 @@ Run the desktop app in development:
 npm run tauri dev
 ```
 
-Build the frontend:
+Type-check and build the frontend:
 
 ```powershell
+npm run typecheck
 npm run build
 ```
 
@@ -118,7 +152,8 @@ Run backend checks:
 cargo check --manifest-path .\src-tauri\Cargo.toml
 ```
 
-Build the modern installer:
+Build the modern installer (the NSIS fallback installer can be built with
+`npm run build:tauri-nsis`):
 
 ```powershell
 npm run build:modern-installer
@@ -129,10 +164,9 @@ npm run build:modern-installer
 - [Privacy Policy](PRIVACY.md)
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
-- [Product and Engineering Optimization Plan](docs/optimization-plan.md)
-- [Performance Optimization Plan](docs/performance-optimization.md)
-- [Sync Design](docs/sync-design.md)
+- [Contributing Guide](CONTRIBUTING.md)
 - [Installer Notes](docs/installer.md)
+- [Sync Design](docs/sync-design.md)
 - [Privacy And Logs](docs/privacy-and-logs.md)
 
 ## Tech Stack
